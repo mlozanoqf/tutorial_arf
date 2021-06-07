@@ -1,2 +1,2 @@
 # tutorial_arf
-Tutorial. Curso de "programación y modelización financiera" (PMF). UDEM.
+Tutorial. Curso de "administración de riesgos financieros" (ARF). UDEM.
