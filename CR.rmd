@@ -24,18 +24,17 @@ header-includes:
 - \usepackage[nottoc]{tocbibind}
 toc: yes
 bibliography: references.bib
-abstract: This document relies heavily on John C. Hull credit risk chapters and Lore Dirick credit risk DataCamp course. Here, we do not follow a formal approach as most mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding (literate programming). This is still a work in progress and it is under revision.
+abstract: This document relies on John C. Hull credit risk chapters and Lore Dirick credit risk DataCamp course. Here, we do not follow a formal approach as most mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding (literate programming). This is still a work in progress and it is under revision.
 ---
 
 ```{r echo=FALSE}
 # This removes all items in environment. 
 # It is a good practice to start your code this way.
 rm(list=ls())
-#date: "Last compiled on: `r format(Sys.time(), '%d/%m/%Y. %H:%M:%S')`"
 ```
 
-```{r global_options, include=FALSE}
-knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```{r global_options, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 ```
 
@@ -43,10 +42,9 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 knitr::write_bib(x = c("rmarkdown", "knitr"), file = "references.bib")
 ```
 
-
 # Loan analysis.
 
-This section heavily relies on the DataCamp course *Credit Risk Modeling in R* by Lore Dirick. 
+This section relies on the DataCamp course *Credit Risk Modeling in R* by Lore Dirick. 
 
 
 ## Explore the database.
@@ -60,11 +58,24 @@ loan_data <- readRDS("loan_data_ch1.rds")
 str(loan_data)
 ```
 
-This could be a typical database taken from a financial institution like a bank or a firm that uses credit to sell their products or services. Here, we have 29,092 observations of 8 variables. Each observation corresponds to one individual loan and each variable allow us to understand the individual and the loan characteristics. One important variable is \texttt{loan\_status} the value of 0 is no default and the value of 1 is default. A default occurs when a borrower is unable to make timely payments, misses payments, or avoids or stops making payments on interest or principal owed. Then, the definition of default depends on the analysis.
+```{r}
+# Add a sex variable. sex = 1 female; sex = 0 male.
+set.seed(1)
+sex_1 <- rbinom(n = nrow(loan_data[loan_data$loan_status == 1, ]), 
+                size = 1, prob = 0.3) # Let's make females default less.
+sex_0 <- rbinom(n = nrow(loan_data[loan_data$loan_status == 0, ]), 
+                size = 1, prob = 0.55) # Let's make females no default more.
+sex <- ifelse(loan_data$loan_status == 1, sex_1, sex_0)
+loan_data$sex <- sex
+loan_data$sex <- as.factor(loan_data$sex)
+summary(loan_data)
+```
+
+This could be a typical database taken from a financial institution like a bank or a firm that uses credit to sell their products or services. Here, we have 29,092 observations of 9 variables. Each observation corresponds to one individual loan and each variable allow us to understand the individual and the loan characteristics. One important variable is \texttt{loan\_status} the value of 0 is no default and the value of 1 is default. A default occurs when a borrower is unable to make timely payments, misses payments, or avoids or stops making payments on interest or principal owed. Then, the definition of default depends on the interests and objectives of the analysis. 
 
 Clearly, this is past information as we know with certainty whether the individual defaulted or not. Past information could be helpful to better understand how likely is that one individual may default according to the rest of their variable values. This kind of data could be easily found in most financial firms as they store details about the applicant and its corresponding loan. Past information will be useful to train our quantitative models and eventually make predictions of new applicants, and even evaluate our predictions.
 
-We can look at the information in different ways. For example, look at the first 10 rows (out of 29,092) and their corresponding 8 variables.
+We can look at the information in different ways. For example, look at the first 10 rows (out of 29,092) and their corresponding 9 variables.
 
 ```{r}
 # Take a look of the first 10 rows.
@@ -78,27 +89,7 @@ library(gmodels)
 CrossTable(loan_data$home_ownership)
 ```
 
-These tables illustrate the data structure and contents. We can always store the function result in one variable. This can be useful to extract specific values of this \texttt{CrossTable} function. Look how we can do this.
-
-```{r}
-# Store results in t1
-t1 <- CrossTable(loan_data$home_ownership)
-```
-Now, \texttt{t1} has the table information. Let's look at the row that stores the percentage proportion.
-
-```{r}
-t1$prop.row
-```
-
-We can even store an individual value for RENT into a new variable. 
-
-```{r}
-prop.rent.t1 <- t1$prop.row[1, "RENT"]
-# Show the value of the prop.rent.t1 variable
-prop.rent.t1
-```
-
-We can also use two variables instead of one. Instead of counting for home ownership we can add a second dimension like \texttt{loan\_status}. This allows us to create more informative tables. 
+These tables illustrate the data structure and contents. We can also use two variables instead of one. Instead of counting for home ownership we can add a second dimension like \texttt{loan\_status}. This allows us to create more informative tables. 
 
 ```{r}
 CrossTable(loan_data$home_ownership, loan_data$loan_status, prop.r = TRUE,
@@ -108,52 +99,53 @@ prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
 This table reveals defaults by home ownership. We can use histograms to see one variable distribution. In this case we have the interest rate distribution. 
 
 ```{r}
-hist(loan_data$int_rate, 50, main = "Histogram of interest rate", 
-     xlab = "Interest rate")
+library(ggplot2)
+ggplot(loan_data, aes(x = int_rate)) + 
+geom_histogram(aes(y=..density..), binwidth = 0.5, colour = "black", 
+                fill = "white") +
+geom_density(alpha = 0.1, fill = "red") 
 ```
+
 
 Most of the loans have an interest rate lower than 15%. The following is a similar figure for the annual income.
 
 ```{r}
-# As a rule of thumb, we set the number of breaks as:
-n_breaks <- sqrt(nrow(loan_data)) # = 170.5638
-# Then create the histogram.
-hist_income_n <- hist(loan_data$annual_inc, breaks= n_breaks, 
-                      xlab = "Annual Income", 
-                      main = "Histogram of Annual Income",
-                      col = c("blue"))
+ggplot(loan_data, aes(x = annual_inc)) + 
+geom_histogram(aes(y=..density..), colour = "black", fill = "red")
 ```
+
 The histogram looks suspicious. We have a very large values of the annual income in the horizontal axis and apparently no observations. We can plot the values and explore the data further.
 
 ```{r}
-plot(loan_data$annual_inc, ylab = "Annual Income")
+ggplot(loan_data, aes(int_rate, annual_inc)) +
+geom_point()
 ```
 
-There is one guy with a very high income. We should explore further and investigate if this is a valid observation or simply a mistake in the database.
+
+There are some guys with a very high income. We should explore further and investigate if this is a valid observation or simply a mistake in the database.
 
 ```{r}
-# Extract the row of this high income individual.
-t(loan_data[which.max(loan_data$annual_inc),])
+# Extract the row of this high income individuals.
+extract <- loan_data[(loan_data$annual_inc > 1000000), ]
+extract
 ```
 
-This guy is not only rich, he is 144 years old. So, my decision is to drop this observation number 19,486 as I do not think this is a valid record. Remember the database has originally 29,092 rows, this guy is located in the 19,486 row. Here I drop the observation:
+One guy is not only rich, he is 144 years old. So, my decision is to drop these 9 observations as I do not think these are valid records. Remember the database has originally 29,092 rows. Here I drop the observations:
 
 ```{r}
-loan_data <- loan_data[-19486,]
-plot(loan_data$annual_inc, ylab = "Annual Income")
+index_extract <- data.frame(as.integer(rownames(extract)))
+loan_data <- loan_data[-index_extract$as.integer.rownames.extract..,]
+
+ggplot(loan_data, aes(int_rate, annual_inc)) +
+geom_point()
 ```
 There are still some high values. This is the new histogram with a truncated x-axis.
 
 ```{r}
-# As a rule of thumb, we set the number of breaks as:
-n_breaks <- sqrt(nrow(loan_data)) # = 170.5638
-# Then create the histogram.
-hist_income_n <- hist(loan_data$annual_inc, breaks = n_breaks, 
-                      xlab = "Annual Income", 
-                      main = "Histogram of Annual Income",
-                      col = c("blue"),
-                      xlim = c(0, 500000))
+ggplot(loan_data, aes(x = annual_inc)) + 
+geom_histogram(aes(y=..density..), colour = "black", fill = "red")
 ```
+
 
 ## Logistic models.
 
@@ -161,30 +153,22 @@ Logistic models allows us to make predictions about loan defaults. Logistic regr
 
 First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimate models and the test set is used to evaluate our model predictions. This is, when estimating models, it is common practice to separate the available data into two portions, training and test data, where the training data is used to estimate parameters and the test data is used to evaluate its accuracy. Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications.
 
-Starting from here, we will use a slightly different database called \texttt{loan\_data\_ch2.rds}. This is simply because our example relies on Lore Dirick credit risk DataCamp course.
-
 ```{r}
-# Load a slightly different database.
-loan_data2 <- readRDS("loan_data_ch2.rds")
 # It is convenient to set the loan_status as factor.
-loan_data2$loan_status <- as.factor(loan_data2$loan_status)
+loan_data$loan_status <- as.factor(loan_data$loan_status)
 # The sample function will always lead to the same result by setting a seed.
 set.seed(567)
-index_train <- cbind(runif(1 : nrow(loan_data2), 0 , 1), 
-                     c(1 : nrow(loan_data2)))
+index_train <- cbind(runif(1 : nrow(loan_data), 0 , 1), 
+                     c(1 : nrow(loan_data)))
 index_train <- order(index_train[, 1])
-index_train <- index_train[1: (2/3 * nrow(loan_data2))]
-# Originally we used "sample" but it has difficulties at replicating.
-# index_train <- sample(1:nrow(loan_data2), 2/3 * nrow(loan_data2))
+index_train <- index_train[1: (2/3 * nrow(loan_data))]
 # Create training set: training_set
-training_set <- loan_data2[index_train, ]
+training_set <- loan_data[index_train, ]
 # Create test set: test_set
-test_set <- loan_data2[-index_train, ]
+test_set <- loan_data[-index_train, ]
 ```
 
-
-
-We have 29,091 observations in \texttt{loan\_data2}. The code above randomly selects $29091 \times (2/3)=19394$ rows to form the \texttt{training\_set}. The \texttt{test\_set} are the remaining $29091-19394=9697$ rows. The random selection is highly recommended as the \texttt{loan\_data2} may have some structure or sorting that could bias our model estimation and negatively impact our model test. 
+We have 29,074 observations in \texttt{loan\_data}. The code above randomly selects $29074 \times (2/3)=19382$ rows to form the \texttt{training\_set}. The \texttt{test\_set} are the remaining $29074-19382=9692$ rows. The random selection is highly recommended as the \texttt{loan\_data} may have some structure or sorting that could bias our model estimation and negatively impact our model test. 
 
 Take a look of the training set structure.
 
@@ -199,46 +183,42 @@ Assume we think that the \texttt{loan\_status} depends on the age of the individ
 
 ```{r}
 # Fitting a simple logistic model.
-log_model <- glm(loan_status ~ age , family = "binomial", 
-                 data = training_set)
-log_model
+log_model_age <- glm(loan_status ~ age , family = "binomial", 
+                     data = training_set)
+log_model_age
 ```
 
-Apparently, there is a negative relationship between age and loan status. The AIC value (13750) is useful when comparing models. We are interested in models with the lowest AIC because this is equivalent as a higher goodness of fit. Let's estimate another simple model where the interest rate category is used as a predictor of the \texttt{loan\_status}.
+Apparently, there is a negative relationship between age and loan status. The AIC value (13580) is useful when comparing models. We are interested in models with the lowest AIC because this is equivalent as a higher goodness of fit. Let's estimate another simple model where the interest rate category is used as a predictor of the \texttt{loan\_status}.
 
 ```{r}
-# Build a glm model with variable ir_cat as a predictor.
-log_model_cat <- glm(formula = loan_status ~ ir_cat, family = "binomial", 
+# Build a glm model with variable int_rate as a predictor.
+log_model_ir <- glm(formula = loan_status ~ int_rate, family = "binomial", 
                      data = training_set)
 # Print the parameter estimates.
-log_model_cat
+log_model_ir
 ```
 
-The AIC is a bit higher (13380), so we have a worst model now. Here, we show the interest rate categories.
+The AIC is a lower (12000), so we have a better model now. 
 
-```{r}
-# Look at the different categories in ir_cat using table()
-table(training_set$ir_cat)
-```
 
 Using one predictor could be a limited approach. Let's add some more. Also, let's introduce the \texttt{summary} function to extract more information about the model estimation. The \texttt{log\_model\_multi} below assumes that the loan status depend on the age, interest rate category, grade, loan amount, and annual income. 
 
 ```{r}
 # Multiple variables in a logistic regression model.
-log_model_multi <- glm(loan_status ~ age + ir_cat + grade + loan_amnt + 
-                         annual_inc , family = "binomial", 
+log_model_multi <- glm(loan_status ~ age + int_rate + grade + log(loan_amnt) + 
+                         log(annual_inc) , family = "binomial", 
                        data = training_set)
 # Obtain significance levels using summary().
 summary(log_model_multi)
 ```
 
-In \texttt{log\_model\_multi}, the AIC value is the lowest so far (13236), so this should be considered as the best model at the moment. The \texttt{summary} function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we are interested in conducting predictions about the \texttt{loan\_status}. This is, we are interested to use a model to find out whether new applicants are expected to default or not, rather than in the credit risk factors. 
+In \texttt{log\_model\_multi}, the AIC value is the lowest so far (11875), so this should be considered as the best model at the moment. The \texttt{summary} function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we are interested in conducting predictions about the \texttt{loan\_status}. This is, we are interested to use a model to find out whether new applicants are expected to default or not, rather than in the credit risk factors. 
 
 When someone fill out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
 
 ## Prediction and model evaluation.
 
-Let's take \texttt{log\_model} and \texttt{log\_model\_cat} from the previous subsection to carry out a simple prediction exercise. We start this prediction exercise by identifying one observation in the test set and ask the models to estimate the \texttt{loan\_status}. 
+Let's take \texttt{log\_model\_age} and \texttt{log\_model\_ir} from the previous subsection to carry out a simple prediction exercise. We start this prediction exercise by identifying one observation in the test set and ask the models to estimate the \texttt{loan\_status}. 
 
 ```{r}
 # Define one single observation in test_set.
@@ -251,43 +231,67 @@ We know in advance that the \texttt{loan\_status} of this observation taken from
 The values of \texttt{loan\_status} in the database is either 0 or 1. However, the logistic models estimate the \texttt{loan\_status} as values in the range of 0 to 1. This mean that we would expect the estimated \texttt{loan\_status} to be close to 0. 
 
 ```{r}
-# Estimate the loan status with log_model and log_model_cat models.
-log_model_pred <- predict(log_model, newdata = test_case, type = "response")
-# Rememer the test_case is only one observation (one row).
-log_model_cat_pred <- predict(log_model_cat, newdata = test_case, 
+# Estimate the loan status with log_model_age and log_model_ir models.
+log_model_age_pred <- predict(log_model_age, newdata = test_case, 
                               type = "response")
-data.frame(cbind(log_model_pred, log_model_cat_pred, test_case[1]))
+# Rememer the test_case is only one observation (one row).
+log_model_ir_pred <- predict(log_model_ir, newdata = test_case, 
+                              type = "response")
+log_model_multi_pred <- predict(log_model_multi, newdata = test_case, 
+                              type = "response")
+data.frame(cbind(log_model_age_pred, log_model_ir_pred, log_model_multi_pred,
+                 test_case[1]))
 ```
 
-These values are low as they are close to 0. We could interpret this as a certain ability of the \texttt{log\_model} and \texttt{log\_model\_cat} models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. 
+These values are low as they are close to 0. We could interpret this as a certain ability of the \texttt{log\_model\_age} and \texttt{log\_model\_ir} models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. 
 
 For example: What about the rest of the cases in the test set? We have 9,697 observations in the test set and in the example above we only test for the first one. Fortunately, this issue is easy to address as we only need to change the \texttt{newdata} parameter in the \texttt{predict} function. In particular, instead of \texttt{newdata = test\_case} we can change it to \texttt{newdata = test\_set}.
 
 ```{r}
-# Estimate the loan status with log_model and log_model_cat models.
-pred_log_model <- predict(log_model, newdata = test_set, type = "response")
+# Estimate the loan status with log_model_age and log_model_ir models.
+pred_log_model_age <- predict(log_model_age, newdata = test_set, 
+                              type = "response")
 # Now newdata = test_set so we are testing all the test set observations.
-pred_log_model_cat <- predict(log_model_cat, newdata = test_set, 
+pred_log_model_ir <- predict(log_model_ir, newdata = test_set, 
+                              type = "response")
+pred_log_model_multi <- predict(log_model_multi, newdata = test_set, 
                               type = "response")
 # The range of the estimated loan status.
-log_model_predall <- range(pred_log_model)
-log_model_cat_predall <- range(pred_log_model_cat)
+log_model_age_predall <- range(pred_log_model_age)
+log_model_ir_predall <- range(pred_log_model_ir, na.rm = TRUE)
+log_model_multi_predall <- range(pred_log_model_multi, na.rm = TRUE)
 
-data.frame(rbind(log_model_predall, log_model_cat_predall))
+
+data.frame(rbind(log_model_age_predall, log_model_ir_predall,
+                 log_model_multi_predall))
 
 ```
 
-We have 9,697 estimated loan status per model. The \texttt{log\_model} has loan status from 0.06040744 to 0.12095957 and \texttt{log\_model\_cat} from 0.0538592 to 0.1792169. The maximum values are far from 1, so apparently these two simple models are not very good at identifying defaults. Let's see more details about these ranges in a plot.
+The \texttt{log\_model_age} has loan status from 0.08417892 to 0.1165453 and \texttt{log\_model\_ir} from 0.05049310 to 0.3981023. The maximum values are far from 1, so apparently these two simple models are not very good at identifying defaults. Let's see more details about these ranges in a plot.
 
-Let's explore the \texttt{log\_model}:
+Let's explore the \texttt{log\_model_age}:
 
 ```{r}
-plot(pred_log_model)
+library(tidyr)
+pred_age_ir <- as.data.frame(cbind(pred_log_model_ir,
+                                   pred_log_model_multi))
+pred_age_ir <- gather(pred_age_ir, prediction)
+ggplot(pred_age_ir, aes(x=value, fill = prediction)) + 
+  geom_density(alpha=0.4)
+#plot(pred_log_model_age)
 ```
-The \texttt{log\_model} fails to predict values ranging from 0 to 1. In fact, these values are quite concentrated in a very small range of values. As a consequence, this model fails to differentiate between default and no default predictions. A boxplot reveals the same failure.
+
 
 ```{r}
-boxplot(pred_log_model)
+pred <- as.data.frame(cbind(pred_log_model_age, test_set$loan_amnt))
+ggplot(pred, aes(V2, pred_log_model_age)) +
+geom_point()
+
+```
+The \texttt{log\_model_age} fails to predict values ranging from 0 to 1. In fact, these values are quite concentrated in a very small range of values. As a consequence, this model fails to differentiate between default and no default predictions. A boxplot reveals the same failure.
+
+```{r}
+boxplot(pred_log_model_age)
 ```
 This does not look very good as the maximum values for loan status are concentrated around 0.12. It's time to use a better model. Presumably, a model which considers all available predictors could be better for predicting the \texttt{loan\_status}. Remember we estimate models using the training set data and then we use the test set to conduct the predictions. Evaluating a model performance with the same data as we use to estimate the model is problematic. 
 
@@ -299,7 +303,7 @@ log_model_full <- glm(loan_status ~ ., family = "binomial",
 predictions_all_full <- predict(log_model_full, newdata = test_set, 
                                 type = "response")
 # Look at the predictions range.
-range(predictions_all_full)
+range(predictions_all_full, na.rm = TRUE)
 ```
 
 Now, the range is wider. A wider range means that the estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see the corresponding plot.
@@ -310,9 +314,19 @@ plot(predictions_all_full)
 ```
 We can compare both models. 
 
+
+
 ```{r}
-full_age <- data.frame(predictions_all_full, pred_log_model)
+full_age <- data.frame(predictions_all_full, pred_log_model_age)
 boxplot(full_age)
+```
+
+
+```{r}
+# Basic box plot
+ggplot(full_age, aes(x=predictions_all_full, x=pred_log_model_age)) +
+geom_boxplot()
+
 ```
 At least \texttt{predictions\_all\_full} looks better than the \texttt{log\_model}.
 
@@ -509,7 +523,7 @@ Let's apply the function to the \texttt{predictions\_all\_full} and the \texttt{
 # Apply the strategy_bank function.
 strategy_predictions_all_full <- 
   strategy_bank(as.numeric(predictions_all_full))
-strategy_pred_log_model <- strategy_bank(as.numeric(pred_log_model))
+strategy_pred_log_model <- strategy_bank(as.numeric(pred_log_model_age))
 data.frame(accept_rate = strategy_pred_log_model$accept_rate,
            log_model_bad_rate = strategy_pred_log_model$bad_rate, 
            full_model_bad_rate = strategy_predictions_all_full$bad_rate)
@@ -533,7 +547,7 @@ abline(h = strategy_predictions_all_full[["bad_rate"]][5], lty = 2,
 plot(strategy_pred_log_model$accept_rate, 
      strategy_pred_log_model$bad_rate,
      type = "l", xlab = "Acceptance rate", 
-     ylab = "Bad rate", lwd = 2, main = "log_model")
+     ylab = "Bad rate", lwd = 2, main = "log_model_age")
 abline(v = strategy_pred_log_model[["accept_rate"]][8], lty = 2)
 abline(h = strategy_pred_log_model[["bad_rate"]][8], lty = 2)
 abline(v = strategy_pred_log_model[["accept_rate"]][5], lty = 2, 
@@ -549,7 +563,7 @@ The model ability to predict defaults and no defaults can be measured by the AUC
 # Load the pROC-package
 library("pROC")
 ROC_all_full <- roc(test_set$loan_status, predictions_all_full)
-ROC_log_model <- roc(test_set$loan_status, pred_log_model)
+ROC_log_model <- roc(test_set$loan_status, pred_log_model_age)
 # Draw the ROCs on one plot
 plot(ROC_all_full, col = "red")
 lines(ROC_log_model, col = "blue")
@@ -569,7 +583,7 @@ Note that the \texttt{log\_model} has an AUC of 0.5125. This is close to a loan 
 
 ```{r}
 set.seed(2020)
-pred_rand_model <- runif(length(pred_log_model))
+pred_rand_model <- runif(length(pred_log_model_age))
 ROC_rand <- roc(test_set$loan_status, pred_rand_model)
 # Draw the ROCs on one plot
 plot(ROC_rand, col = "orange")
@@ -635,7 +649,7 @@ abline(h = strategy_pred_log_1_remove_home[["bad_rate"]][8], lty = 2)
 #plot(strategy_predictions_cloglog$accept_rate,
 #strategy_predictions_cloglog$bad_rate,
 ##type = "l", xlab = "Acceptance rate",
-#ylab = "Bad rate", lwd = 2, main = "log_model")
+#ylab = "Bad rate", lwd = 2, main = "log_model_age")
 #abline(v = strategy_predictions_cloglog[["accept_rate"]][8], lty = 2)
 #abline(h = strategy_predictions_cloglog[["bad_rate"]][8], lty = 2)
 
