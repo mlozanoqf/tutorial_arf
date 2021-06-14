@@ -1,0 +1,924 @@
+---
+title: ''
+output: pdf_document
+---
+
+# The Gaussian copula model.
+
+```{r echo=FALSE}
+# This removes all items in environment. 
+# It is a good practice to start your code this way.
+rm(list=ls())
+```
+
+Copulas allow us to decompose a joint probability distribution into their marginals (which by definition have no correlation) and a function which couples (hence the name) them together and thus allows us to specify the correlation separately. The copula is that coupling function. Here, we introduce the simplest type of copulas into a very common problem in credit risk which is the time to default.  
+
+## The basics.
+
+In a finance-context, the variable $x$ represents a firm's performance measure that goes from $-4$ to $4$ in the horizontal axis. Strictly speaking, more extreme values of $x$ like $-\infty$ and $+\infty$ are theoretically possible but are very rare and happen quite infrequently at least in real-life situations. At the moment, we do not care too much about what kind of performance measure this is, it could be liquidity for example, solvency, or any other that it is normalized to have values between $-4$ and $4$. In a statistics-context, we can think that $x$ is the so-called $z$-score in the context of the standardized normal distribution function. 
+
+```{r fig.cap="Standard normal distribution function."}
+# The standard normal distribution function is: y = f(x).
+x <- seq(-4, 4, length = 500) # First define x.
+y <- 1 / sqrt(2 * pi) * exp(-x ^ 2 / 2) # Define y as a function of x.
+# Now plot.
+plot(x, y, type = "l", lwd = 2, col = "red" , ylab = "dnorm(x)")
+```
+
+The copula model, including the Gaussian, considers that this performance measure $x$ in the horizontal axis is related with the firm's probability of default (from 0 to 1, or 0% to 100%). Graphically, the probability of default is represented by the area under the curve at the left of $x$. Low values of $x$ accumulate small probabilities whereas high values of $x$ accumulate high probabilities.
+
+See the following example. If $x=3$ (bad performance of a firm), then the firm's probability of default in math notation is $N(x)$, or $N(3)$, or $\texttt{pnorm}(3)=0.998$ in R code, which is very high as it is close to 1. On the other hand, if $x=-3$ (good performance), then the probability of default $N(-3)$ or $\texttt{pnorm}(-3)=0.001349898$ is very low as it is close to 0. Here, good performance is associated with negative values of $x$ as the accumulated probability (default probability) is low. In the same way, bad performance is related with positive $x$ values. 
+
+Then the \texttt{pnorm} R function allows us to transform $x$ into a probability of default. Transform probabilities into $x$ is also possible as the function \texttt{qnorm} is the inverse of \texttt{pnorm}. We can easily demonstrate this by retrieving the $x$ value given the probability. See for example: $N^{-1}(0.001349898)=-3$, or in R code: $\texttt{qnorm}(0.001349898)=-3$.
+
+The function \texttt{dnorm} is relevant when we implement a graphical approach because it represents how frequent (or how likely) these values are given the standard normal distribution, so in both extreme values of $x$ the value of \texttt{dnorm} is low. Here, extreme values of $x$ can be represented by $-4$ and $4$. This function delivers the height of the standard normal distribution, $\texttt{dnorm}(4)=0.0001338302$, and $\texttt{dnorm}(-4)=0.0001338302$. Given that the standard normal function is symmetrical, we have that in general: $\texttt{dnorm}(-x)=\texttt{dnorm}(x)$. The letter $d$ in \texttt{dnorm} stands for density and it is maximum at $x=0$. When plotting the density values we get the bell-shaped normal curve. 
+
+See how these \texttt{pnorm}, \texttt{qnorm}, \texttt{dnorm} R functions work and relate:
+
+```{r}
+# Here, x has 11 values only.
+x <- c(-Inf, -4:4, Inf) # vector of x values to evaluate functions.
+ans <- data.frame(x, dnorm(x), pnorm(x), qnorm(pnorm(x)))
+colnames(ans) <- c("x", "dnorm(x)=height", "pnorm(x)=pd", "qnorm(pd)=x")
+kable(ans, caption = "Review of normal distribution functions.", digits = 5)
+```
+
+Let's demonstrate that \texttt{dnorm} is maximum at $x=0$.
+
+```{r}
+x[which.max(ans$`dnorm(x)=height`)]
+```
+
+You can type for example \texttt{?dnorm} in the RStudio console to see more details about this (and other) functions.
+
+Note that the only distribution function that we are currently analyzing is the standard normal (Gaussian) distribution function. A standard normal distribution function is the one that has mean 0 and variance 1. There are other copula models that assume other kinds of distributions. These other kinds of copulas are useful when we are interested in modeling cases in which extreme values are more likely to happen compared with the standard normal distribution. Understanding Gaussian copulas allows you to understand other more elaborated copulas.
+
+The variable $D$ below represents the density function for the normal distribution. As we said before, the density is basically how frequent is a given value of $x$ in a normal distribution, so it helps to draw the typical bell-shape of the normal distribution function. Finally, $P$ is the cumulative probability function of the normal distribution, it is equivalent to the function $N(\cdot)$ in Merton's model. 
+
+Now, let's apply the \texttt{dnorm} and \texttt{pnorm} functions for all possible values of $x$, not only in a few (11) as we did before. This will allow us to characterize a normal distribution function graphically for all possible $x$ values. To do this, we simply create a new $x$ that has 8,001 values, that would be enough. 
+
+```{r}
+# Now, x has 8001 values, this is ok to do some continuous plots.
+x.theo <- seq(-4, 4, 0.001)
+D <- dnorm(x.theo) 
+P <- pnorm(x.theo)
+```
+
+The red area represents the probability of default. This representation requires to calculate this area, and this can be easily done by the $N(\cdot)$ function. Graphically:
+
+```{r fig.cap="The red area represents the probability of default."}
+plot(x.theo, D, type = "l", lwd = 2, 
+     ylab = "Density function: dnorm(x)", xlab = "x")
+polygon(c(x.theo[x.theo < 0], 0), c(D[x.theo < 0], 0), col = "red")
+legend("topleft", legend = c("Here, the red area is the 
+middle of the bell-shaped curve.
+Smaller area means lower
+probability of default.
+
+The probability of default
+at x=0 is N(0)=50%
+
+pnorm(0)=0.5
+qnorm(0.5)=0"),
+bg = "white", bty = "n", cex = 0.7)
+abline(v = 0, col = "black")
+abline(h = dnorm(0), lty = 2)
+```
+
+A good performing firm, with a $x=-2$, imply a low probability of default.
+
+```{r fig.cap="Low probability of default."}
+plot(x.theo, D, type = "l", lwd = 2, ylab = "Density function: dnorm(x)",
+     xlab = "x")
+polygon(c(x.theo[x.theo < -2], -2), c(D[x.theo < -2], 0), col = "red")
+
+legend("topright", legend = c("Smaller area means
+lower probability of default.
+
+The probability of default
+at x=-2 is N(-2)=2.275%
+
+pnorm(-2)=0.02275013
+qnorm(0.02275013)=-2"),
+bg = "white", bty = "n", cex = 0.7)
+abline(v = -2, col = "black")
+```
+
+And this is how a bankrupt firm looks like:
+
+```{r fig.cap="Imminent default."}
+plot(x.theo, D, type = "l", lwd = 2, ylab = "Density function: dnorm(x)",
+     xlab = "x")
+polygon(c(x.theo[x.theo < 4], 4), c(D[x.theo < 4], 0), col = "red")
+
+legend("topleft", legend = c("The probability of default
+at x=4 is N(4)=99.996%
+
+pnorm(4)=0.9999683
+qnorm(0.9999683)=4"),
+bg = "white", bty = "n", cex = 0.8)
+abline(v = 4, col = "black")
+```
+
+Instead of a density function $D$, we can plot the cumulative probability distribution $P$. Now, we do not need the $N(\cdot)$ function as the vertical axis represents the probability of default.
+
+```{r fig.cap="The higher the x, the higher the probability of default."}
+plot(x.theo, P, type = "l", lwd = 2,
+     ylab = "Cumulative probability function: pnorm(x)", xlab = "x")
+abline(h = 0.5, lty = 2)
+abline(v = 0, lty = 2)
+```
+
+Next section requires a good understanding of the example 24.6 in Hull's textbook.
+
+## Introduction to example 24.6.
+
+Here, we start analyzing Hull's example 24.6. We do not analyze the 10 firms yet as in the original example. We first make some sense about the data, the relevant analysis, the logic, and the model basics before dealing with the full features in example 24.6.
+
+Recall that, \texttt{pnorm} leads to a probability, whereas \texttt{qnorm} leads to a value of $x$. Here are some examples taken directly from the textbook example, where the cumulative probabilities of default of 1%, 3%, 6%, 10% and 15% are taken as given for the maturities of 1, 2, 3, 4 and 5 years respectively. To implement the model, we take this information to derive the corresponding $x$ values:
+
+```{r}
+pd <- c(0.01, 0.03, 0.06, 0.1, 0.15) # Probabilities of default per year.
+x.y <- qnorm(pd) # Transform probabilities of default into x values.
+ans <- data.frame(1:5, pd, x.y) # Gather the results.
+colnames(ans) <- c("year", "pd", "x (values given in Hull)")
+kable(ans, caption = "Main parameters.")
+```
+
+Note that the example assumes that the probability of default increases as we consider a longer maturity (from 1 year to 5 years). Probabilities above are cumulative, so they go from year 0 to year 1, from year 0 to year 2 and so on. To calculate the probability of default during a specific year we need to calculate the differences. In particular:
+
+```{r}
+ans <- data.frame(diff(pd))
+colnames(ans) <- c("PD")
+rownames(ans) <- c("x.y1 to x.y2", "x.y2 to x.y3", 
+                   "x.y3 to x.y4", "x.y4 to x.y5")
+kable(ans, caption = "PD at specific years.")
+```
+
+This is how we can illustrate the case of a probability of default of 15% in 5 years. The green area represents the 15% of the whole area below the bell-shaped curve.
+
+```{r fig.cap="Gaussian density distribution function."}
+plot(x.theo, D, type = "l", col = 'black', lwd = 3, ylim = c(0, 0.4),
+     xlab = "This could represent a firm's performance measure.
+The higher, the worst performance as it accumulates more prob. of default.",
+     ylab = "Density: dnorm(x)")
+abline(h = 0, lty = 2)
+polygon(c(x.theo[x.theo < x.y[5]], x.y[5]), 
+        c(D[x.theo < x.y[5]], 0), col = "green")
+
+legend("topright", legend=c(
+"pd(5years)=15%
+
+The left green area
+represents 15% of the
+whole bell-shape.
+
+N^-1(0.15)=-1.036433
+N(-1.036433)=0.15"),
+bg = "white", pch = 19, cex = 0.8, bty = "n", col = "green")
+```
+
+A complementary view is the cumulative probability function. Let's illustrate the same case: a probability of default of 15% in 5 years. In this case we do not need to calculate the area since the y-axis already represents the probability.
+
+
+```{r fig.cap="Gaussian probability distribution function."}
+plot(x.theo, P, type = "l", col = 'black', lwd = 3, ylim = c(0, 1),
+     xlab = "This could represent a firm's performance measure.
+The higher, the worst performance as it accumulates more prob. of default.",
+     ylab = "N(x) is a cumulative probability")
+abline(h = 0, lty = 2)
+abline(h = 1, lty = 2)
+lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2), 
+      col = "green", lwd = 3)
+lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
+      col = "green", lwd = 3)
+points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
+legend("right", legend=c(
+"pd(5years)=15%
+
+N^-1(0.15)=-1.036433
+N(-1.036433)=0.15"),
+bg = "white", pch = 19, cex = 1, bty = "n", col = "green")
+```
+
+A closer view to the figure above to see the 3-year and 5-year cases:
+
+```{r fig.cap="Gaussian probability distribution function: Zoom version."}
+plot(x.theo, P, type = "l", col = 'black', lwd = 5, ylim = c(0, 0.22), 
+     xlim = c(-4, 0), ylab = "N(x) is a cumulative probability",
+     xlab = "This could represent a firm's performance measure.
+The higher, the worst performance as it accumulates more prob. of default.")
+abline(h = 0, lty = 2)
+abline(h = 1, lty = 2)
+lines(seq(-5, x.y[3], length.out= 2), rep(pnorm(x.y[3]), 2), 
+      col = "purple", lwd = 3, lty = 2)
+lines(rep(x.y[3], 2), seq(0, pnorm(x.y[3]), length.out = 2), 
+      col = "purple", lwd = 3, lty = 2)
+lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2), 
+      col = "green", lwd = 3, lty = 2)
+lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
+      col = "green", lwd = 3, lty = 2)
+points(x.y[3], 0.06, pch = 19, col = "purple", cex = 2)
+points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
+legend("topleft", legend=c("pd(5years)=15%: N(-1.036433)=0.15",
+                           "pd(3years)=6%: N(-1.554774)=0.06"),
+pch = 19, col = c("green", "purple"), bg = "white", cex = 1, bty = "n")
+```
+
+The Gaussian copula approach is a method that takes the Gaussian distribution function to match the credit risk profile of firms.
+
+## One firm.
+
+Now let's use a simulation approach instead of a theoretical approach. This is, instead of generating continuous values of $x$ from $-4$ to $4$, we simulate many $x$ values (10,000 in this case) that follow a standard normal distribution function using the \texttt{rnorm} function. The simulation approach is useful especially when we are interested in replicating what happens in real-life situations because we can replicate the observed distribution many times and this facilitates the analysis. In other words, \texttt{x.theo} was used before to characterize a *perfect* normal distribution. Now, we incorporate \texttt{x.sim} that behaves as a normal distribution. These are now simulated values that follow a normal distribution, this means that we allow for some error or deviation with respect to the *perfect* normal distribution analyzed before.
+
+Note that the probabilities of default per maturity in the simulated approach are close to the values of the previous section. In particular, $0.01$ is equivalent to $0.0102$, and $0.03$ is equivalent to $0.0307$. They do not match exactly simply because we are comparing theoretical versus simulated probabilities.
+
+```{r}
+N <- 10000 # Number of simulated values.
+set.seed(130575) # Reproducibility.
+x.sim <- rnorm(N, 0, 1) # Simulation.
+```
+
+```{r}
+# Function to calculate proportions that we understand as probabilities.
+prop <- function(x) {
+  ans <- length(x.sim[x.sim <= x]) / N
+  }
+pd.sim <- mapply(prop, x.y) # Apply the function.
+ans <- data.frame(x.y, pd, pd.sim)
+colnames(ans) <- c("x", "pd.theo", "pd.sim")
+rownames(ans) <- c("y1", "y2", "y3", "y4", "y5")
+kable(ans, caption = "Theoretic versus simulated probabilities of default.")
+```
+
+Let's view the results of the simulated approach. First in a histogram.
+
+```{r fig.cap="Simulated Gaussian probability distribution function. Somewhat different with respect to the theoretical."}
+# Some parameters we need to plot.
+L <- c(-4, 4) # axis limits.
+colors2 <- c("blue", "red", "purple", "pink", "green")
+legend2 = c("pd(1year)=1.02%: x<=-2.326348", 
+"pd(2years)=3.07%: x<=-1.880794", "pd(3years)=6.29%: x<=-1.554774",
+"pd(4years)=10.08%: x<=-1.281552", "pd(5years)=14.8%: x<=-1.036433")
+# The histogram.
+hist(x.sim, 500, xlim = L, ylim = c(0, 100), main = NULL, xlab = "x
+This could represent a firm's simulated performance measure")
+abline(h = 0, lty = 2)
+abline(v = x.y[1], lwd = 3, col = "blue")
+abline(v = x.y[2], lwd = 3, col = "red")
+abline(v = x.y[3], lwd = 3, col = "purple")
+abline(v = x.y[4], lwd = 3, col = "pink")
+abline(v = x.y[5], lwd = 3, col = "green")
+legend("topright", legend = legend2, bg = "white", 
+       text.col = colors2, cex = 0.7)
+```
+
+The area at the left hand side of each colored line represents the cumulative probability of default just as we explained before. In the same way, the area between two colored lines represents the probability of default in a specific period of time. 
+
+Now let's see all the simulated data at once.
+
+```{r fig.cap="An alternative view."}
+plot(x.sim, ylab = "One firm performance", pch = ".", 
+     ylim = c(-4, 7),
+     xlab = "10,000 simulated performance data")
+abline(h = x.y[1], lwd = 2, col = "blue")
+abline(h = x.y[2], lwd = 2, col = "red")
+abline(h = x.y[3], lwd = 2, col = "purple")
+abline(h = x.y[4], lwd = 2, col = "pink")
+abline(h = x.y[5], lwd = 2, col = "green")
+abline(v = 0, lty = 2)
+abline(v = 10000, lty = 2)
+legend("topright", legend = legend2, bg = "white", 
+       text.col = colors2, cex = 0.8)
+```
+
+We normally conduct a simulation approach because we might adapt the distribution function parameters to match what we see in the real life situations. The simulation approach allows us to have such flexibility. 
+
+## Two firms.
+
+Now consider the case in which we have two firms instead of one. The main difference now is that instead of simulating one firm we need two. Moreover, each firm follows a standard normal distribution function and both of them are correlated by a given correlation value so the firms are not independent. If they are not independent, then what happens to one firm has some impact on what happens to the other. In this case, we assume 0.2 as a correlation value. The case of two firms is not the one presented in Hull's example but it can help us to visualize how the Gaussian copula approach works in a two-dimension plot.
+
+The simulation of both firms' performance measures is \texttt{x2}.
+
+```{r}
+m <- 2 # number of firms
+n <- 10000 # number of simulations
+rho_pos02 <- 0.2 # correlation
+corr_pos02 <- matrix(rep(rho_pos02, m * m), m, m) # correlation matrix
+diag(corr_pos02) <- 1
+set.seed(130575)
+x2 <- mvrnorm(n, mu = rep(0, m), Sigma = corr_pos02)
+x2 <- data.frame(x2)
+colnames(x2) <- c("Firm1", "Firm2")
+```
+
+The matrix \texttt{x2} length is 10,000 for each firm. In other words, we have 10,000 observations of the performance measure or $z$-score for two firms that are related. This matrix is big, but we can visualize the header (the first six observations).
+
+```{r}
+kable(head(x2), caption = "Firm's performance.", row.names = TRUE)
+```
+
+Remember the cumulative probabilities of default are 1%, 3%, 6%, 10% and 15% for the maturities of 1, 2, 3, 4 and 5 years respectively. How do we extract those cases in which both firms will default in 5 years? In rows 15, 53, 61 and so on both firms default at the same time. Note that in all cases the $x$ values are indeed below -1.036433.
+
+```{r}
+# These names are going to be useful later.
+n.year <- c("year 1", "year 2", "year 3", "year 4", "year 5")
+n.pd <- c("pd.y1", "pd.y2", "pd.y3", "pd.y4", "pd.y5")
+n.f <- c("Firm1", "Firm2", "Firm1 default?", "Firm2 default?")
+
+# Function to calculate cases in which firms default and probabilities.
+fun.X <- function(x) {
+  both <- x2[x2$Firm2 < x & x2$Firm1 < x, ] # both default.
+  atleast1 <- x2[x2$Firm2 < x | x2$Firm1 < x, ] # at least one firm default.
+  onlyfirm1 <- x2[x2$Firm2 > x & x2$Firm1 < x, ] # only firm 1 default.
+  onlyfirm2 <- x2[x2$Firm1 > x & x2$Firm2 < x, ] # only firm 2 default.
+  onlyone <- x2[(x2$Firm2 < x & x2$Firm1 > x | # only one firm default.
+                   x2$Firm2 > x & x2$Firm1 < x),]
+  none <- x2[x2$Firm2 > x & x2$Firm1 > x, ] # no firm default.
+# Gather results and probabilities in a list.
+ans <- list(both = both, atleast1 = atleast1, onlyfirm1 = onlyfirm1,
+  onlyfirm2 = onlyfirm2, onlyone = onlyone, none = none,
+  both.pd = (nrow(both) / n), atleast1.pd = (nrow(atleast1) / n),
+  onlyfirm1.pd = (nrow(onlyfirm1) / n), onlyfirm2.pd = (nrow(onlyfirm2)/ n),
+  onlyone.pd = (nrow(onlyone) / n), none.pd = (nrow(none) / n))
+}
+# X has all the relevant results for x2.
+X <- mapply(fun.X, x.y)
+```
+
+See the cases in which both firms default in 5 years.
+
+```{r}
+# Extract "both" cases, year 5.
+both <- data.frame(X[["both", 5]], X[["both", 5]] < x.y[5])
+colnames(both) <- n.f
+kable(head(both), caption = "Cases in which both firms default in 5 years.", 
+      row.names = TRUE)
+```
+In total, we have 343 cases in which both firms default at the same time. The first case is number 15, the second 53, the third 61 and so on. It is easy to know the total cases if we count the number of rows.
+
+How do we extract those cases in which at least one firm will default in 5 years? This is, only firm 1, only firm 2 and even both at the same time. This is a less strict condition so we would expect to have more cases to match this new criteria compared with \texttt{both}. Note that in all cases at least one one firm is indeed below -1.036433. In row 1, 2 and 10 firm 2 defaults. In row 15 both firms default. In row 18 and 20 firm 1 and firm 2 default respectively.
+
+
+```{r}
+atleast1 <- data.frame(X[["atleast1", 5]], X[["atleast1", 5]] < x.y[5])
+colnames(atleast1) <- n.f
+kable(head(atleast1), caption = "Cases in which at least one firm default.", 
+      row.names = TRUE)
+```
+
+Now we have 2,660 cases. Considerably more as the | restriction is less strict than the &. Let's see the cases in which only firm 1 defaults.
+
+```{r}
+onlyfirm1 <- data.frame(X[["onlyfirm1", 5]], X[["onlyfirm1", 5]] < x.y[5])
+colnames(onlyfirm1) <- n.f
+kable(head(onlyfirm1), caption = "Cases in which only firm 1 default.")
+```
+
+Only firm 2 defaults. 
+
+```{r}
+onlyfirm2 <- data.frame(X[["onlyfirm2", 5]], X[["onlyfirm2", 5]] < x.y[5])
+colnames(onlyfirm2) <- n.f
+kable(head(onlyfirm2), caption = "Cases in which only firm 2 default.")
+```
+
+Only one firm default at year 5.
+
+```{r}
+onlyone <- data.frame(X[["onlyone", 5]], X[["onlyone", 5]] < x.y[5])
+colnames(onlyone) <- n.f
+kable(head(onlyone), caption = "Cases in which only one firm default.")
+```
+
+Lastly, when no firm defaults.
+
+```{r}
+none <- data.frame(X[["none", 5]], X[["none", 5]] < x.y[5])
+colnames(none) <- n.f
+kable(head(none), caption = "Cases in which no firm default.")
+```
+
+Finally, probabilities.
+
+```{r}
+both.pd <- t(data.frame(X["both.pd",]))
+atleast1.pd <- t(data.frame(X["atleast1.pd",]))
+onlyfirm1.pd <- t(data.frame(X["onlyfirm1.pd",]))
+onlyfirm2.pd <- t(data.frame(X["onlyfirm2.pd",]))
+onlyone.pd <- t(data.frame(X["onlyone.pd",]))
+none.pd <- t(data.frame(X["none.pd",]))
+ans <- data.frame(both.pd, atleast1.pd, onlyfirm1.pd, onlyfirm2.pd, 
+                 onlyone.pd, none.pd)
+rownames(ans) <- n.year
+kable(ans, caption = "Probabilities of default.")
+```
+
+So interesting. 
+
+Note that 15% is the theoretical probability that one firm will default in 5 years. Here, this 15% is 12.1% for firm 1 and 11.07% for firm 2 when the data is simulated. 
+
+We can even perform a nice test to see that everything is alright. For example, this equation must hold: \texttt{onlyFirm1+onlyFirm2=onlyonefirm}. Substituting for the year 5: $0.121+0.1107=0.2317$. As you can see, everything is alright. This equation must hold as well: \texttt{atleast1-both=onlyonefirm}. Substituting for the year 5: $0.266-0.0343=0.2317$. As you can see, everything is alright.
+
+Let's visualize all 10,000 cases. Each dot represents a couple of Firm1 and Firm2 $x$ values and the dotted lines the threshold that represents the probability of default in 5 years.
+
+```{r fig.cap="All 10,000 simulated cases."}
+par(pty = "s") # Figures are shown in a perfect square (not a rectangle).
+plot(x2, pch = ".", cex = 0.8) 
+points(mean(x2[,1]), mean(x2[,2]), col = "red", pch = 19, cex = 1)
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("bottomright", legend = c(paste(nrow(x2))), bty = "n")
+```
+
+These 10,000 observations are highly concentrated around the mean which is very close to zero $(-0.01883215,-0.0147721)$, note the red point. This can be also easily seen in the following density plot.
+
+```{r fig.cap="All 10,000 simulated cases: A density view."}
+df <- tibble(x2)
+par(pty = "s")
+ggplot(df, aes(x = x2$Firm1, y = x2$Firm2)) +
+  stat_density2d(aes(fill = ..density..), contour = F, 
+                 geom = 'tile') +
+  scale_fill_viridis()+
+  coord_fixed()
+```
+
+
+```{r eval=FALSE, include=FALSE}
+df <- tibble(x2)
+par(pty = "s")
+rayplot <- ggplot(df, aes(x = x2$Firm1, y = x2$Firm2)) +
+  stat_density2d(aes(fill = ..density..), contour = F, 
+                 geom = 'tile') +
+  scale_fill_viridis()+
+  #scale_fill_viridis_c(option = "A")+
+  coord_fixed() +
+  theme(legend.position = "none")
+plot_gg(rayplot, width = 4, height = 4, scale = 400, zoom = 0.7,
+        multicore = TRUE)
+# Movie and picture.
+#render_movie("p25.mp4", frames = 460)
+#render_snapshot("p25.png", clear = TRUE)
+
+```
+
+```{r eval=FALSE, include=FALSE}
+df <- tibble(x2)
+par(pty = "s")
+rayplot <- ggplot(df, aes(x = x2$Firm1, y = x2$Firm2)) +
+  stat_density2d(aes(fill = ..density..), contour = F, 
+                 geom = 'tile') +
+    geom_hex(bins = 35, size = 0.5, color = "black") +
+  #scale_fill_viridis()+
+  #scale_fill_viridis_c(option = "A")+
+    scale_fill_viridis_c(option = "C")+
+  coord_fixed() +
+  theme(legend.position = "none")
+
+plot_gg(rayplot, width = 4, height = 4, scale = 400, zoom = 0.7,
+        multicore = TRUE)
+
+```
+
+We can visualize the default cases. First, the case when both firms default at year 5.
+
+```{r fig.cap="Both firms default at year 5."}
+par(pty = "s")
+plot(X[["both", 5]], xlim  = L, ylim = L, pch = ".", cex = 0.8) 
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(both.pd[5]*n)), bty = "n")
+```
+
+The values within the plot represent the number of cases. Here, we have 343 times (out of 10,000) in which both firms default at the same time in 5 years. Note that this is a cumulative probability of default.
+
+Now, the case in which at least one firm defaults in 5 years.
+
+```{r fig.cap="At least one firm defaults in 5 years."}
+par(pty = "s")
+plot(X[["atleast1", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8)
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(atleast1.pd[5]*n)), bty = "n")
+```
+
+Only firm 1 defaults in 5 years.
+
+```{r fig.cap="Only firm 1 defaults in 5 years."}
+par(pty = "s")
+plot(X[["onlyfirm1", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8)
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(onlyfirm1.pd[5]*n)), bty = "n")
+```
+
+Only firm 2 defaults in 5 years.
+
+```{r fig.cap="Only firm 2 defaults in 5 years."}
+par(pty = "s")
+plot(X[["onlyfirm2", 5]], xlim = L, ylim=L, pch = ".", cex = 0.8)
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(onlyfirm2.pd[5]*n)), bty = "n")
+```
+
+This is the case in which only one firm defaults.
+
+```{r fig.cap="Only one firm defaults in 5 years."}
+par(pty = "s")
+plot(X[["onlyone", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8)
+abline(h = x.y[5], lty =2)
+abline(v = x.y[5], lty =2)
+legend("topright", legend = c(paste(onlyone.pd[5]*n)), bty = "n")
+```
+
+This is the case in which no one firm defaults.
+
+```{r fig.cap="No firm defaults in 5 years."}
+par(pty = "s")
+plot(X[["none", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8)
+abline(h = x.y[5], lty =2)
+abline(v = x.y[5], lty =2)
+legend("topright", legend = c(paste(none.pd[5]*n)), bty = "n")
+```
+
+It is a good idea to summarize all previous plots in one.
+
+```{r fig.cap="Which firm defaults at year 5?"}
+# none
+par(mfrow = c(2, 3), oma = c(0, 0, 2, 0))
+par(pty = "s")
+plot(X[["none", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "None.") 
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("bottomright", legend = c(paste(none.pd[5]*n)), bty = "n")
+# both
+par(pty = "s")
+plot(X[["both", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "Both.") 
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(both.pd[5]*n)), bty = "n")
+# atleast1
+par(pty = "s")
+plot(X[["atleast1", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "At least one.")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(atleast1.pd[5]*n)), bty = "n")
+# onlyfirm1
+par(pty = "s")
+plot(X[["onlyfirm1", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "Only Firm1.")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(onlyfirm1.pd[5]*n)), bty = "n")
+# onlyfirm2
+par(pty = "s")
+plot(X[["onlyfirm2", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "Only Firm2.")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("topright", legend = c(paste(onlyfirm2.pd[5]*n)), bty = "n")
+# onlyone
+par(pty = "s")
+plot(X[["onlyone", 5]], xlim = L, ylim = L, pch = ".", cex = 0.8, 
+     main = "Only one.")
+abline(h = x.y[5], lty = 2)
+abline(v = x.y[5], lty = 2)
+legend("topright", legend = c(paste(onlyone.pd[5]*n)), bty = "n")
+```
+
+It is interesting to compare two different correlation values. Here, we compare 0 versus 0.2.
+
+```{r}
+m <- 2 # number of firms
+n <- 10000 # number of simulations
+rho_pos02 <- 0 # correlation
+corr_pos02 <- matrix(rep(rho_pos02, m * m), m, m) # correlation matrix
+diag(corr_pos02) <- 1
+set.seed(130575)
+X0 <- mvrnorm(n, mu = rep(0, m), Sigma = corr_pos02)
+X0 <- data.frame(X0)
+colnames(X0) <- c("Firm1", "Firm2")
+```
+
+Just as before, we create a function, evaluate it, and store results in \texttt{X0}.
+
+```{r}
+fun.X0 <- function(x) {
+  both <- X0[X0$Firm2 < x & X0$Firm1 < x, ]
+  atleast1 <- X0[X0$Firm2 < x | X0$Firm1 < x, ]
+  onlyfirm1 <- X0[X0$Firm2 > x & X0$Firm1 < x, ]
+  onlyfirm2 <- X0[X0$Firm1 > x & X0$Firm2 < x, ]
+  onlyone <- X0[(X0$Firm2 < x & X0$Firm1 > x | 
+                   X0$Firm2 > x & X0$Firm1 < x),]
+  none <- X0[X0$Firm2 > x & X0$Firm1 > x, ]
+  
+ans <- list(both = both, atleast1 = atleast1, onlyfirm1 = onlyfirm1,
+  onlyfirm2 = onlyfirm2, onlyone = onlyone, none = none,
+  both.pd = (nrow(both) / n), atleast1.pd = (nrow(atleast1) / n),
+  onlyfirm1.pd = (nrow(onlyfirm1) / n), onlyfirm2.pd = (nrow(onlyfirm2) /n),
+  onlyone.pd = (nrow(onlyone) / n), none.pd = (nrow(none) / n)) }
+
+X0 <- mapply(fun.X0, x.y)
+
+none.pd0 <- data.frame(X0["none.pd",]) * n
+both.pd0 <- data.frame(X0["both.pd",]) * n
+
+onlyfirm1.pd0 <- data.frame(X0["onlyfirm1.pd",]) * n
+onlyfirm2.pd0 <- data.frame(X0["onlyfirm2.pd",]) * n
+```
+
+A graphical analysis shows that in the case of 0.2 it is more likely that both firms default at the same time, and it is less likely that any firm default at the same time.
+
+
+```{r fig.cap="Cases per quadrant. Dotted lines corresponds to year 5."}
+par(mfrow=c(1, 2), oma = c(0, 0, 2, 0))
+par(pty = "s")
+plot(X[["none", 5]], pch = ".", xlim = L, ylim = L, 
+     cex = 0.8, main = "Correlation=0.2") 
+points(X[["both", 5]], pch = ".", col = "red")
+points(X[["onlyfirm1", 5]], pch = ".", col = "purple")
+points(X[["onlyfirm2", 5]], pch = ".", col = "blue")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("bottomleft", legend = c(paste(both.pd[5]*n)), bty = "n")
+legend("topright", legend = c(paste(none.pd[5]*n)), bty = "n")
+legend("topleft", legend = c(paste(onlyfirm1.pd[5]*n)), bty = "n")
+legend("bottomright", legend = c(paste(onlyfirm2.pd[5]*n)), bty = "n")
+par(pty = "s")
+plot(X0[["none", 5]], pch = ".", xlim = L, ylim = L,
+     cex = 0.8, main = "Correlation=0.") 
+points(X0[["both", 5]], pch = ".", col = "red")
+points(X0[["onlyfirm1", 5]], pch = ".", col = "purple")
+points(X0[["onlyfirm2", 5]], pch = ".", col = "blue")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("bottomleft", legend = c(paste(both.pd0[5])), bty = "n")
+legend("topright", legend = c(paste(none.pd0[5])), bty = "n")
+legend("topleft", legend = c(paste(onlyfirm1.pd0[5])), bty = "n")
+legend("bottomright", legend = c(paste(onlyfirm2.pd0[5])), bty = "n")
+par(pty = "s")
+```
+Very interesting indeed. 
+
+```{r}
+m <- 2 # number of firms
+n <- 10000 # number of simulations
+rho_pos00 <- 0 # correlation
+rho_pos02 <- 0.2
+corr_pos00 <- matrix(rep(rho_pos00, m * m), m, m) # correlation matrix
+corr_pos02 <- matrix(rep(rho_pos02, m * m), m, m) # correlation matrix
+diag(corr_pos00) <- 1
+diag(corr_pos02) <- 1
+set.seed(130575)
+X00 <- mvrnorm(n, mu = rep(0, m), Sigma = corr_pos00)
+set.seed(130575)
+X02 <- mvrnorm(n, mu = rep(0, m), Sigma = corr_pos02)
+X00.02 <- data.frame(rbind(X00, X02))
+colnames(X00.02) <- c("Firm1", "Firm2")
+
+n=20000
+fun.X0 <- function(x) {
+  both <- X00.02[X00.02$Firm2 < x & X00.02$Firm1 < x, ]
+  atleast1 <- X00.02[X00.02$Firm2 < x | X00.02$Firm1 < x, ]
+  onlyfirm1 <- X00.02[X00.02$Firm2 > x & X00.02$Firm1 < x, ]
+  onlyfirm2 <- X00.02[X00.02$Firm1 > x & X00.02$Firm2 < x, ]
+  onlyone <- X00.02[(X00.02$Firm2 < x & X00.02$Firm1 > x | 
+                   X00.02$Firm2 > x & X00.02$Firm1 < x),]
+  none <- X00.02[X00.02$Firm2 > x & X00.02$Firm1 > x, ]
+  
+ans <- list(both = both, atleast1 = atleast1, onlyfirm1 = onlyfirm1,
+  onlyfirm2 = onlyfirm2, onlyone = onlyone, none = none,
+  both.pd = (nrow(both) / n), atleast1.pd = (nrow(atleast1) / n),
+  onlyfirm1.pd = (nrow(onlyfirm1) / n), onlyfirm2.pd = (nrow(onlyfirm2) /n),
+  onlyone.pd = (nrow(onlyone) / n), none.pd = (nrow(none) / n)) }
+
+X00.02 <- mapply(fun.X0, x.y)
+
+none.pd0002 <- data.frame(X00.02["none.pd",]) * n
+both.pd0002 <- data.frame(X00.02["both.pd",]) * n
+
+onlyfirm1.pd0002 <- data.frame(X00.02["onlyfirm1.pd",]) * n
+onlyfirm2.pd0002 <- data.frame(X00.02["onlyfirm2.pd",]) * n
+
+```
+
+
+```{r}
+par(pty = "s")
+plot(X00.02[["none", 5]], pch = ".", xlim = L, ylim = L, 
+     cex = 0.8, main = "Correlation=0.2") 
+points(X00.02[["both", 5]], pch = ".", col = "red")
+points(X00.02[["onlyfirm1", 5]], pch = ".", col = "purple")
+points(X00.02[["onlyfirm2", 5]], pch = ".", col = "blue")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+legend("bottomleft", legend = c(paste(both.pd0002[5]/n*100)), bty = "n")
+legend("topright", legend = c(paste(none.pd0002[5]/n*100)), bty = "n")
+legend("topleft", legend = c(paste(onlyfirm1.pd0002[5]/n*100)), bty = "n")
+legend("bottomright", legend = c(paste(onlyfirm2.pd0002[5]/n*100)), bty = "n")
+
+```
+
+
+## Ten firms.
+
+The original Hull's example proposes a 10 firm case and here we implement this example following a simulation approach. First, we need a $10\times10$ correlation matrix to produce the new $x$ values using a random multi-variate distribution algorithm. According to Hull's example the copula default correlations between each pair of companies is 0.2. The code below has the option to vary the default correlation given a uniform random distribution.
+
+The new $10\times10$ correlation matrix is then:
+
+```{r}
+# Create the correlation matrix.
+m <- 10 # number of firms.
+n <- 1000000 # number of simulations per firm.
+x <- matrix(rep(0.2, m * m), m, m) 
+ind <- lower.tri(x) 
+x[ind] <- t(x)[ind] 
+diag(x) = 1
+kable(x, caption = "Correlation matrix 0.2.")
+```
+Now, we can simulate the multivariate normal distribution. The variable \texttt{X10} length is 1,000,000 for each firm. This is big, but we can visualize the header of this variable. We choose a higher number of simulations because now we need 10 firms to meet a single constraint.
+
+```{r}
+# Create the simulated cases.
+set.seed(130575) # Reproducibility.
+X10 <- mvrnorm(n, mu = rep(0, m), Sigma = x)
+X10 <- data.frame(X10) # 10,000,000 observations.
+kable(head(X10), caption = "10 firms' performance, 1,000,000 simulations.",
+      digits = 3)
+```
+
+How do we extract those cases in which all 10 firms will default in 5 years (at the same time)? Here are the first 6 of those cases. Note that in all cases the \texttt{X10} values are lower than $-1.036433$.
+
+```{r}
+# Given that we have 10 firms, it is easier to use filter_all function.
+# Although probably this could be simplified even further.
+y5.all.2 <- filter_all(X10, all_vars(. < x.y[5]))
+y4.all.2 <- filter_all(X10, all_vars(. < x.y[4])) 
+y3.all.2 <- filter_all(X10, all_vars(. < x.y[3])) 
+y2.all.2 <- filter_all(X10, all_vars(. < x.y[2])) 
+y1.all.2 <- filter_all(X10, all_vars(. < x.y[1])) 
+```
+
+Let's analyze the case of 5 years.
+
+```{r}
+kable(head(y5.all.2), 
+      caption = "Cases in which all 10 firms default in five years.", 
+      digits = 3)
+```
+
+```{r}
+kable((head(y5.all.2) < x.y[5]), caption = "Check if all of them default.")
+```
+
+How many cases are there?
+
+```{r}
+nrow(y5.all.2)
+```
+Which are those 72 cases?
+
+```{r}
+# Here, I compare only firm 1 as if firm 1 defaults, then the rest default.
+kable(matrix(which(X10[,1] %in% y5.all.2[,1]), 6, 9), 
+      caption = "Which of the 1,000,000 cases represent a default of all 
+      firms in five years?")
+```
+
+In total, we only have 72 cases. This is, the 10 firms will default at the same time in 5 years in 72 out of 1,000,000 total cases. For the rest of the years, the cases are less frequent, in fact we have zero cases for year 1, 2 and 3.
+
+How do we extract those cases in which at least one of the 10 firms will default? 
+
+```{r}
+y5.any.2 <- filter_all(X10, any_vars(. < x.y[5]))
+y4.any.2 <- filter_all(X10, any_vars(. < x.y[4]))
+y3.any.2 <- filter_all(X10, any_vars(. < x.y[3]))
+y2.any.2 <- filter_all(X10, any_vars(. < x.y[2]))
+y1.any.2 <- filter_all(X10, any_vars(. < x.y[1]))
+```
+
+Here are the first 6 cases for the 5-year default.
+
+```{r}
+kable(head(y5.any.2), caption = "At least one firm default in five years.",
+      digits = 3)
+```
+
+```{r}
+kable((head(y5.any.2) < x.y[5]), caption = "Check which one(s) default.")
+```
+
+How many cases are these?
+
+```{r}
+nrow(y5.any.2)
+```
+
+In total, we have 682,148 cases. This is, at least one of 10 firms will default in 5 years in 682,148 of 1,000,000 cases. 
+
+And how to convert them into probabilities?
+
+```{r}
+atleastone02 <- t(data.frame(nrow(y1.any.2), nrow(y2.any.2),
+                nrow(y3.any.2), nrow(y4.any.2), nrow(y5.any.2)))
+all02 <- t(data.frame(nrow(y1.all.2), nrow(y2.all.2),
+                nrow(y3.all.2), nrow(y4.all.2), nrow(y5.all.2)))
+res02 <- data.frame(all02 / n, atleastone02 / n)
+rownames(res02) <- n.year
+colnames(res02) <- c("All firms", "At least one")
+kable(res02, caption = "Probabilities of default (10 firms, corr=0.2).")
+```
+
+Let's see the difference when we assume a different correlation matrix. This case, the correlation vary randomly between 0.45 and 0.65.
+
+```{r}
+m <- 10 # number of firms
+n <- 1000000 # number of simulations
+set.seed(130575)
+x <- matrix(runif(m * m, 0.45, 0.65), m, m) 
+ind <- lower.tri(x) 
+x[ind] <- t(x)[ind] 
+diag(x) = 1
+kable(x, caption = "Correlation between 0.45 and 0.65.", digits = 3)
+```
+
+The resulting values of \texttt{Xr} are:
+
+```{r}
+set.seed(130575)
+Xr <- mvrnorm(n, mu = rep(0, m), Sigma = x)
+Xr <- data.frame(Xr)
+kable(head(Xr), caption = "Firms' performance.", digits = 3)
+```
+
+Extract the cases in which all ten firms default at the same time in 5 years and the cases in which either firm default at the same time in 5 years.
+
+```{r}
+Xr <- as_tibble(Xr)
+# All firms.
+Xr.y1.all <- filter_all(Xr, all_vars(. < x.y[1])) 
+Xr.y2.all <- filter_all(Xr, all_vars(. < x.y[2])) 
+Xr.y3.all <- filter_all(Xr, all_vars(. < x.y[3])) 
+Xr.y4.all <- filter_all(Xr, all_vars(. < x.y[4]))
+Xr.y5.all <- filter_all(Xr, all_vars(. < x.y[5])) 
+# At least one firm.
+Xr.y1.any <- filter_all(Xr, any_vars(. < x.y[1]))
+Xr.y2.any <- filter_all(Xr, any_vars(. < x.y[2]))
+Xr.y3.any <- filter_all(Xr, any_vars(. < x.y[3]))
+Xr.y4.any <- filter_all(Xr, any_vars(. < x.y[4]))
+Xr.y5.any <- filter_all(Xr, any_vars(. < x.y[5]))
+```
+
+All firms default in 5,935 cases out of 1,000,000.
+
+```{r}
+nrow(Xr.y5.all)
+```
+Let's see the first 6 cases:
+
+```{r}
+kable(head(Xr.y5.all), 
+      caption = "Cases in which all 10 firms default in five years.", 
+      digits = 3)
+```
+
+Verify that those cases default.
+
+```{r}
+kable((head(Xr.y5.all) < x.y[5]), caption = "Check if all of them default.")
+```
+
+At least one firm default in 497,987 out of 1,000,000.
+
+```{r}
+nrow(Xr.y5.any)
+```
+
+```{r}
+kable(head(Xr.y5.any), caption = "At least one firm default in five years.",
+      digits = 3)
+```
+
+```{r}
+kable((head(Xr.y5.any) < x.y[5]), caption = "Check which one(s) default.")
+```
+
+And the corresponding probabilities:
+
+```{r}
+allR <- t(data.frame(nrow(Xr.y1.all), nrow(Xr.y2.all),
+        nrow(Xr.y3.all), nrow(Xr.y4.all), nrow(Xr.y5.all)))
+atleastoneR <- t(data.frame(nrow(Xr.y1.any), nrow(Xr.y2.any),
+        nrow(Xr.y3.any), nrow(Xr.y4.any), nrow(Xr.y5.any)))
+resR <- data.frame(allR / n, atleastoneR / n)
+ans <- data.frame(res02, resR)
+rownames(ans) <- n.year
+colnames(ans) <- c("All (corr=0.2)", "At least one (corr=0.2)",
+                    "All (corr=rand)", "At least one (corr=rand)")
+kable(ans, caption = "Probability of default.", 
+      row.names = TRUE)
+```
