@@ -83,24 +83,39 @@ CrossTable(loan_data$home_ownership, loan_data$loan_status, prop.r = TRUE,
 
 This table reveals defaults by home ownership. We can use histograms to see one variable distribution. In this case we have the interest rate distribution. 
 
-```{r}
+```{r fig.cap = "Interest rate histogram."}
 ggplot(loan_data, aes(x = int_rate)) + 
   geom_histogram(aes(y=..density..), binwidth = 0.5, colour = "black", 
-                 fill = "white")
+                 fill = "white") +
+  labs(y = "Density",
+       x = "Interest rate",
+       title = "Interest rate histogram",
+       subtitle = NULL) +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 The following is a similar figure for the annual income.
 
-```{r}
+```{r fig.cap = "Annual income histogram."}
 ggplot(loan_data, aes(x = annual_inc)) + 
-geom_histogram(aes(y=..density..), colour = "black", fill = "red")
+  geom_histogram(aes(y=..density..), colour = "black", fill = "red") +
+  labs(y = "Density",
+       x = "Annual income",
+       title = "Annual income histogram",
+       subtitle = NULL) +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 The histogram looks suspicious. We have a very large values of the annual income in the horizontal axis (6,000,000) and apparently no observations. We can plot the values and explore the data further.
 
-```{r}
+```{r fig.cap = "Annual income inspection."}
 ggplot(loan_data, aes(int_rate, annual_inc)) +
-  geom_point()
+  geom_point() +
+  labs(y = "Annual income",
+       x = "Interest rate",
+       title = "Annual income inspection.",
+       subtitle = NULL) +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 There are some individuals with a very high income. We should explore further and investigate if this are valid observations or simply a mistake in the database.
@@ -112,11 +127,16 @@ high_income
 
 One guy is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. 
 
-```{r}
+```{r fig.cap = "Annual income without extreme values."}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
 loan_data <- loan_data[-high_income_index$value,]
 ggplot(loan_data, aes(int_rate, annual_inc)) +
-  geom_point()
+  geom_point() +
+  labs(y = "Annual income",
+       x = "Interest rate",
+       title = "Annual income without extreme values.",
+       subtitle = NULL) +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 Remember the database has originally 29,092 rows and now we are dropping 9 so we end up with 29,083. See the result.
 
