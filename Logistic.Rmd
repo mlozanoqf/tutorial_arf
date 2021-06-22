@@ -140,15 +140,20 @@ ggplot(loan_data, aes(int_rate, annual_inc)) +
 ```
 Remember the database has originally 29,092 rows and now we are dropping 9 so we end up with 29,083. See the result.
 
-```{r}
+```{r fig.cap = "Annual income histogram second version."}
 ggplot(loan_data, aes(x = annual_inc)) + 
-  geom_histogram(aes(y=..density..), colour = "black", fill = "red")
+  geom_histogram(aes(y=..density..), colour = "black", fill = "red") +
+    labs(y = "Density",
+       x = "Annual income",
+       title = "Annual income histogram second version.",
+       subtitle = NULL) +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 
 ## Logistic models.
 
-Logistic models allows us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable. In this case, the binary dependent variable is default or no default (loan status). 
+Logistic models allows us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable. In this case, the binary dependent variable is default or no default (loan status). A good reference for this section is @hull2020machine.
 
 First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimate models and the test set is used to evaluate our model predictions. This is, when estimating models, it is common practice to separate the available data into two portions, *training* and *test* data, where the training data is used to estimate parameters and the test data is used to evaluate its accuracy. Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications.
 
@@ -277,23 +282,35 @@ Narrow ranges could be problematic because the model could not be able to differ
 
 Let's explore the \texttt{log\_model\_age}:
 
-```{r}
+
+```{r fig.cap = "Age model prediction histogram."}
 pred_log_model_age_plot <- data.frame(pred_log_model_age)
 pred_log_model_age_plot <- gather(pred_log_model_age_plot)
 
 ggplot(pred_log_model_age_plot, aes(x = value, fill = key)) + 
-  geom_density(alpha = 0.4)
+  geom_density(alpha = 0.4) +
+  labs(y = "Density",
+       x = "Default prediction",
+       title = "Age model prediction histogram.",
+       subtitle = "Very limited prediction range.") +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 The \texttt{log\_model\_age} fails to predict values ranging from 0 to 1. In fact, these values are quite concentrated in a very small range of values. As a consequence, this model fails to differentiate between default and no default predictions.
 
 Let's visualize the predictions of the \texttt{log\_model\_ir} and \texttt{log\_model\_multi}.
 
-```{r}
+```{r fig.cap = "Interest rate and multi models predictions histograms."}
 pred_ir_multi <- as.data.frame(cbind(pred_log_model_ir,
                                    pred_log_model_multi))
 pred_ir_multi <- gather(pred_ir_multi)
+
 ggplot(pred_ir_multi, aes(x = value, fill = key)) + 
-  geom_density(alpha = 0.4)
+  geom_density(alpha = 0.4) +
+  labs(y = "Density",
+       x = "Default prediction",
+       title = "Interest rate and multi models predictions histograms.",
+       subtitle = "Multi model performs somewhat better.") +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 Presumably, a model which considers all available predictors could be better for predicting the \texttt{loan\_status}. 
@@ -315,13 +332,18 @@ range(predictions_all_full)
 Now, the range is wider. A wider range means that the estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see a prediction comparisons of \texttt{log\_model\_multi} and \texttt{log\_model\_full}.
 
 
-```{r}
+```{r fig.cap = "Multi and full models predictions histograms."}
 predictions_multi_full <-as.data.frame(cbind(pred_log_model_multi, 
                                              predictions_all_full))
 predictions_multi_full <- gather(predictions_multi_full)
 
 ggplot(predictions_multi_full, aes(x = value, fill = key)) + 
-  geom_density(alpha = 0.4)
+  geom_density(alpha = 0.4) +
+  labs(y = "Density",
+       x = "Default prediction",
+       title = "Multi and full models predictions histograms.",
+       subtitle = "Full model performs somewhat better.") +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 The \texttt{log\_model\_full} model predictions looks better than the other models.
@@ -330,7 +352,7 @@ Another question is: How can we know these model predictions corresponds to a de
 
 Let's arbitrarily consider a cutoff of 0.15. This mean that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically looks like this:
 
-```{r}
+```{r fig.cap = "Full model prediction histogram."}
 pred_log_model_full <- data.frame(predictions_all_full)
 pred_log_model_full <- gather(pred_log_model_full)
 pred_log_model_full <- mutate(pred_log_model_full, 
@@ -339,7 +361,12 @@ pred_log_model_full$def <- as.factor(pred_log_model_full$def)
 
 ggplot(pred_log_model_full, aes(x = value, fill = key)) + 
   geom_density(alpha = 0.4, adjust = 0.4) +
-   geom_vline(xintercept = 0.15, linetype = "longdash")
+  geom_vline(xintercept = 0.15, linetype = "longdash") +
+  labs(y = "Density",
+       x = "Default prediction",
+       title = "Full model prediction histogram.",
+       subtitle = "A cutoff of 0.15.") +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 Here, values at the left of the dashed line represent no default and values at the right of the dashed line represent default. Let's set up the rule to convert the estimated loan status into a binary variable 0 or 1. See how this transformation takes place:
@@ -388,10 +415,15 @@ cutoff
 
 This new approach (taking the 20% highest estimates of \texttt{predictions\_all\_full} as default) represent a cutoff of 0.1994621. Graphically:
 
-```{r}
+```{r fig.cap = "Full model prediction histogram new cutoff."}
 ggplot(pred_log_model_full, aes(x = value, fill = key)) + 
   geom_density(alpha = 0.4, adjust = 0.4) +
-   geom_vline(xintercept = cutoff, linetype = "longdash")
+  geom_vline(xintercept = cutoff, linetype = "longdash") +
+  labs(y = "Density",
+       x = "Default prediction",
+       title = "Full model prediction histogram.",
+       subtitle = "A cutoff of 0.1994621.") +
+  theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 Now the cutoff is 0.1994621. This splits the loan status predictions into two parts: higher than the cutoff is a default, and lower than the cutoff is a no-default. Taking the lowest 80% estimates (closer to 0) as no-default is an arbitrary decision. Here are the cutoff values depending on this arbitrary decision.
@@ -544,7 +576,7 @@ data.frame(accept_rate = strategy_pred_log_model$accept_rate,
 
 The full model is superior because at any acceptance rate we can reach a lower bad rate. A plot can reveal the main differences of these two models: \texttt{log\_model\_full} and \texttt{log\_model\_age}.
 
-```{r}
+```{r fig.cap = "A good and a bad model."}
 # Plot the strategy functions
 par(mfrow = c(1, 2))
 plot(strategy_predictions_all_full$accept_rate,
@@ -575,7 +607,7 @@ The model ability to predict defaults and no defaults can be measured by the AUC
 ROC_all_full <- roc(test_set$loan_status, predictions_all_full)
 ROC_log_model <- roc(test_set$loan_status, pred_log_model_age)
 # Draw the ROCs on one plot
-plot(ROC_all_full, col = "red")
+plot(ROC_all_full, col = "red", main = "Full model in red, age model in blue") 
 lines(ROC_log_model, col = "blue")
 ```
 
@@ -596,7 +628,7 @@ set.seed(2020)
 pred_rand_model <- runif(length(pred_log_model_age))
 ROC_rand <- roc(test_set$loan_status, pred_rand_model)
 # Draw the ROCs on one plot
-plot(ROC_rand, col = "orange")
+plot(ROC_rand, col = "orange", main = "Random rule model.")
 auc(ROC_rand)
 ```
 
@@ -605,7 +637,7 @@ In theory, this random evaluation process would lead to an AUC of $0.5 = (1 \tim
 ```{r}
 pred_perfect_model <- as.numeric(test_set$loan_status)
 ROC_perfect <- roc(test_set$loan_status, pred_perfect_model)
-plot(ROC_perfect)
+plot(ROC_perfect, main = "Perfect model.")
 auc(ROC_perfect)
 ```
 
