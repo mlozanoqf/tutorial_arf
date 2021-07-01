@@ -1,10 +1,10 @@
 ---
-title: "**Credit risk**"
+title: "**\\Huge Credit risk. \\vspace{20 mm}   \n \\fontsize{100}{100}\\faCreditCard  \\vspace{20 mm}  \n\\Huge Dr. Martín Lozano.**"
 author:
-- Dr. Martín Lozano.
-- \texttt{<martin.lozano@udem.edu>}
-- \texttt{https://sites.google.com/site/mlozanoqf/}
-date: "Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
+- \faEnvelope \hspace{1 mm} \texttt{<martin.lozano@udem.edu>}
+- \faAddressCard \hspace{1 mm} \texttt{https://sites.google.com/site/mlozanoqf/}
+- \faGithub \hspace{1 mm} \texttt{https://github.com/mlozanoqf/}
+date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
 output:
   pdf_document:
     fig_caption: yes
@@ -22,10 +22,19 @@ header-includes:
 - \counterwithin{figure}{subsection}
 - \counterwithin{table}{subsection}
 - \usepackage[nottoc]{tocbibind}
-toc: yes
+- \usepackage{fontawesome5}
+#toc: yes
 bibliography: references.bib
 abstract: This material relies on John C. Hull [@Hull] credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding. As in the philosophy of Donald Knuth [@knuth1984literate], the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 ---
+-----------------------
+
+```{=tex}
+\newpage 
+\hypersetup{linkcolor=black}
+\renewcommand*\contentsname{Index.}
+\tableofcontents
+```
 
 ```{r echo=FALSE}
 # This removes all items in environment. 
@@ -37,6 +46,8 @@ rm(list=ls())
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 ```
+
+\newpage
 
 ```{r load libraries}
 # Logistic models
