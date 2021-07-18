@@ -1,5 +1,5 @@
 ---
-title: "**\\Huge Credit risk. \\vspace{20 mm}   \n \\fontsize{100}{100}\\faCreditCard  \\vspace{20 mm}  \n\\Huge Dr. Martín Lozano.**"
+title: "**\\Huge Credit risk. \\vspace{20 mm}   \n \\fontsize{100}{100}\\faCreditCard[regular]  \\vspace{20 mm}  \n\\Huge Dr. Martín Lozano.**"
 author:
 - \faEnvelope \hspace{1 mm} \texttt{<martin.lozano@udem.edu>}
 - \faAddressCard \hspace{1 mm} \texttt{https://sites.google.com/site/mlozanoqf/}
