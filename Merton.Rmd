@@ -119,6 +119,24 @@ ans <- data.frame(d1, Nd1, d2, Nd2)
 kable(ans, caption = "Inspect the role of d and N(d).")
 ```
 
+```{r e2, eval=FALSE, include=FALSE}
+V0 <- 9
+D <- 10
+rf <- 0.05
+sv <- 0.15
+TT <- 1
+
+# Inspect the role of d and N(d).
+d1 <- (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
+d2 <- d1 - sv * sqrt(TT)
+Nd1 <- pnorm(d1)
+Nd2 <- pnorm(d2)
+Nd2neg <- pnorm(-d2)
+ans <- data.frame(d1, Nd1, d2, Nd2, Nd2neg)
+kable(ans, caption = "Inspect the role of d and N(d).")
+```
+
+
 Now let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
 
 ```{r fig.cap="The red area represents the probability of default."}

@@ -58,9 +58,9 @@ str(loan_data)
 ```
 
 
-This could be a typical database taken from any given financial institution like a bank or a firm that uses credit channels to sell their products or services. Here, we have 29,092 observations of 10 variables. Each observation corresponds to one individual loan and each variable allow us to understand the individual and the loan characteristics. One important variable, our dependent variable, is \texttt{loan\_status} the value of 0 is no default and the value of 1 is default. A default occurs when a borrower is unable to make timely payments, misses payments, or avoids or stops making payments on interest or principal owed. Then, the definition of default depends on the interests and objectives of the analysis. 
+This could be a typical database taken from any given financial institution like a bank or a firm that uses credit channels to sell their products or services. Here, we have 29,092 observations of 10 variables. Each observation corresponds to one individual loan and each variable allow us to understand the individual and the loan characteristics. One important variable, our dependent variable, is \texttt{loan\_status} the value of 0 is no default and the value of 1 is default. A default occurs when a borrower is unable to make timely payments, misses payments, or avoids or stops making payments on interest or principal owed. Then, the definition of default depends on the interests and objectives of the analysis. The variable \texttt{loan\_status} is dichotomic or categorical. Here, we are interested to predict whether a new application will default or not in the future. 
 
-Clearly, this is past information as we know with certainty whether the individual defaulted (1) or not (0). Past information is helpful to better understand how likely is that one individual may default according to the rest of their variable values. This kind of data could be easily found in most financial firms as they store details about the applicant and its corresponding loan. Past information is useful to train our quantitative models and eventually make predictions of new applicants, and even evaluate our predictions.
+Clearly, \texttt{loan\_data\_ARF.rds} is past information as we know with certainty whether the individual defaulted (1) or not (0). Past information is helpful to better understand how likely is that one individual may default according to the rest of their variable values. This kind of data could be easily found in most financial firms as they store details about the applicant and its corresponding loan. Past information is useful to train our quantitative models and eventually make predictions of new applicants, and even evaluate our predictions.
 
 We can look at the information in different ways. For example, look at the first 10 rows (out of 29,092) and their corresponding 10 variables.
 
@@ -106,7 +106,7 @@ ggplot(loan_data, aes(x = annual_inc)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-The histogram looks suspicious. We have a very large values of the annual income in the horizontal axis (6,000,000) and apparently no observations. We can plot the values and explore the data further.
+The histogram looks suspicious. We have a very large values of the annual income in the horizontal axis (6,000,000) and apparently no observations. We can plot the values and explore the data further as the histogram may be hiding something.
 
 ```{r fig.cap = "Annual income inspection."}
 ggplot(loan_data, aes(int_rate, annual_inc)) +
@@ -118,14 +118,14 @@ ggplot(loan_data, aes(int_rate, annual_inc)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-There are some individuals with a very high income. We should explore further and investigate if this are valid observations or simply a mistake in the database.
+There are some individuals with a very high income. We should explore further and investigate if this are valid observations or simply a mistake in the original database.
 
 ```{r Extract the row of the high income individuals}
 high_income <- loan_data[(loan_data$annual_inc > 1000000), ]
 high_income
 ```
 
-One guy is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. 
+One guy is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. Cleaning data is a common task when dealing with large databases. This is fine as long as we do not alter the nature of the data. 
 
 ```{r fig.cap = "Annual income without extreme values."}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
@@ -150,12 +150,13 @@ ggplot(loan_data, aes(x = annual_inc)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
+Somewhat better now.
 
 ## Logistic models.
 
-Logistic models allows us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable. In this case, the binary dependent variable is default or no default (loan status). A good reference for this section is @hull2020machine.
+Logistic models allows us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable like \texttt{loan\_status}. In this case, the binary dependent variable is default or no default. A good reference for this section is @hull2020machine.
 
-First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimate models and the test set is used to evaluate our model predictions. This is, when estimating models, it is common practice to separate the available data into two portions, *training* and *test* data, where the training data is used to estimate parameters and the test data is used to evaluate its accuracy. Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications.
+First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimate models and the test set is used to evaluate our model predictions with new data for our models. This is, when estimating models, it is common practice to separate the available data into two portions, *training* and *test* data, where the training data is used to estimate parameters (in-sample) and the test data is used to evaluate its accuracy (out of sample). Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications. If we ignore this split and use the whole database to produce our models, we may succeed at explaining defaults in our database but we may fail to explain defaults for new loan applications. 
 
 ```{r Training and test set construction}
 # It is convenient to set the loan_status as factor.
@@ -171,7 +172,7 @@ training_set <- loan_data[index_train, ]
 test_set <- loan_data[-index_train, ]
 ```
 
-We have 29,083 observations in \texttt{loan\_data}. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the \texttt{training\_set}. The \texttt{test\_set} are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the \texttt{loan\_data} may have some structure or sorting that could bias our model estimation and negatively impact our model test. 
+We have 29,083 observations in \texttt{loan\_data}. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the \texttt{training\_set}. The \texttt{test\_set} are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the \texttt{loan\_data} may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allow us to replicate a real situation in which our database is unsorted, with different characteristics.
 
 Take a look of the training set structure.
 
@@ -180,7 +181,7 @@ Take a look of the training set structure.
 str(training_set)
 ```
 
-Variables as factors are useful for model estimation and data visualization. Factors are variables in R which take on a limited number of different values; such variables are often refered to as categorical variables. 
+Variables as factors are useful for model estimation and data visualization. Factors are variables in R which take on a limited number of different values; such variables are often referred to as categorical variables. 
 
 Assume we think that the \texttt{loan\_status} depends on the age of the individual. We can estimate a simple logistic model to learn about the relationship between age and loan status.
 
@@ -192,9 +193,9 @@ log_model_age
 ```
 
 
-Apparently, there is a negative relationship between age and loan status. The AIC value (13580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. 
+Apparently, there is a negative relationship between age and loan status. The AIC value (13580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
 
-Let's estimate another simple model where the interest rate category is used as a predictor of the \texttt{loan\_status}.
+Let's estimate another simple model where the interest rate category is used as a predictor of the \texttt{loan\_status}. Remember we are not conducting any prediction at all at this moment, we are only estimating models using the training set. 
 
 ```{r log_model_ir estimation}
 # Build a glm model with variable int_rate as a predictor.
@@ -204,9 +205,9 @@ log_model_ir <- glm(formula = loan_status ~ int_rate, family = "binomial",
 log_model_ir
 ```
 
-The AIC is a lower (13220), so we have a better model now. 
+The AIC is a lower (13220 versus 13580), so we have a better model now. 
 
-Using one single predictor as age or interest rate could be a limited approach. Let's add some more. Also, let's introduce the \texttt{summary} function to extract more information about the model estimation. The \texttt{log\_model\_multi} below assumes that the loan status depend on the age, interest rate, grade, loan amount, and annual income. 
+Using one single predictor as age or interest rate could be a limited approach. Let's add some more. Also, let's introduce the \texttt{summary} function to extract more information about the model estimation results. The \texttt{log\_model\_multi} below assumes that the loan status depend on the age, interest rate, grade, loan amount, and annual income. 
 
 ```{r log_model_multi estimation}
 # Multiple variables in a logistic regression model.
@@ -217,13 +218,13 @@ log_model_multi <- glm(loan_status ~ age + int_rate + grade + log(loan_amnt) +
 summary(log_model_multi)
 ```
 
-Our multi-factor model works well. In \texttt{log\_model\_multi}, the AIC value is the lowest so far (13050), so this should be considered as the best model at the moment. The \texttt{summary} function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we want to conduct predictions about the \texttt{loan\_status}. This is, we are interested to use a model to find out whether new applicants in the test set are expected to default or not, rather than in the applicants' credit risk factors. 
+Our multi-factor model works well. In \texttt{log\_model\_multi}, the AIC value is the lowest so far (13050 versus 13220), so this should be considered as the best model at the moment. The \texttt{summary} function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we want to conduct predictions about the \texttt{loan\_status}. This is, we are interested to use a model to find out whether new applicants in the test set are expected to default or not, rather than in the applicants' credit risk factors. This is why we are concentrated in AIC now.
 
-When someone fill out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
+When a customer fill out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
 
 ## Prediction and model evaluation.
 
-Let's take our three models: \texttt{log\_model\_age}, \texttt{log\_model\_ir} and \texttt{log\_model\_multi} from the previous subsection to carry out a simple prediction exercise. We start by identifying one observation in the test set and ask the models to estimate the \texttt{loan\_status}. Every model is expected to produce different estimates.
+Let's take our three models: \texttt{log\_model\_age}, \texttt{log\_model\_ir} and \texttt{log\_model\_multi} from the previous subsection to carry out a simple prediction exercise. We start by identifying one observation in the test set and ask the models to estimate the \texttt{loan\_status}. This is, we take the first guy age, then we apply the \texttt{log\_model\_age} model, and compare the predicted \texttt{loan\_status} with respect to what really happened. Remember we know what really happened with this guy because we have the information in the test set. Every model is expected to produce different \texttt{loan\_status} estimates. If the model is good, then the predicted \texttt{loan\_status} will match what really happened.
 
 ```{r One applicant}
 # Define one single observation in test_set.
@@ -231,7 +232,7 @@ test_case <- as.data.frame(test_set[1, ])
 test_case
 ```
 
-We know in advance that the \texttt{loan\_status} of this observation taken from the test set is 0. However, the models cannot know this simply because we did not use the test set to estimate the logistic models. A good credit risk model should estimate a no default given this new applicant. 
+We know in advance that the \texttt{loan\_status} of this observation taken from the test set is 0. However, the models cannot know this simply because we did not use the test set to estimate the logistic models. Our models were estimated using the training set. A good credit risk model should estimate a no default given this new applicant. 
 
 The values of \texttt{loan\_status} in the test set is either 0 or 1. However, the logistic models estimate the \texttt{loan\_status} as values in the range of 0 to 1. This mean that we would expect the estimated \texttt{loan\_status} to be close to 0. But, how close? We will deal with this issue later.
 
@@ -251,9 +252,9 @@ colnames(predictions) <- "predictions of a known no-default"
 predictions
 ```
 
-These values are low as they are close to 0. We could interpret this as a certain ability of the models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. For example: How can we determine if the prediction is low enough to consider it as a non-default? We may need a cut-off to decide. We will explore this issue later.
+These values are low as they are close to 0. We could interpret this as a certain ability of the models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. For example: How can we determine if the prediction is low enough to consider it as a non-default? We may need a cut-off value to decide. We will explore this issue later.
 
-Another aspect is: What about the rest of the cases in the test set? We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in test for the entire test set, not only for one observation. Fortunately, this issue is easy to address as we only need to change the \texttt{newdata} parameter in the \texttt{predict} function. In particular, instead of \texttt{newdata = test\_case} (which is one observation) we can change it to \texttt{newdata = test\_set} (which is the entire 9,695 test set).
+Another aspect is: What about the rest of the cases in the test set? We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for one observation. Fortunately, this issue is easy to address as we only need to change the \texttt{newdata} parameter in the \texttt{predict} function. In particular, instead of \texttt{newdata = test\_case} (which is one observation) we can change it to \texttt{newdata = test\_set} (which is the entire 9,695 test set).
 
 ```{r Predictions of the entire test set}
 # Estimate the loan status with the three models.
@@ -277,10 +278,11 @@ predictions_2 <- cbind(predictions_2, aic)
 colnames(predictions_2) <- c("lower value", "higer value", "AIC")
 predictions_2
 ```
+Now, instead of the prediction of one single applicant we have conducted a prediction of all 9,695 observations in the test set. The lower value column corresponds to the lower predicted \texttt{loan\_status} for each model. The logistic models produce values in the range of zero to one, and in this case the ranges are rather narrow.
 
-Narrow ranges could be problematic because the model could not be able to differentiate between defaults (predictions closer to 1) and no-defaults (predictions closer to 0). The higher AIC corresponds to the worst model and the lower AIC to the best model. Here, we can see some consistency because the best model according to the AIC, corresponds to the model with the higher prediction range.
+Narrow ranges (the difference between higher and lower \texttt{loan\_status} predicted values) could be problematic because the model could not be able to differentiate between defaults (predictions closer to 1) and no-defaults (predictions closer to 0). The higher AIC corresponds to the worst model and the lower AIC to the best model. Here, we can see some consistency because the best model according to the AIC, corresponds to the model with the higher prediction range.
 
-Let's explore the \texttt{log\_model\_age}:
+Let's explore all the predicted \texttt{loan\_status} values for the  \texttt{log\_model\_age}:
 
 
 ```{r fig.cap = "Age model prediction histogram."}
@@ -312,8 +314,7 @@ ggplot(pred_ir_multi, aes(x = value, fill = key)) +
        subtitle = "Multi model performs somewhat better.") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
-
-Presumably, a model which considers all available predictors could be better for predicting the \texttt{loan\_status}. 
+Looks better, but not quite. Presumably, a model which considers all available predictors could be better for predicting the \texttt{loan\_status}. 
 
 ```{r log_model_full estimation and prediction}
 # Logistic regression model using all available predictors in the data set.
@@ -329,7 +330,17 @@ predictions_all_full <- predict(log_model_full, newdata = test_set,
 range(predictions_all_full)
 ```
 
-Now, the range is wider. A wider range means that the estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see a prediction comparisons of \texttt{log\_model\_multi} and \texttt{log\_model\_full}.
+```{r eval=FALSE, include=FALSE}
+max(predictions_all_full)
+m <- which.max(predictions_all_full)
+caso.m <- test_set[m,]
+caso.m
+predm <- predict(log_model_full, newdata = caso.m, 
+                                type = "response")
+predm
+```
+
+Now, the range is wider. A wider range means that the \texttt{loan\_status} estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see a prediction comparisons of \texttt{log\_model\_multi} and \texttt{log\_model\_full}.
 
 
 ```{r fig.cap = "Multi and full models predictions histograms."}
@@ -348,9 +359,9 @@ ggplot(predictions_multi_full, aes(x = value, fill = key)) +
 
 The \texttt{log\_model\_full} model predictions looks better than the other models.
 
-Another question is: How can we know these model predictions corresponds to a default or no default? The loan status predictions go from 0 to 0.854. At the end, these loan status estimations need to be interpreted as a default or no default because we are interested on that. Are they closer enough to 0 to consider a no default? This issue is addressed by setting up a cutoff rate so we can split all estimated loan status into 0 or 1.
+Another question is: How can we know these model predictions corresponds to a default or no default? The loan status predictions go from 0 to 0.854 for the case of the \texttt{log\_model\_full} model. At the end, these loan status estimations need to be interpreted or classified as a default or no default because we are interested on that. Are they closer enough to 0 to consider a no default? This issue is addressed by setting up a cut-off rate so we can split all estimated loan status into 0 or 1.
 
-Let's arbitrarily consider a cutoff of 0.15. This mean that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically looks like this:
+Let's arbitrarily consider a cutoff of 0.15 for now. This mean that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
 
 ```{r fig.cap = "Full model prediction histogram."}
 pred_log_model_full <- data.frame(predictions_all_full)
@@ -369,7 +380,7 @@ ggplot(pred_log_model_full, aes(x = value, fill = key)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-Here, values at the left of the dashed line represent no default and values at the right of the dashed line represent default. Let's set up the rule to convert the estimated loan status into a binary variable 0 or 1. See how this transformation takes place:
+Here, predicted \texttt{loan\_status} values at the left of the dashed line represent no default and values at the right of the dashed line represent default. Let's set up the rule to convert the estimated loan status into a binary variable 0 or 1. See how this transformation takes place:
 
 ```{r Specifying a cut-off of 15}
 # Make a binary predictions-vector using a cut-off of 15%
@@ -377,25 +388,25 @@ pred_cutoff_15 <- ifelse(predictions_all_full > 0.15, 1, 0)
 head(cbind(predictions_all_full, pred_cutoff_15))
 ```
 
-These are only the first 6 rows not all of them. We can see that the rule works well as every estimated loan status below 0.15 is now considered as 0 (no-default), and every estimated loan status above 0.15 is considered as 1 (default). The table above show how we can create this binary variable given the logistic model prediction. 
+These are only the first 6 rows not all of them available in the test set. We can see that the rule works as expected because every estimated loan status below 0.15 is now considered as 0 (no-default), and every estimated loan status above 0.15 is considered as 1 (default). The table above show how we can create this binary variable given the logistic model prediction. 
 
 Note that the rows numbers in the table above are 1, 2, 18, 26, 27 and 28. These are not 1, 2, 3, 4, 5 and 6 because the \texttt{test\_set} rows were selected randomly out of the \texttt{loan\_data}. So, the row numbers in the table above correspond to the original place in \texttt{loan\_data}.
 
-Is \texttt{log\_model\_full} a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15 and the third column is what actually happened (default or no-default).
+Is \texttt{log\_model\_full} a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default).
 
 ```{r}
 # Let's take from rows 101 to 110.
 (cbind(predictions_all_full, pred_cutoff_15, 
            as.data.frame.numeric(test_set$loan_status)))[101:110,]
 ```
-Note that the model correctly predict a no default in most cases. Rows 308 and 329 predict a default incorrectly and row 323 predict a default correctly. There is an easy way to evaluate the rest of the cases in a simple table called confusion matrix. 
+Let's take a sample of 10 observations to conduct the comparison easily. Note that the model correctly predict a no default in most cases. Rows 308 and 329 predict a default incorrectly and row 323 predict a default correctly. There is an easy way to evaluate the rest of the cases in the test set using a simple table called confusion matrix. 
 
 ```{r Confusion matrix at cutoff of 15}
 # Construct a confusion matrix.
 table(test_set$loan_status, pred_cutoff_15)
 ```
 
-The model predicts 6,554 of no-defaults correctly and 752 defaults correctly. However, the model predicts 2,081 defaults that are in fact no-defaults and 308 no-defaults that are in fact defaults. How good are these results? Which of these four values is more important? These are questions we address later. For now, we can say that different models and different cutoff rates lead to different confusion matrix results.
+The \texttt{log\_model\_full} model predicts 6,554 of no-defaults correctly and 752 defaults correctly. However, the model predicts 2,081 defaults that are in fact no-defaults and 308 no-defaults that are in fact defaults. How good are these results? Which of these four values is more important? These are questions we address later. For now, we can say that different models and different cut-off rates lead to different confusion matrix results. Please note that adding all these values leads to 9,695 which are the number of observations in the test set.
 
 You may want to see relative and not absolute values. Let's try the \texttt{CrossTable} function instead.
 
@@ -405,7 +416,7 @@ CrossTable(test_set$loan_status, pred_cutoff_15, prop.r = TRUE,
 ```
 This table is more informative. The model correctly predicts no-defaults in 75.9% of all the observed no-default cases. In other words, the model fails to predict no-default in 24.1% of the total no-default cases. Now the default. The model correctly predicts the default in 70.9% of all the observed default cases (not bad), and fails to predict default in 29.1% of the total default cases.
 
-Instead of arbitrarily consider a cutoff of 0.15, we can follow a different approach. Now consider that we are interested in taking the 20% highest estimates (closer to 1) of \texttt{predictions\_all\_full} as default. Equivalently, this is to take the lowest 80% \texttt{predictions\_all\_full} estimates (closer to 0) as no-default.
+Instead of arbitrarily consider a cutoff of 0.15, we can follow a different approach. Now consider that we are interested in taking the 20% highest estimates (closer to 1) of \texttt{predictions\_all\_full} as default. Equivalently, this is to take the lowest 80% \texttt{predictions\_all\_full} estimates (closer to 0) as no-default. Let's calculate the new cut-off that meets this new criterion.
 
 ```{r Now 20 highest are default}
 # Cutoff definition.
@@ -413,7 +424,7 @@ cutoff <- quantile(predictions_all_full, 0.8)
 cutoff
 ```
 
-This new approach (taking the 20% highest estimates of \texttt{predictions\_all\_full} as default) represent a cutoff of 0.1994621. Graphically:
+This new approach (taking the 20% highest estimates of \texttt{predictions\_all\_full} as default) represent a cut-off of 0.1994621. Graphically:
 
 ```{r fig.cap = "Full model prediction histogram new cutoff."}
 ggplot(pred_log_model_full, aes(x = value, fill = key)) + 
@@ -426,14 +437,14 @@ ggplot(pred_log_model_full, aes(x = value, fill = key)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-Now the cutoff is 0.1994621. This splits the loan status predictions into two parts: higher than the cutoff is a default, and lower than the cutoff is a no-default. Taking the lowest 80% estimates (closer to 0) as no-default is an arbitrary decision. Here are the cutoff values depending on this arbitrary decision.
+Now the cut-off is 0.1994621. This splits the loan status predictions into two parts: higher than the cut-off is a default, and lower than the cutoff is a no-default. Taking the lowest 80% estimates (closer to 0) as no-default is an arbitrary decision. Here are the cut-off values depending on this arbitrary decision.
 
 ```{r Cutoff by quantiles}
 cutoff_all <- quantile(predictions_all_full, seq(0.1, 1, 0.1))
 data.frame(cutoff_all)
 ```
 
-We can show a similar summary table as we did with the cutoff of 0.15. Here, we show the predictive ability of the \texttt{log\_model\_full} model and new cutoff of 0.1994621.
+We can show a similar summary table as we did with the cutoff of 0.15. Here, we show the predictive ability of the \texttt{log\_model\_full} model and new cut-off of 0.1994621.
 
 ```{r Confusion matrix pred_full_20}
 # Calculate the predictions with the same model and new cutoff.
@@ -442,7 +453,7 @@ pred_full_20 <- ifelse(predictions_all_full > cutoff, 1, 0)
 CrossTable(test_set$loan_status, pred_full_20, prop.r = TRUE,
            prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
 ```
-With a cutoff of 0.1994621 we accept 7,309 applications as those are the ones that the model predicts a no default. We can compare both confusion matrix:
+With a cutoff of 0.1994621 we accept 7,309 + 447 applications as those are the ones that the model predicts a no default. We can compare both confusion matrix:
 
 ```{r Cutoff of 15 and 19 comparison}
 cat <- c("correct no-default", "false default", 
@@ -452,9 +463,9 @@ cut_19 <- c(0.846, 0.154, 0.422, 0.578)
 cbind(cat, cut_15, cut_19)
 ```
  
-The new cutoff of 0.1994621 improves the identification of no-defaults but worsen the identification of default. Also, the new cutoff fails less in the default and fails more in the no-default. Apparently there is some sort of trade-off.
+The new cut-off of 0.1994621 improves the identification of no-defaults but worsen the identification of default. Also, the new cut-off fails less in the default and fails more in the no-default. Apparently there is some sort of trade-off here.
 
-We can also look the detail of 0.1994621 cutoff. Comparing two columns, the one in the left with the actual loan status, and the right column with the estimated loan status.
+We can also look the detail of 0.1994621 cut-off. Comparing two columns, the one in the left with the actual loan status, and the right column with the estimated loan status.
 
 ```{r pred_full_20 for a sample of 10 applicants}
 # Comparative table in detail.
@@ -463,7 +474,7 @@ true_and_predval <- cbind.data.frame(test_set$loan_status, pred_full_20,
 # Show some values.
 true_and_predval[131:140,]
 ```
-In this sample the model fails in 1 out of 10 individuals. Not bad at all. Let's imagine we are a bank. We have a total of 9,695 applications for a loan. Assume we use the predictions from \texttt{pred\_full\_20} to decide whether we accept a loan application or not. Our model-based acceptance rule is the following: if \texttt{pred\_full\_20 = 0} then the model estimates a no-default and we accept the loan application. According to the extract of table above, we fortunately reject application 399, 417 and 425 because that was indeed a default. However, we reject application 404 incorrectly because it did not default. 
+In this sample the model fails in 1 out of 10 individuals. Not bad at all. Let's imagine we are a bank. We have a total of 9,695 applications for a loan in our desk (or computer). Assume we use the predictions from \texttt{pred\_full\_20} to decide whether we accept a loan application or not. Our model-based acceptance rule is the following: if \texttt{pred\_full\_20 = 0} then the model estimates a no-default and we accept the loan application. According to the extract of table above, we fortunately reject application 399, 417 and 425 because that was indeed a default. However, we reject application 404 incorrectly because it did not default. In principle, having a model as a base for a decision rule can lead to better results that guessing or a random approval rule. 
 
 Let's count how many applications are accepted and rejected according to our rule.
 
@@ -495,13 +506,13 @@ We can add an evaluation column.
 head(data.frame(true_and_predval[,1:2], decision = 
                   ifelse(true_and_predval$pred_full_20 == 0, "accept", "reject"),
                 evaluation = ifelse(true_and_predval$pred_full_20 == 1, 
-                                    "it does not matter", 
+                                    "we rejected a good customer", 
                                     ifelse(true_and_predval$pred_full_20 == 0 &
   true_and_predval$`test_set$loan_status` == 0,
                        "good decision", "bad decision"))), 12)
 ```
 
-Here we have the first 10 accepted loan applications. A good decision is because we accept the loan that did not default. A bad decision is because we accept the loan application and defaulted. The evaluation does not matter when we reject a loan application.
+Here we have the first 10 accepted loan applications. A good decision is because we accept the loan that did not default. A bad decision is because we accept the loan application and defaulted. We also have some cases in which we rejected a good customer and that is not good.
 
 ```{r A more efficient way to conduct the model evaluation}
 # We accept loans that the model predicts a no-default (0).
@@ -519,7 +530,9 @@ bad_rate <- sum(accepted_loans == 1)/length(accepted_loans)
 bad_rate
 ```
 
-This is, by following the model-based rule, we accepted 7,756 loan applications that represent 80% of the total applications. However, 5.76% of those accepted applications were in fact a default. Models are not perfect but we are always interested to find out a good model that leads to a lower bad rate. If we keep the same model and the test set the same, we could reduce this 5.76% by being more strict in the loan application which in simple terms mean to reduce the acceptance rate. This alternative could be controversial as a lower acceptance rate represents lower income (less customers) for the bank or financial firm. In any case, consider we reduce the acceptance rate from 80% to 65% so we can evaluate the impact over the bad rate.
+This is, by following the model-based rule, we accepted 7,756 loan applications that represent 80% of the total applications. However, 5.76% of those accepted applications were in fact a default. In particular, we accepted 447 loans that are defaults so: $447/7756=0.0576328$.
+
+Models are not perfect but we are always interested to find out a good model that leads to a lower bad rate because we do not want to accept many defaults. If we keep the same model and the test set the same, we could reduce this 5.76% by being more strict in the loan application which in simple terms mean to reduce the acceptance rate. This alternative could be controversial as a lower acceptance rate represents lower income (less customers) for the bank or financial firm. In any case, consider we reduce the acceptance rate from 80% to 65% so we can evaluate the impact over the bad rate.
 
 ```{r Bad rate when the acceptance rate is 65}
 # New cutoff value.
@@ -536,7 +549,7 @@ bad_rate <- sum(accepted_loans == 1)/length(accepted_loans)
 bad_rate
 ```
 
-As expected, the bad rate is lower (from 5.76%% to 3.71%). This is, the lower the acceptance rate the lower the bad rate. We can create a function such that given a vector of prediction of loan status we can return the bad rate for different cutoff values. This could be useful to build the bank strategy more easily. This function will reveal the trade-off between the acceptance rate and the bad rate. In particular, the lower the acceptance rate, the lower the income (bad thing) and the lower the bad rate (good thing). So, which combination is the optimal?
+As expected, the bad rate is lower (from 5.76%% to 3.71%). This is, the lower the acceptance rate the lower the bad rate. In the extreme, if we accept 0 loan applications then our bad rate would be zero, but doing so is equivalent as going out of business. We can create a function such that given a vector of prediction of loan status we can return the bad rate for different cutoff values. This could be useful to build the *bank strategy* more easily. This function will reveal the trade-off between the acceptance rate and the bad rate. In particular, the lower the acceptance rate, the lower the income (bad thing) and the lower the bad rate (good thing). So, which combination is the optimal?
 
 ## The bank strategy.
 

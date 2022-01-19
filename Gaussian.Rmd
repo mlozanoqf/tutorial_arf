@@ -722,7 +722,43 @@ legend("topleft", legend = c(paste(onlyfirm1.pd0002[5]/n*100)), bty = "n")
 legend("bottomright", legend = c(paste(onlyfirm2.pd0002[5]/n*100)), bty = "n")
 
 ```
+```{r}
+par(pty = "s")
+plot(X00.02[["none", 5]], pch = ".", xlim = L, ylim = L, 
+     cex = 0.8, main = "Correlation=0.2") 
+points(X00.02[["both", 5]], pch = ".", col = "black")
+points(X00.02[["onlyfirm1", 5]], pch = ".", col = "red")
+points(X00.02[["onlyfirm2", 5]], pch = ".", col = "red")
+points(X00.02[["both", 4]], pch = ".", col = "black")
+points(X00.02[["onlyfirm1", 4]], pch = ".", col = "black")
+points(X00.02[["onlyfirm2", 4]], pch = ".", col = "black")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+abline(v = x.y[4], lty = 2)
+abline(h = x.y[4], lty = 2)
+x.y[5]
+x.y[4]
+```
 
+```{r}
+par(pty = "s")
+plot(X00.02[["none", 5]], pch = ".", xlim = L, ylim = L, 
+     cex = 0.8, main = "Correlation=0.2") 
+points(X00.02[["both", 5]], pch = ".", col = "black")
+points(X00.02[["onlyfirm1", 5]], pch = ".", col = "red")
+points(X00.02[["onlyfirm2", 5]], pch = ".", col = "red")
+points(X00.02[["both", 5]], pch = ".", col = "red")
+points(X00.02[["onlyfirm1", 4]], pch = ".", col = "black")
+points(X00.02[["onlyfirm2", 4]], pch = ".", col = "black")
+points(X00.02[["both", 5]], pch = ".", col = "red")
+points(X00.02[["both", 4]], pch = ".", col = "black")
+abline(v = x.y[5], lty = 2)
+abline(h = x.y[5], lty = 2)
+abline(v = x.y[4], lty = 2)
+abline(h = x.y[4], lty = 2)
+x.y[5]
+x.y[4]
+```
 
 ## Ten firms.
 
