@@ -1,31 +1,23 @@
 ---
-title: "**\\Huge Credit risk. \\vspace{20 mm}   \n \\fontsize{100}{100}\\faCreditCard[regular]  \\vspace{20 mm}  \n\\Huge Dr. Martín Lozano.**"
+title: Quantitative finance with R.
 author:
-- \faEnvelope \hspace{1 mm} \texttt{<martin.lozano@udem.edu>}
-- \faAddressCard \hspace{1 mm} \texttt{https://sites.google.com/site/mlozanoqf/}
-- \faGithub \hspace{1 mm} \texttt{https://github.com/mlozanoqf/}
+   - name: Dr. Martin Lozano.
+     affiliation: https://sites.google.com/site/mlozanoqf/
+     email: martin.lozano@udem.edu
+#   - name: Jack, the Supposed Contributor
+#     affiliation: Living Room Couch
 date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
+abstract: As in the philosophy of Donald Knuth, the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 output:
   html_document:
-    df_print: paged
-  pdf_document:
-    fig_caption: yes
-    number_sections: yes
-    extra_dependencies: ["float"]
-    citation_package: natbib
-fontsize: 12pt
-header-includes:
-- \usepackage{placeins}
-- \usepackage{setspace}
-- \usepackage{chngcntr}
-- \onehalfspacing
-- \counterwithin{figure}{subsection}
-- \counterwithin{table}{subsection}
-- \usepackage[nottoc]{tocbibind}
-- \usepackage{fontawesome5}
-#toc: yes
-bibliography: references.bib
-abstract: This material relies on John C. Hull [@Hull] credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding. As in the philosophy of Donald Knuth [@knuth1984literate], the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    number_sections: true
+    code_folding: hide
+    theme: readable
+    includes:
+      after_body: analytics_arf.html
 ---
 -----------------------
 
