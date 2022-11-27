@@ -2,8 +2,8 @@
 title: Credit risk with R.
 author:
    - name: Dr. Martin Lozano.
-     affiliation: https://sites.google.com/site/mlozanoqf/
-     email: martin.lozano@udem.edu
+     affiliation: https://mlozanoqf.github.io/
+#     email: martin.lozano@udem.edu
 #   - name: Jack, the Supposed Contributor
 #     affiliation: Living Room Couch
 date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
