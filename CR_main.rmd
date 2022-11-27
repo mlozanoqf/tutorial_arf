@@ -6,13 +6,13 @@ author:
 - \faGithub \hspace{1 mm} \texttt{https://github.com/mlozanoqf/}
 date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
 output:
+  html_document:
+    df_print: paged
   pdf_document:
     fig_caption: yes
     number_sections: yes
     extra_dependencies: ["float"]
     citation_package: natbib
-  html_document:
-    df_print: paged
 fontsize: 12pt
 header-includes:
 - \usepackage{placeins}

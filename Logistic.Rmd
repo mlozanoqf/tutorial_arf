@@ -162,6 +162,7 @@ First, load the data and split it into two sets: (1) training and (2) test. The 
 # It is convenient to set the loan_status as factor.
 loan_data$loan_status <- as.factor(loan_data$loan_status)
 set.seed(567)
+# idea de Pablo Elizondo usar runif del 1 al nrow(loan_data), eso simplificaria el proces. 
 index_train <- cbind(runif(1 : nrow(loan_data), 0 , 1), 
                      c(1 : nrow(loan_data)))
 index_train <- order(index_train[, 1])
@@ -187,7 +188,7 @@ Assume we think that the \texttt{loan\_status} depends on the age of the individ
 
 ```{r log_model_age estimation}
 # Fitting a simple logistic model.
-log_model_age <- glm(loan_status ~ age , family = "binomial", 
+log_model_age <- glm(loan_status ~ age, family = "binomial", 
                      data = training_set)
 log_model_age
 ```
@@ -238,6 +239,7 @@ The values of \texttt{loan\_status} in the test set is either 0 or 1. However, t
 
 ```{r Predictions of one single applicant in the test set}
 # Estimate the loan status with log_model_age and log_model_ir models.
+# Esteban Gonzalez, as.numeric no es realmente necesario. 
 log_model_age_pred <- as.numeric(predict(log_model_age, newdata = test_case, 
                               type = "response"))
 # Remember the test_case is only one observation (one row).
