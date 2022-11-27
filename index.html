@@ -11,7 +11,7 @@
 
 
 
-<title>Quantitative finance with R.</title>
+<title>Credit risk with R.</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1424,6 +1424,28 @@ width: 90%;
 </style>
 
 
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
 
 
 
@@ -1599,17 +1621,22 @@ border-radius: 0px;
 
 
 
-<h1 class="title toc-ignore">Quantitative finance with R.</h1>
+<h1 class="title toc-ignore">Credit risk with R.</h1>
 <h4 class="author">Dr. Martin Lozano.</h4>
 <address class="author_afil">
 <a href="https://sites.google.com/site/mlozanoqf/" class="uri">https://sites.google.com/site/mlozanoqf/</a><br><a class="author_email" href="mailto:#"><a href="mailto:martin.lozano@udem.edu" class="email">martin.lozano@udem.edu</a></a>
 </address>
-<h4 class="date"> Last compiled on: 27/11/2022, 03:37:45.</h4>
+<h4 class="date"> Last compiled on: 27/11/2022, 03:44:29.</h4>
 <div class="abstract">
 <p class="abstract">Abstract</p>
-As in the philosophy of Donald Knuth, the objective of this document is
-to explain to human beings what we want a computer to do as literate
-programming. This is a work in progress and it is under revision.
+This material relies on John C. Hull <span class="citation">(Hull
+2015)</span> credit risk chapters and Lore Dirick credit risk DataCamp
+course. Some mathematical background is skipped to emphasize the data
+analysis, model logic, discussion, graphical approach and R coding. As
+in the philosophy of Donald Knuth <span class="citation">(Knuth
+1984)</span>, the objective of this document is to explain to human
+beings what we want a computer to do as literate programming. This is a
+work in progress and it is under revision.
 </div>
 
 </div>
@@ -1879,7 +1906,8 @@ Annual income histogram second version.
 Logistic regression is a statistical model that in its basic form uses a
 logistic function to model a binary dependent variable like . In this
 case, the binary dependent variable is default or no default. A good
-reference for this section is <span class="citation">@hull2020machine</span>.</p>
+reference for this section is <span class="citation">Hull
+(2020)</span>.</p>
 <p>First, load the data and split it into two sets: (1) training and (2)
 test. The training set is for building and estimate models and the test
 set is used to evaluate our model predictions with new data for our
@@ -2873,7 +2901,8 @@ above.</p>
 </div>
 <div id="applied-example." class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Applied example.</h2>
-<p>Let’s follow the example 24.3 in <span class="citation">[@Hull]</span>. Five parameters: <span class="math inline">\(E_0=3\)</span>, <span class="math inline">\(\sigma_E=0.8\)</span>, <span class="math inline">\(rf=0.05\)</span>, <span class="math inline">\(T=1\)</span>, <span class="math inline">\(D=10\)</span> lead to an estimate of the value of
+<p>Let’s follow the example 24.3 in <span class="citation">(Hull
+2015)</span>. Five parameters: <span class="math inline">\(E_0=3\)</span>, <span class="math inline">\(\sigma_E=0.8\)</span>, <span class="math inline">\(rf=0.05\)</span>, <span class="math inline">\(T=1\)</span>, <span class="math inline">\(D=10\)</span> lead to an estimate of the value of
 the assets today <span class="math inline">\(V_0\)</span> and the
 volatility of the assets <span class="math inline">\(\sigma_V\)</span>.
 With these seven parameters we can estimate the probability of default
@@ -6841,7 +6870,8 @@ kable(ans, caption = &quot;Probability of default.&quot;,
 <div id="credit-var-example-24.7." class="section level1" number="4">
 <h1><span class="header-section-number">4</span> Credit VaR example
 24.7.</h1>
-<p>This replicates <span class="citation">@Hull</span> example 24.7.</p>
+<p>This replicates <span class="citation">Hull (2015)</span> example
+24.7.</p>
 <p>This is the Vasicek model (equation 24.10) in a function form.</p>
 <pre class="r"><code>CVaR &lt;- function(exp, pd, r, c, l) {
 v &lt;- pnorm((qnorm(pd) + (c^0.5) * qnorm(l)) / (1 - c)^0.5)
@@ -6890,8 +6920,22 @@ Distribution of losses.
 </div>
 <p>Nice.</p>
 </div>
-<div id="references." class="section level1" number="5">
-<h1><span class="header-section-number">5</span> References.</h1>
+<div id="references." class="section level1 unnumbered">
+<h1 class="unnumbered">References.</h1>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-Hull" class="csl-entry">
+Hull, John C. 2015. <em>Options, Futures, and Other Derivatives</em>.
+9th ed. Prentice Hall.
+</div>
+<div id="ref-hull2020machine" class="csl-entry">
+———. 2020. <em>Machine Learning in Business: An Introduction to the
+World of Data Science</em>. Amazon Distribution.
+</div>
+<div id="ref-knuth1984literate" class="csl-entry">
+Knuth, Donald Ervin. 1984. <span>“Literate Programming.”</span> <em>The
+Computer Journal</em> 27 (2): 97–111.
+</div>
+</div>
 </div>
 
 <!-- Google tag (gtag.js) -->
@@ -6913,7 +6957,7 @@ var data = {
 
 ,"security_groups":{
 "google":["__ccd_conversion_marking","__ccd_em_download","__ccd_em_form","__ccd_em_outbound_click","__ccd_em_page_view","__ccd_em_scroll","__ccd_em_site_search","__ccd_em_video","__ccd_ga_regscope","__ogt_google_signals","__set_product_settings"]}
-,"infra":["__ccd_em_page_view","__ccd_ga_regscope","__set_product_settings","__ogt_google_signals","__ccd_conversion_marking","__ccd_em_download","__ccd_em_outbound_click","__ccd_em_scroll","__ccd_em_site_search","__ccd_em_video","__ccd_em_form"]
+,"infra":["__ccd_em_download","__ccd_em_site_search","__ccd_ga_regscope","__set_product_settings","__ccd_em_outbound_click","__ccd_em_scroll","__ccd_conversion_marking","__ccd_em_form","__ccd_em_video","__ogt_google_signals","__ccd_em_page_view"]
 
 };
 
@@ -7023,7 +7067,7 @@ uh:"user_data_auto_status",vh:"user_data_mode",wf:"user_data_settings",Aa:"user_
 1,Pg[S.g.fc]=1,Pg[S.g.ce]=1,Pg[S.g.de]=1,Pg[S.g.ee]=1,Pg[S.g.Xc]=1,Pg[S.g.yb]=1,Pg[S.g.ie]=1,Pg[S.g.je]=1,Pg[S.g.ff]=1,Pg[S.g.me]=1,Pg[S.g.za]=1,Pg[S.g.kf]=1,Pg[S.g.ne]=1,Pg[S.g.zb]=1,Pg[S.g.Fa]=1,Pg[S.g.Kb]=1,Pg[S.g.ad]=1,Pg[S.g.lf]=1,Pg[S.g.oc]=1,Pg[S.g.wa]=1,Pg[S.g.bd]=1,Pg[S.g.wf]=1,Pg[S.g.Ta]=1,Pg));Object.freeze([S.g.Ra,S.g.Sa,S.g.nc,S.g.Qa,S.g.kh,S.g.Aa,S.g.df,S.g.Ni]);
 var Rg={},Sg=Object.freeze((Rg[S.g.Ci]=1,Rg[S.g.Di]=1,Rg[S.g.Ei]=1,Rg[S.g.Fi]=1,Rg[S.g.Gi]=1,Rg[S.g.Hi]=1,Rg[S.g.Ii]=1,Rg[S.g.Ji]=1,Rg[S.g.Ki]=1,Rg[S.g.Xe]=1,Rg)),Tg={},Ug=Object.freeze((Tg[S.g.Eg]=1,Tg[S.g.Fg]=1,Tg[S.g.Ec]=1,Tg[S.g.Fc]=1,Tg[S.g.Gg]=1,Tg[S.g.Yb]=1,Tg[S.g.Gc]=1,Tg[S.g.Fb]=1,Tg[S.g.Zb]=1,Tg[S.g.Gb]=1,Tg[S.g.Ja]=1,Tg[S.g.Hc]=1,Tg[S.g.Oa]=1,Tg[S.g.Hg]=1,Tg)),Vg=Object.freeze([S.g.fa,S.g.bc,S.g.Hb]),Wg=Object.freeze([].concat(Vg)),Xg=Object.freeze([S.g.Pa,S.g.de,S.g.ad,S.g.lf,S.g.be]),
 Yg=Object.freeze([].concat(Xg)),Zg={},$g=(Zg[S.g.J]="1",Zg[S.g.Z]="2",Zg),ah={},bh=Object.freeze((ah[S.g.fa]=1,ah[S.g.Jc]=1,ah[S.g.Ea]=1,ah[S.g.kb]=1,ah[S.g.Ud]=1,ah[S.g.Kc]=1,ah[S.g.Lc]=1,ah[S.g.Mc]=1,ah[S.g.ia]=1,ah[S.g.Nc]=1,ah[S.g.La]=1,ah[S.g.ya]=1,ah[S.g.nb]=1,ah[S.g.Pa]=1,ah[S.g.ob]=1,ah[S.g.Za]=1,ah[S.g.va]=1,ah[S.g.Rc]=1,ah[S.g.ja]=1,ah[S.g.Jg]=1,ah[S.g.Vc]=1,ah[S.g.Wc]=1,ah[S.g.df]=1,ah[S.g.ee]=1,ah[S.g.me]=1,ah[S.g.Qa]=1,ah[S.g.mc]=1,ah[S.g.Ra]=1,ah[S.g.Sa]=1,ah[S.g.fh]=1,ah[S.g.gh]=1,
-ah[S.g.hh]=1,ah[S.g.ih]=1,ah[S.g.zb]=1,ah[S.g.Fa]=1,ah[S.g.Kb]=1,ah[S.g.oc]=1,ah[S.g.Ma]=1,ah[S.g.wa]=1,ah[S.g.bd]=1,ah[S.g.qb]=1,ah[S.g.ka]=1,ah[S.g.Aa]=1,ah[S.g.ra]=1,ah));Object.freeze(S.g);var ch={},dh=m.google_tag_manager=m.google_tag_manager||{},eh=Math.random();ch.ed="b90";ch.Cf=Number("0")||0;ch.ma="dataLayer";ch.Ai="ChAIgLKMnAYQ3q6VmaPrgrM0EiUAamZPA0Hq0RuHopRYxtpvYq12mzJdjlxi21Xy4ZMNzVG5k9SpGgLHFQ\x3d\x3d";var fh={__cl:!0,__ecl:!0,__ehl:!0,__evl:!0,__fal:!0,__fil:!0,__fsl:!0,__hl:!0,__jel:!0,__lcl:!0,__sdl:!0,__tl:!0,__ytl:!0},gh={__paused:!0,__tg:!0},hh;for(hh in fh)fh.hasOwnProperty(hh)&&(gh[hh]=!0);var ih=Pa(""),jh=Pa("true"),kh,lh=!1;
+ah[S.g.hh]=1,ah[S.g.ih]=1,ah[S.g.zb]=1,ah[S.g.Fa]=1,ah[S.g.Kb]=1,ah[S.g.oc]=1,ah[S.g.Ma]=1,ah[S.g.wa]=1,ah[S.g.bd]=1,ah[S.g.qb]=1,ah[S.g.ka]=1,ah[S.g.Aa]=1,ah[S.g.ra]=1,ah));Object.freeze(S.g);var ch={},dh=m.google_tag_manager=m.google_tag_manager||{},eh=Math.random();ch.ed="b90";ch.Cf=Number("0")||0;ch.ma="dataLayer";ch.Ai="ChAIgLKMnAYQ3q6VmaPrgrM0EiUAamZPA55vFcMiieiTvc4Bi1SqvYnxJtYGMRMeAMYEJ2sTor4TGgJZhQ\x3d\x3d";var fh={__cl:!0,__ecl:!0,__ehl:!0,__evl:!0,__fal:!0,__fil:!0,__fsl:!0,__hl:!0,__jel:!0,__lcl:!0,__sdl:!0,__tl:!0,__ytl:!0},gh={__paused:!0,__tg:!0},hh;for(hh in fh)fh.hasOwnProperty(hh)&&(gh[hh]=!0);var ih=Pa(""),jh=Pa("true"),kh,lh=!1;
 lh=!0;kh=lh;var mh,nh=!1;mh=nh;var oh,ph=!1;oh=ph;var qh,rh=!1;qh=rh;ch.Sd="www.googletagmanager.com";
 var sh=""+ch.Sd+(kh?"/gtag/js":"/gtm.js"),th=null,uh=null,vh={},wh={},xh={},yh=function(){var a=dh.sequence||1;dh.sequence=a+1;return a};ch.zi="true";var zh="";ch.we=zh;var Ah=new Ka,Bh={},Ch={},Mh={name:ch.ma,set:function(a,b){I(bb(a,b),Bh);Dh()},get:function(a){return Lh(a,2)},reset:function(){Ah=new Ka;Bh={};Dh()}},Lh=function(a,b){return 2!=b?Ah.get(a):Nh(a)},Nh=function(a,b){var c=a.split(".");b=b||[];for(var d=Bh,e=0;e<c.length;e++){if(null===d)return!1;if(void 0===d)break;d=d[c[e]];if(-1!==b.indexOf(d))return}return d},Oh=function(a,b){Ch.hasOwnProperty(a)||(Ah.set(a,b),I(bb(a,b),Bh),Dh())},Ph=function(){for(var a=["gtm.allowlist","gtm.blocklist","gtm.whitelist",
 "gtm.blacklist","tagTypeBlacklist"],b=0;b<a.length;b++){var c=a[b],d=Lh(c,1);if(Ea(d)||Cc(d))d=I(d);Ch[c]=d}},Dh=function(a){Ma(Ch,function(b,c){Ah.set(b,c);I(bb(b),Bh);I(bb(b,c),Bh);a&&delete Ch[b]})},Qh=function(a,b){var c,d=1!==(void 0===b?2:b)?Nh(a):Ah.get(a);"array"===Ac(d)||"object"===Ac(d)?c=I(d):c=d;return c};var Rh,Sh=!1;function Th(){Sh=!0;Rh=Rh||{}}var Uh=function(a){Sh||Th();return Rh[a]};var Vh=function(){var a=m.screen;return{width:a?a.width:0,height:a?a.height:0}},Wh=function(a){if(G.hidden)return!0;var b=a.getBoundingClientRect();if(b.top==b.bottom||b.left==b.right||!m.getComputedStyle)return!0;var c=m.getComputedStyle(a,null);if("hidden"===c.visibility)return!0;for(var d=a,e=c;d;){if("none"===e.display)return!0;var f=e.opacity,g=e.filter;if(g){var h=g.indexOf("opacity(");0<=h&&(g=g.substring(h+8,g.indexOf(")",h)),"%"==g.charAt(g.length-1)&&(g=g.substring(0,g.length-1)),f=Math.min(g,
