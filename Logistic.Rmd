@@ -1,8 +1,8 @@
 ---
 title: ''
-#output: bookdown::gitbook:
-  html_document:
-    df_print: paged
+output: bookdown::gitbook:
+#  html_document:
+#    df_print: paged
 ---
   
 # Loan analysis.
