@@ -1,28 +1,27 @@
 ---
-title: "Credit risk with R."
+title: Credit risk with R.
 author:
-- name: Dr. Martin Lozano.
-  affiliation: https://mlozanoqf.github.io/
+   - name: Dr. Martin Lozano.
+     affiliation: https://mlozanoqf.github.io/
+#     email: martin.lozano@udem.edu
+#   - name: Jack, the Supposed Contributor
+#     affiliation: Living Room Couch
 date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
-#  bookdown::gitbook: default
+bibliography: references.bib
+abstract: This material relies on John C. Hull [@Hull] credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding. As in the philosophy of Donald Knuth [@knuth1984literate], the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 output:
-  bookdown::html_document2:
-    toc: yes
-    toc_float: yes
-    toc_depth: 2
-    number_sections: yes
-    fig_caption: yes
-    code_folding: hide
-    theme: readable
+  bookdown::gitbook:
+#output:
+#  bookdown::html_document2: 
+#    toc: true
+#    toc_float: true
+#    toc_depth: 2
+#    number_sections: true
+#    fig_caption: yes
+#    code_folding: hide
+#    theme: readable #darkly
     includes:
       after_body: analytics_arf.html
-abstract: This material relies on John C. Hull [@Hull] credit risk chapters and Lore
-  Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize
-  the data analysis, model logic, discussion, graphical approach and R coding. As
-  in the philosophy of Donald Knuth [@knuth1984literate], the objective of this document
-  is to explain to human beings what we want a computer to do as literate programming.
-  This is a work in progress and it is under revision.
-bibliography: references.bib
 ---
 -----------------------
 
