@@ -1,6 +1,6 @@
 ---
 title: ''
-output: bookdown::gitbook
+output: bookdown::gitbook:
 #  html_document:
 #    df_print: paged
 ---
