@@ -1,8 +1,9 @@
 ---
 title: "Credit risk with R."
+subtitle: "Dr. Martin Lozano."
 author:
-- name: Dr. Martin Lozano.
-  affiliation: https://mlozanoqf.github.io/
+- name: Contact. [Google Sites.](https://sites.google.com/site/mlozanoqf/) [GitHub Pages. ](https://mlozanoqf.github.io/)
+#  affiliation: Academic website. [Web.](https://sites.google.com/site/mlozanoqf/)
 date: "\\faClock \\hspace{1 mm} Last compiled on: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
 #  bookdown::gitbook: default
 output:
@@ -58,6 +59,7 @@ library(MASS)
 library(viridis)
 library(rayshader)
 ```
+
 
 ```{r Logistic, child = 'Logistic.Rmd'}
 ```

@@ -175,7 +175,7 @@ training_set <- loan_data[index_train, ]
 test_set <- loan_data[-index_train, ]
 ```
 
-We have 29,083 observations in <tt>`loan_data`</tt>. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the \texttt{training\_set}. The <tt>`test_set`</tt> are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the <tt>`loan_data`</tt> may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allow us to replicate a real situation in which our database is unsorted, with different characteristics.
+We have 29,083 observations in <tt>`loan_data`</tt>. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the <tt>`training_set`</tt>. The <tt>`test_set`</tt> are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the <tt>`loan_data`</tt> may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allow us to replicate a real situation in which our database is unsorted, with different characteristics.
 
 Take a look of the training set structure.
 
@@ -196,7 +196,7 @@ log_model_age
 ```
 
 
-Apparently, there is a negative relationship between age and loan status. The AIC value (13580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
+Apparently, there is a negative relationship between age and loan status. The AIC value (13,580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
 
 Let's estimate another simple model where the interest rate category is used as a predictor of the <tt>`loan_status`</tt>. Remember we are not conducting any prediction at all at this moment, we are only estimating models using the training set. 
 
@@ -208,7 +208,7 @@ log_model_ir <- glm(formula = loan_status ~ int_rate, family = "binomial",
 log_model_ir
 ```
 
-The AIC is a lower (13220 versus 13580), so we have a better model now. 
+The AIC is a lower (13,220 versus 13,580), so we have a better model now. 
 
 Using one single predictor as age or interest rate could be a limited approach. Let's add some more. Also, let's introduce the <tt>`summary()`</tt> function to extract more information about the model estimation results. The <tt>`log_model_multi`</tt> below assumes that the loan status depend on the age, interest rate, grade, loan amount, and annual income. 
 
@@ -258,7 +258,7 @@ predictions
 
 These values are low as they are close to 0. We could interpret this as a certain ability of the models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. For example: How can we determine if the prediction is low enough to consider it as a non-default? We may need a cut-off value to decide. We will explore this issue later.
 
-Another aspect is: What about the rest of the cases in the test set? We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for one observation. Fortunately, this issue is easy to address as we only need to change the \texttt{newdata} parameter in the \texttt{predict} function. In particular, instead of \texttt{newdata = test\_case} (which is one observation) we can change it to \texttt{newdata = test\_set} (which is the entire 9,695 test set).
+Another aspect is: What about the rest of the cases in the test set? We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for one observation. Fortunately, this issue is easy to address as we only need to change the <tt>`newdata`</tt> parameter in the <tt>`predict`</tt> function. In particular, instead of <tt>`newdata = test_case`</tt> (which is one observation) we can change it to <tt>`newdata = test_set`</tt> (which is the entire 9,695 test set).
 
 ```{r Predictions of the entire test set}
 # Estimate the loan status with the three models.
@@ -344,8 +344,7 @@ predm <- predict(log_model_full, newdata = caso.m,
 predm
 ```
 
-Now, the range is wider. A wider range means that the <tt>`loan_status`</tt> estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see a prediction comparisons of <tt>`log_model_multi`</tt> and \texttt{log\_model\_full}.
-
+Now, the range is wider. A wider range means that the <tt>`loan_status`</tt> estimates are now closer to 1. This is good because we need the model to be able to predict both no-defaults (0) and defaults (1). Let's see a prediction comparisons of <tt>`log_model_multi`</tt> and <tt>`log_model_full`</tt>.
 
 ```{r fig.cap = "Multi and full models predictions histograms."}
 predictions_multi_full <-as.data.frame(cbind(pred_log_model_multi, 
@@ -361,9 +360,9 @@ ggplot(predictions_multi_full, aes(x = value, fill = key)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-The \texttt{log\_model\_full} model predictions looks better than the other models.
+The <tt>`log_model_full`</tt> model predictions looks better than the other models.
 
-Another question is: How can we know these model predictions corresponds to a default or no default? The loan status predictions go from 0 to 0.854 for the case of the \texttt{log\_model\_full} model. At the end, these loan status estimations need to be interpreted or classified as a default or no default because we are interested on that. Are they closer enough to 0 to consider a no default? This issue is addressed by setting up a cut-off rate so we can split all estimated loan status into 0 or 1.
+Another question is: How can we know these model predictions corresponds to a default or no default? The loan status predictions go from 0 to 0.854 for the case of the <tt>`log_model_full`</tt> model. At the end, these loan status estimations need to be interpreted or classified as a default or no default because we are interested on that. Are they closer enough to 0 to consider a no default? This issue is addressed by setting up a cut-off rate so we can split all estimated loan status into 0 or 1.
 
 Let's arbitrarily consider a cutoff of 0.15 for now. This mean that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
 
@@ -396,7 +395,7 @@ These are only the first 6 rows not all of them available in the test set. We ca
 
 Note that the rows numbers in the table above are 1, 2, 18, 26, 27 and 28. These are not 1, 2, 3, 4, 5 and 6 because the <tt>`test_set`</tt> rows were selected randomly out of the <tt>`loan_data`</tt>. So, the row numbers in the table above correspond to the original place in <tt>`loan_data`</tt>.
 
-Is \texttt{log\_model\_full} a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default).
+Is <tt>`log_model_full`</tt> a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default).
 
 ```{r}
 # Let's take from rows 101 to 110.
@@ -410,7 +409,7 @@ Let's take a sample of 10 observations to conduct the comparison easily. Note th
 table(test_set$loan_status, pred_cutoff_15)
 ```
 
-The \texttt{log\_model\_full} model predicts 6,554 of no-defaults correctly and 752 defaults correctly. However, the model predicts 2,081 defaults that are in fact no-defaults and 308 no-defaults that are in fact defaults. How good are these results? Which of these four values is more important? These are questions we address later. For now, we can say that different models and different cut-off rates lead to different confusion matrix results. Please note that adding all these values leads to 9,695 which are the number of observations in the test set.
+The <tt>`log_model_full`</tt> model predicts 6,554 of no-defaults correctly and 752 defaults correctly. However, the model predicts 2,081 defaults that are in fact no-defaults and 308 no-defaults that are in fact defaults. How good are these results? Which of these four values is more important? These are questions we address later. For now, we can say that different models and different cut-off rates lead to different confusion matrix results. Please note that adding all these values leads to 9,695 which are the number of observations in the test set.
 
 You may want to see relative and not absolute values. Let's try the <tt>`CrossTable()`</tt> function instead.
 
@@ -420,7 +419,7 @@ CrossTable(test_set$loan_status, pred_cutoff_15, prop.r = TRUE,
 ```
 This table is more informative. The model correctly predicts no-defaults in 75.9% of all the observed no-default cases. In other words, the model fails to predict no-default in 24.1% of the total no-default cases. Now the default. The model correctly predicts the default in 70.9% of all the observed default cases (not bad), and fails to predict default in 29.1% of the total default cases.
 
-Instead of arbitrarily consider a cutoff of 0.15, we can follow a different approach. Now consider that we are interested in taking the 20% highest estimates (closer to 1) of \texttt{predictions\_all\_full} as default. Equivalently, this is to take the lowest 80% \texttt{predictions\_all\_full} estimates (closer to 0) as no-default. Let's calculate the new cut-off that meets this new criterion.
+Instead of arbitrarily consider a cutoff of 0.15, we can follow a different approach. Now consider that we are interested in taking the 20% highest estimates (closer to 1) of <tt>`predictions_all_full`</tt> as default. Equivalently, this is to take the lowest 80% <tt>`predictions_all_full`</tt> estimates (closer to 0) as no-default. Let's calculate the new cut-off that meets this new criterion.
 
 ```{r Now 20 highest are default}
 # Cutoff definition.
@@ -428,7 +427,7 @@ cutoff <- quantile(predictions_all_full, 0.8)
 cutoff
 ```
 
-This new approach (taking the 20% highest estimates of \texttt{predictions\_all\_full} as default) represent a cut-off of 0.1994621. Graphically:
+This new approach (taking the 20% highest estimates of <tt>`predictions_all_full`</tt> as default) represent a cut-off of 0.1994621. Graphically:
 
 ```{r fig.cap = "Full model prediction histogram new cutoff."}
 ggplot(pred_log_model_full, aes(x = value, fill = key)) + 
@@ -448,7 +447,7 @@ cutoff_all <- quantile(predictions_all_full, seq(0.1, 1, 0.1))
 data.frame(cutoff_all)
 ```
 
-We can show a similar summary table as we did with the cutoff of 0.15. Here, we show the predictive ability of the \texttt{log\_model\_full} model and new cut-off of 0.1994621.
+We can show a similar summary table as we did with the cutoff of 0.15. Here, we show the predictive ability of the <tt>`log_model_full`</tt> model and new cut-off of 0.1994621.
 
 ```{r Confusion matrix pred_full_20}
 # Calculate the predictions with the same model and new cutoff.
@@ -478,7 +477,7 @@ true_and_predval <- cbind.data.frame(test_set$loan_status, pred_full_20,
 # Show some values.
 true_and_predval[131:140,]
 ```
-In this sample the model fails in 1 out of 10 individuals. Not bad at all. Let's imagine we are a bank. We have a total of 9,695 applications for a loan in our desk (or computer). Assume we use the predictions from \texttt{pred\_full\_20} to decide whether we accept a loan application or not. Our model-based acceptance rule is the following: if \texttt{pred\_full\_20 = 0} then the model estimates a no-default and we accept the loan application. According to the extract of table above, we fortunately reject application 399, 417 and 425 because that was indeed a default. However, we reject application 404 incorrectly because it did not default. In principle, having a model as a base for a decision rule can lead to better results that guessing or a random approval rule. 
+In this sample the model fails in 1 out of 10 individuals. Not bad at all. Let's imagine we are a bank. We have a total of 9,695 applications for a loan in our desk (or computer). Assume we use the predictions from <tt>`pred_full_20`</tt> to decide whether we accept a loan application or not. Our model-based acceptance rule is the following: if <tt>`pred_full_20 = 0`</tt> then the model estimates a no-default and we accept the loan application. According to the extract of table above, we fortunately reject application 399, 417 and 425 because that was indeed a default. However, we reject application 404 incorrectly because it did not default. In principle, having a model as a base for a decision rule can lead to better results that guessing or a random approval rule. 
 
 Let's count how many applications are accepted and rejected according to our rule.
 
@@ -489,7 +488,7 @@ accept_20 <- sum(pred_full_20 == 0)
 reject_20 <- sum(pred_full_20 == 1)
 data.frame(accept_20, reject_20)
 ```
-Taking the 20% highest estimates of \texttt{predictions\_all\_full} as default and the lowest 80% \texttt{predictions\_all\_full} as no-default mean that by construction, we accept 7,756 loan applications (80% of the total) and reject 1,939 (20% of the total). Then, the criterion determines the number of accepted applications and the model determines which applications to accept/reject. 
+Taking the 20% highest estimates of <tt>`predictions_all_full`</tt> as default and the lowest 80% <tt>`predictions_all_full`</tt> as no-default mean that by construction, we accept 7,756 loan applications (80% of the total) and reject 1,939 (20% of the total). Then, the criterion determines the number of accepted applications and the model determines which applications to accept/reject. 
 
 We can evaluate our loan application rule as we have the corresponding real values in <tt>`loan_status`</tt>. 
 
@@ -577,9 +576,9 @@ return(list(table = table, bad_rate = bad_rate,
 }
 ```
 
-We can evaluate this function for the \texttt{log\_model\_full} and a bad model like the <tt>`log_model_age`</tt>. In principle, we expect the \texttt{log\_model\_full} model to have a more attractive relationship between the acceptance rate and the bad rate. This is, lower bad rates for a given acceptance rate. Any financial institution could be interested in increasing the acceptance rate without increasing too much the bad rate.
+We can evaluate this function for the <tt>`log_model_full`</tt> and a bad model like the <tt>`log_model_age`</tt>. In principle, we expect the <tt>`log_model_full`</tt> model to have a more attractive relationship between the acceptance rate and the bad rate. This is, lower bad rates for a given acceptance rate. Any financial institution could be interested in increasing the acceptance rate without increasing too much the bad rate.
 
-Let's apply the function to the \texttt{predictions\_all\_full} and the <tt>`log_model_age`</tt>.
+Let's apply the function to the <tt>`predictions_all_full`</tt> and the <tt>`log_model_age`</tt>.
 
 ```{r The bank strategy a good and a bad model}
 # Apply the strategy_bank function.
@@ -591,7 +590,7 @@ data.frame(accept_rate = strategy_pred_log_model$accept_rate,
            full_model_bad_rate = strategy_predictions_all_full$bad_rate)
 ```
 
-The full model is superior because at any acceptance rate we can reach a lower bad rate. A plot can reveal the main differences of these two models: \texttt{log\_model\_full} and <tt>`log_model_age`</tt>.
+The full model is superior because at any acceptance rate we can reach a lower bad rate. A plot can reveal the main differences of these two models: <tt>`log_model_full`</tt> and <tt>`log_model_age`</tt>.
 
 ```{r fig.cap = "A good and a bad model."}
 # Plot the strategy functions
@@ -616,7 +615,7 @@ abline(v = strategy_pred_log_model[["accept_rate"]][5], lty = 2, col = "red")
 abline(h = strategy_pred_log_model[["bad_rate"]][5], lty = 2, col = "red")
 ```
 
-The \texttt{log\_model\_full} model is better because for any acceptance rate we can reach a lower bad rate compared with the <tt>`log_model_age`</tt>. This is because the \texttt{log\_model\_full} model can identify defaults and no defaults with higher precision compared with the <tt>`log_model_age`</tt>. The value of a good model is that it can help us to make better business decisions, in this case better credit evaluation decisions.
+The <tt>`log_model_full`</tt> model is better because for any acceptance rate we can reach a lower bad rate compared with the <tt>`log_model_age`</tt>. This is because the <tt>`log_model_full`</tt> model can identify defaults and no defaults with higher precision compared with the <tt>`log_model_age`</tt>. The value of a good model is that it can help us to make better business decisions, in this case better credit evaluation decisions.
 
 The model ability to predict defaults and no defaults can be measured by the AUC. The AUC can be defined as the probability that the fit model will score a randomly drawn positive sample higher than a randomly drawn negative sample. AUC stands for area under the curve in the following context:
 
@@ -630,7 +629,7 @@ lines(ROC_log_model, col = "blue")
 
 Sensitivity is the model ability to correctly identify defaults, these are known as true positive. Specificity is the model ability to correctly identify no-default loans, these are known as true negative.
 
-As expected, the area under the curve (AUC) is higher for the red line which corresponds to the \texttt{log\_model\_full} model. We can calculate the exact values:
+As expected, the area under the curve (AUC) is higher for the red line which corresponds to the <tt>`log_model_full`</tt> model. We can calculate the exact values:
 
 ```{r AUC good and bad model}
 # Compute the AUCs
