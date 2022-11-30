@@ -6,8 +6,8 @@ author:
 #  affiliation: Academic website. [Web.](https://sites.google.com/site/mlozanoqf/)
 date: "\\faClock \\hspace{1 mm} Current commit: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
 #  bookdown::gitbook: default
-output:
-  html_document:
+output: 
+  bookdown::html_document2:
     toc: yes
     toc_float: yes
     toc_depth: 2
@@ -43,7 +43,6 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 \newpage
 
 ```{r load libraries}
-library(tidyr)
 library(dplyr)
 library(pROC)
 # Merton model
