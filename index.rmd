@@ -43,8 +43,6 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 \newpage
 
 ```{r load libraries}
-library(dplyr)
-library(pROC)
 # Merton model
 library(knitr)
 library(Sim.DiffProc)
