@@ -648,7 +648,7 @@ Sensitivity is the model ability to correctly identify defaults, these are known
 As expected, the area under the curve (AUC) is higher for the red line which corresponds to the <tt>`logi_full`</tt> model. We can calculate the exact values:
 
 ```{r AUC good and bad model}
-# Compute the AUCs
+# Compute the AUCs:
 auc(ROC_logi_full)
 auc(ROC_logi_age)
 ```
