@@ -572,7 +572,7 @@ bad_rate <- sum(accepted_loans == 1)/length(accepted_loans)
 bad_rate
 ```
 
-As expected, the bad rate is lower (from 5.76%% to 3.71%). This is, the lower the acceptance rate the lower the bad rate. In the extreme, if we accept 0 loan applications then our bad rate would be zero, but doing so is equivalent as going out of business. We can create a function such that given a vector of prediction of loan status we can return the bad rate for different cutoff values. This could be useful to build the *bank strategy* more easily. This function will reveal the trade-off between the acceptance rate and the bad rate. In particular, the lower the acceptance rate, the lower the income (bad thing) and the lower the bad rate (good thing). So, *which combination is the optimal?*
+As expected, the bad rate is lower (from 5.76%% to 3.71%). This is, the lower the acceptance rate the lower the bad rate. In the extreme, if we accept 0 loan applications then our bad rate would be zero, but doing so is equivalent as going out of business. We can create a function such that given a vector of prediction of loan status we can return the bad rate for different cutoff values. This could be useful to build the *bank strategy*. This function will reveal the trade-off between the acceptance rate and the bad rate. In particular, the lower the acceptance rate, the lower the income (bad thing) and the lower the bad rate (good thing). So, *which combination is the optimal?*
 
 ## The bank strategy.
 
@@ -639,7 +639,7 @@ The model ability to predict defaults and no defaults can be measured by the AUC
 ROC_logi_full <- roc(test$loan_st, pred_logi_full)
 ROC_logi_age <- roc(test$loan_st, pred_logi_age)
 # Draw the ROCs on one plot
-plot(ROC_logi_full, col = "red", main = "Full model in red, age model in blue") 
+plot(ROC_logi_full, col = "red", main = "Full model in red, age model in blue")
 lines(ROC_logi_age, col = "blue")
 ```
 
@@ -673,10 +673,9 @@ plot(ROC_perfect, main = "Perfect model.")
 auc(ROC_perfect)
 ```
 
-In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identify defaults (100% sensitivity) and at the same time the model correctly identify no-defaults (100% specificity)
+In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identify defaults (100% sensitivity) and at the same time the model correctly identify no-defaults (100% specificity).
 
 ```{r eval=FALSE, include=FALSE}
-
 log_1_remove_home <- glm(loan_st ~ grade + home + income
 + emp_cat + ir_cat, family = "binomial", data = train)
 
