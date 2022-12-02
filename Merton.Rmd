@@ -7,6 +7,10 @@ title: ''
 
 ```{r load libraries Merton.}
 library(knitr)
+library(plotly)
+library(knitr)
+library(Sim.DiffProc)
+library(scatterplot3d)
 ```
 
 # The Merton model.
@@ -81,6 +85,8 @@ The function that we minimize in the estimation of the credit risk Merton model 
 
 Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the probability of default $pd$ among other interesting results.
 
+These are the known parameters.
+
 ```{r}
 # List of known parameters.
 E0 <- 3 # Value of the equity as today, this is market capitalization.
@@ -88,7 +94,11 @@ se <- 0.8 # Stock return volatility.
 rf <- 0.05 # Risk-free rate.
 TT <- 1 # Maturity.
 D <- 10 # Value of the debt. The Bloomberg function DDIS is useful.
-# We need equations 24.3 and 24.4 to estimate V0 and sv.
+kable(data.frame(E0, se, rf, TT, D), caption = "Known parameters.")
+```
+We need equations 24.3 and 24.4 to estimate $V_0$ and $\sigma_V$.
+
+```{r}
 eq24.3 <- function(V0, sv) { 
   ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) -
   D * exp(-rf * TT) * pnorm(((log(V0 / D) +
@@ -104,7 +114,12 @@ V0_sv <- optim(c(1, 1), min.footnote10)
 # Define the values as parameters.
 V0 <- V0_sv$par[1]
 sv <- V0_sv$par[2]
-# Calculate the probability of default as a function.
+kable(data.frame(V0, sv), caption = "Asset value and volatility.")
+```
+
+Calculate the probability of default $N(-d_2)$ as a function of $V_0$ and $\sigma_V$.
+
+```{r}
 PD <- function(V0, sv) { 
   pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) / 
              (sv * sqrt(TT))) - sv * sqrt(TT))) }
@@ -115,7 +130,7 @@ ans <- data.frame(pd, V0, sv)
 kable(ans, caption = "Main model results.")
 ```
 
-Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First we isolate these values.
+Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
 
 ```{r}
 # Inspect the role of d and N(d).
@@ -127,25 +142,8 @@ ans <- data.frame(d1, Nd1, d2, Nd2)
 kable(ans, caption = "Inspect the role of d and N(d).")
 ```
 
-```{r e2, eval=FALSE, include=FALSE}
-V0 <- 9
-D <- 10
-rf <- 0.05
-sv <- 0.15
-TT <- 1
 
-# Inspect the role of d and N(d).
-d1 <- (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
-d2 <- d1 - sv * sqrt(TT)
-Nd1 <- pnorm(d1)
-Nd2 <- pnorm(d2)
-Nd2neg <- pnorm(-d2)
-ans <- data.frame(d1, Nd1, d2, Nd2, Nd2neg)
-kable(ans, caption = "Inspect the role of d and N(d).")
-```
-
-
-Now let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
+Now, let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
 
 ```{r fig.cap="The red area represents the probability of default."}
 xseq <- seq(-4, 4, 0.01) 
@@ -170,22 +168,24 @@ Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. We do no
 ```{r}
 # Evaluate how good is the minimization.
 min.footnote10(x = c(V0, sv))
+round(min.footnote10(x = c(V0, sv)), 6)
 ```
 
-The minimization conducted in the function <tt>`min.footnote10`</tt> above worked fairly well.
+The minimization conducted in the function <tt>`min.footnote10`</tt> above worked fairly well as the value is zero in practical terms.
 
 There is another way to approach how the minimization work. We can propose a graphical analysis. In particular, we can verify whether $V_0=12.39578$ and $\sigma_V=0.2123041$ minimizes the objective function. To illustrate this in two axis, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
 
 ```{r}
 # Fix sv and evaluate different values of V0.
-V0.seq <- seq(from = 4, to = 20, length.out=50)
-sv.rep <- rep(sv, 50)
+V0.seq <- seq(from = 4, to = 20, length.out = 100)
+sv.rep <- rep(sv, 100)
 # Function to be evaluated.
 FG <- function(V0, sv) { (eq24.3(V0, sv))^2 + (eq24.4(V0, sv))^2 }
 # Apply the function with fixed sv and different V0 values.
 FG.V0 <- mapply(FG, V0.seq, sv.rep)
 ```
 
+We are ready to plot.
 
 ```{r fig.cap="Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."}
 # Plot the results.
@@ -196,12 +196,12 @@ abline(h = FG(V0, sv), lty = 2)
 points(V0, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Clearly the minimization worked well here. For the sake of completeness, now we fix the $V_0$ value and evaluate the function again.
+Clearly, the minimization worked well here. For the sake of completeness, now we fix the $V_0$ value and evaluate the function again.
 
 ```{r fig.cap="Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."}
 # Now fix V0, and evaluate different sv values.
-sv.seq <- seq(0, 0.6, length.out = 50)
-V0.rep <- rep(V0, 50)
+sv.seq <- seq(0, 0.6, length.out = 100)
+V0.rep <- rep(V0, 100)
 # Evaluate the function with these parameters.
 FG.sv <- mapply(FG, V0.rep, sv.seq)
 # Plot the results.
@@ -217,28 +217,29 @@ We can show the same as before but in a 3D plot.
 
 ```{r fig.cap="Minimization of the function."}
 # outer evaluates the function for each combination of the vectors.
-z <- outer(V0.seq, sv.seq, FG) # z is now 50x50 matrix.
+z <- outer(V0.seq, sv.seq, FG) # z is now 100x100 matrix.
 persp(V0.seq, sv.seq, z, col = "springgreen", shade = 0, xlab = "V0",
-      ylab = "sv", zlab = "Probability of default")
+      ylab = "sv", zlab = "Objective function.")
 ```
-This green plot is nice but it is not interactive. We could plot interactive three-dimension plots with other R packages like <tt>`plotly`</tt> and show them in a html context or java environment. Given that this is a PDF document, we cannot show dynamic plots (at least not yet), so we propose to use contour plots. Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
+Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
 
 ```{r fig.cap="Minimization of the function: a contour view."}
 # The nlevels is high to emphasize the minimum value in blue.
-contour(V0.seq, sv.seq, z, xlab = "V0", ylab = "sv", lwd = 2, nlevels = 300)
+contour(V0.seq, sv.seq, z, xlab = "V0", ylab = "sv", 
+        lwd = 2, nlevels = 300)
 points(V0, sv, pch = 19, col = "blue", cex = 2)
 ```
 
-The following plot cannot be seen in a PDF output, but it can be seen in a browser as an interactive plot.
+The following plot cannot be seen in a PDF output, but it can be seen in a browser as an interactive plot. This green plot is nice but it is not interactive. We could plot interactive three-dimension plots with other R packages like <tt>`plotly`</tt> and show them in a html context or java environment. 
 
-```{r plotly}
-library(plotly)
-p <- plot_ly(x = V0.seq, y = sv.seq, z = z, type = "surface") %>%
-layout(
-  title = "Minimization of f at V0=12.395 an sv=0.212",
-  scene = list(xaxis = list(title = "V0"), yaxis = list(title = "sv"),
-    zaxis = list(title = "f=F^2+G^2"))) 
-add_markers(p, x = 12.3957765, y = 0.2123041, z = 0, inherit = TRUE)
+
+```{r fig.cap="Minimization of the function: an interactive view."}
+plot_ly(type = "surface" , x = sv.seq, y = V0.seq , z = z ) %>%
+layout(title = "Minimization of f at V0=12.395 an sv=0.212",
+       scene = list(xaxis = list(title = "sv"), 
+                    yaxis = list(title = "V0"), 
+                    zaxis = list(title = "f=F^2+G^2")))  #%>%
+#add_markers(y = 12.3957765, x = 0.2123041, z = 0, inherit = TRUE)
 ```
 
 The Merton model allows us to calculate more values in this credit risk assessment. 
@@ -257,11 +258,13 @@ kable(t(ans), caption = "Other results in the Merton's model.")
 
 Could we figure out the implied bond yield spread? It would be similar to the fair interest rate that this firm has to pay given its probability of default and recovery rate. Take Hull's equation 24.2 as a reference: $\lambda(T)=S(T)/(1-R)$ and solve for $S(T)$: $S(T)=\lambda(T)\times(1-R)$, so $S(T)=(0.12693963)\times(1-0.90350393)$. This is 122.4918 basis points more than the risk-free rate. Then, with five parameters we can calculate (among other things) the firm's probability of default and the correspondent yield spread of this firm's bond. It would be interesting to compare this value with the market yield spread and evaluate whether the market yield is over or underestimated according to our theoretical value. 
 
+This is the spread function.
+
 ```{r}
 spread <- function(E0, se, rf, TT, D) { 
   eq24.3 <- function(V0, sv) { 
-  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) -
-  D * exp(-rf * TT) * pnorm(((log(V0 / D) +
+  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - 
+      D * exp(-rf * TT) * pnorm(((log(V0 / D) +
   (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - sv * sqrt(TT)) - E0)) }
 eq24.4 <- function(V0, sv) { 
   ((pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) *
@@ -284,40 +287,46 @@ spread
 }
 ```
 
+Let's evaluate the spread function.
+
 ```{r}
 spread(E0 = 3, se = 0.8, rf = 0.05, TT = 1, D = 10)
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 x.T <- seq(0.5, 10, 0.5)
 spread.T <- mapply(spread, E0 = 3, se = 0.8, rf = 0.05, x.T, D = 10)
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 data.frame(x.T, spread.T)
 ```
 
 ## Inside view of the Merton's model.
 
-The model assumes that the assets follow a geometric Brownian stochastic process. Let's assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=t,...,T$. The reference of this section is Chapter 14 and 15 (John C. Hull).
+The model assumes that the assets follow a geometric Brownian motion stochastic process. Let's assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
 
 ```{r fig.cap="Simulation of 10 paths of the assets."}
-# Merton assumes V follows a geometric brownian motion process.
+# Merton assumes V follows a geometric Brownian motion process.
 V0.sim <- function(i) {  # the argument i is not used here.
-  GBM(N = 365, T = 1, t0 = 0, x0 = V0, theta = 0.05, sigma = sv)
-  }
+  GBM(N = 365, T = 1, t0 = 0, x0 = V0, theta = 0.05, sigma = sv) }
 set.seed(3) # Reproducibility  
 paths <- sapply(1:10, V0.sim) # Create 10 paths for V.
 # Plot results.
-matplot(paths, type ="l", col = "black", lwd = 1, lty = 1,
-        ylab = expression(paste(V[t])), xlab = "Time in days (0 to T)")
+matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
 abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
+points(rep(366, 8), paths[366, paths[366, ] > 10], 
+       pch = 1, cex = 1.5, col = "green")
+points(rep(366, 2), paths[366, paths[366, ] < 10], 
+       pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la grafica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric brownian processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la grafica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?
@@ -329,7 +338,8 @@ The value of the assets was lower than $10 at some time in the second, fourth an
 # There might be an easier way to select these cases.
 matplot(paths[,which(colSums(paths < 10) > 0)], type = "l", 
         col = c("green", "blue", "red"), lwd = 2, lty = 1,
-        ylab = expression(paste(V[t])), xlab = "Time in days (0 to T)")
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
 abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
@@ -340,7 +350,7 @@ The blue path was lower than 10 at some time, but at $t=T$ it is clearly higher 
 sum(paths[366,] < 10) / 10
 ```
 
-The probability of default of 20% can be disappointing because it is significantly higher than 0.12693963. This is because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 100 to 100,000.
+The probability of default of 20% can be disappointing because it is significantly higher than 12.693963%. This is because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
 
 Here are 100 simulated paths of $V_0$ to $V_T$.
 
@@ -349,7 +359,8 @@ set.seed(3) # Reproducibility
 paths <- sapply(1:100, V0.sim) # Create 100 paths.
 # Plot results.
 matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
-        ylab = expression(paste(V[t])), xlab = "Time in days (0 to T)")
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
 abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
@@ -366,7 +377,7 @@ Let's see all the 17 cases that end in default.
 # These are the 17 default cases.
 matplot(paths[,which(paths[366,] < 10)], type = "l", col = "black", 
         lwd = 1, lty = 1, ylab = expression(paste(V[t])), 
-        xlab = "Time in days (0 to T)")
+        xlab = "Time in days (from 0 to T)")
 abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
@@ -379,62 +390,22 @@ almost_default <- which(colSums(paths < 10) > 0)
 # V_T < 10
 default <- which((paths[366,] < 10))
 # There should be an easier way to do this:
-matplot(paths[,almost_default[which(almost_default %in% default == FALSE)]], 
+matplot(paths[,almost_default[which(almost_default %in% 
+                                      default == FALSE)]], 
         type = "l", col = c(1:11), lwd = 1, lty = 1, 
-        ylab = expression(paste(V[t])), xlab = "Time in days (0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
-```
-
-What if the asset value is decreasing over time $V_t \leq V_0$? Just as in the case of a physical assets that depreciates over time. What if we are interested in evaluating $V_t<D$ at any time, not only at maturity? Ideally, we should consider an alternative to the geometric brownian motion stochastic process in order to conduct our simulation analysis. However, we could consider a shortcut. This is, take the same GBM stochastic process and filter those paths which are $V_t \leq V_0$. There are some minor pitfalls here. For example, we still have some paths which show a decrease and then an increase. Those cases can be interpreted as if the depreciation is lower than an asset value increase. In any case, our approach delivers paths which never lead to an asset value higher than $V_0$. 
-
-```{r}
-set.seed(3) # Reproducibility 
-paths <- sapply(1:100, V0.sim) # Create 100 paths.
-# Select those paths with all 366 values lower or equal than V0.
-select.paths <- which(colSums(paths <= V0) == 366)
-new.paths <- paths[,select.paths]
-# Plot.
-matplot(new.paths,
-        type = "l", col = c(1:100), lwd = 1, lty = 1,
         ylab = expression(paste(V[t])), 
-        xlab = "Time in days (0 to T)")
+        xlab = "Time in days (from 0 to T)")
 abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
-# Probability
-sum(new.paths < 10) / length(new.paths)
 ```
 
-Here, only path number 49 out of 100 meet our condition. This path meets $V_t<D$ in 47.54098% of the cases. Let's increase the number of simulations because 100 was apparently rather small. With 1,000 simulations the probability is 43.23445%. Let's see the case of 10,000 simulations.
-
-```{r}
-set.seed(3) # Reproducibility 
-paths <- sapply(1:10000, V0.sim) # Create 10,000 paths.
-# Select those paths with all 366 values lower or equal than V0.
-select.paths <- which(colSums(paths <= V0) == 366)
-new.paths <- paths[,select.paths]
-# Plot.
-matplot(new.paths,
-        type = "l", col = c(1:10000), lwd = 1, lty = 1,
-        ylab = expression(paste(V[t])), 
-        xlab = "Time in days (0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
-# Probability
-sum(new.paths < 10) / length(new.paths)
-```
-
-Now the probability is 35.96873%. We can consider this one as the final result for our purposes.
-
-Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 (John C. Hull). Note that instead of drawing the complete paths, we can directly get the distribution of $V_T$. The resulting distribution is log-normal.
+Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 ([@Hull]). Note that instead of drawing the complete paths, we can directly get the distribution of $V_T$. The resulting distribution is log-normal.
 
 ```{r fig.cap="Histogram of 100,000 values of the assets at maturity."}
 set.seed(13)
 # 100,000 values of VT at once.
-# Here, I added a TT value twice. This was not a mistake, because in the tutorial this value was equal to one. However, my students are trying with different maturities. For a formal reference please see equation 15.3 in Hull.
-VT <- exp(rnorm(100000, log(V0) + (0.05 - (sv^2) / 2)*TT, sv*sqrt(TT)))
+VT <- exp(rnorm(100000, log(V0) + (rf - (sv^2) / 2)*TT, sv*sqrt(TT)))
 # Plot results.
-# You may need to change the 100 if colors do not show properly. Sometimes this value is too high and bins are so many that it looks all black.
 h <- hist(VT, 100, plot = FALSE)
 ccat <- cut(h$breaks, c(-Inf, D, Inf))
 # You may also need to change the xlim if a big red square appears as changes in maturity may imply larger values of VT. I recommend trying without xlim and see.
@@ -466,22 +437,19 @@ plot(sort(VT), sort(ET), type = "l", lwd = 4, xlim = c(5, 20),
      ylim = c(0, 10), xlab = "Simulated assets at maturity (V_T)",
      ylab ="Simulated equity at maturity (E_T)")
 abline(v = 10, lty = 2)
-legend("right", legend = c("E_T=max(V_T-D,0). Given the
-simulation, E_T=0 happens in 
-12.657% of the cases.
-According to the model, E_T=0
-happens in 12.69396% of the 
-cases."),
-bg = "white", bty = "n", cex = 0.7)
+legend("left", legend = c("According to the model,
+E_T=0 happens in 12.657%
+of the 100,000 cases."),
+bg = "white", bty = "n", cex = 0.9)
 ```
 
-This diagram show the relevant balance sheet accounts in the future, at maturity. This is because the $E_T$ is a function of $V_T$ and $D$. As long as $V_T<D$, then the value of $E_T=0$. Otherwise, the value of $E_T= V_T-D$, just as the accounting equation suggest but in future terms. Note that the Merton's model say nothing about the estimate value of $E_T$, instead we have an estimate about how likely is that $V_T<D$, or in other words how likely is that $E_T<0$.
+This diagram show the firm's market values in the future at maturity. This is because the $E_T$ is a function of $V_T$ and $D$. As long as $V_T<D$, then the value of $E_T=0$. Otherwise, the value of $E_T= V_T-D$, just as the accounting equation suggest but in future terms. Note that the Merton's model says nothing about the estimated value of $E_T$, instead we have an estimate about how likely is that $V_T<D$, or in other words how likely is that $E_T<0$.
 
-Then, we know that $E_T= max(V_T-D, 0)$. The Black???Scholes???Merton formula can also estimate the theoretical value of $E_0$. This is, if the observable market value given by the market capitalization available in any financial site is $E_0=3$, we can retrieve the theoretical value of $E_0$ so we can compare whether the firm observable market value is over or undervalued. In other words, the Black-Scholes-Merton model can give us an estimate of the firm value. In particular, the model gives the value of the equity today as:
+Then, we know that $E_T= max(V_T-D, 0)$. The Black-Scholes-Merton formula can also estimate the theoretical value of $E_0$. This is, if the observable market value given by the market capitalization available in any financial site is $E_0=3$, we can retrieve the theoretical value of $E_0$ so we can compare whether the firm observable market value is over or undervalued. In other words, the Black-Scholes-Merton model can give us an estimate of the firm value. In particular, the model gives the value of the equity today as:
 
 $E_0=V_0N(d_1)-De^{-rT}N(d_2)$
 
-This is equation 24.3 in Hull. To estimate $E_0$, we need $V_0$ and $\sigma_V$ and these two values were already estimated before with the implementation of the min.footnote10 function above. It is true that this minimization requires $E_0$, the point here is to use the observable market capitalization $E_0=3$ to find out the unobsevable $V_0$ and $\sigma_V$ and then estimate the theoretical value of $E_0$.
+This is equation 24.3 in [@Hull]. To estimate $E_0$, we need $V_0$ and $\sigma_V$ and these two values were already estimated before with the implementation of the min.footnote10 function above. It is true that this minimization requires $E_0$, the point here is to use the observable market capitalization $E_0=3$ to find out the unobservable $V_0$ and $\sigma_V$ and then estimate the theoretical value of $E_0$.
 
 The code is:
 
@@ -532,7 +500,6 @@ pd1 <- pd(3, 0.8, 0.05, 1, 10)
 pd1
 ```
 
-
 Now, we create vectors of parameters and evaluate the <tt>`pd`</tt> function.
 
 ```{r}
@@ -551,17 +518,6 @@ pd.T <- mapply(pd, E0, se, rf, x.T, D)
 pd.se <- mapply(pd, E0, x.se, rf, TT, D)
 ```
 
-
-```{r}
-pd.E # vemos que hay en pd.E
-# Busco el valor de pd mas parecido a 0.05
-index <- which(almost.equal(pd.E, 0.05, tolerance = 0.01))
-# ??Que numero de observacion es? (da 38 con los datos del tutorial)
-index
-# ??Que valor de equity me da una pd de 0.05?
-x.E[index] # da 15.34694 con los datos del tutorial.
-pd.E[index] # da 0.04952178 con los datos del tutorial.
-```
 
 Let's plot the probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as the $E_0$ has 50 values from 1 to 20. By doing this, we end up with 50 values of the probability of default. 
 
@@ -647,7 +603,8 @@ Let's plot the results.
 
 ```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."}
 # Plot results.
-p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd", xlab = "Equity at time zero", 
+p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd", 
+               xlab = "Equity at time zero", 
                ylab = "Volatility of equity", theta = 60, phi = 10, 
                expand =  0.5, col = "orange", shade = 0.2, 
                ticktype = "detailed") 
@@ -665,9 +622,31 @@ points(E0, se, pch = 19, col = "blue", cex = 2)
 
 The blue point is the original case. Note that the value is slightly higher than 0.1, which is consistent with the $pd=0.1269396$.
 
+```{r}
+l = 40 # Vectors of length 50.
+# Create vectors of the parameters.
+x.E <- seq(from = 2, to = 4, length.out = l)
+x.se <- seq(0.2, 1.5, length.out = l)
+# Create the empty matrix.
+p_E_se <- matrix(0, nrow = l, ncol = l)
+# Fill the empty matrix with probability of default values.
+for(i in 1 : l){ # Is there an easier way to do this?
+  for(j in 1 : l){
+    p_E_se[i,j] <- mapply(pd, x.E[i], x.se[j], rf, TT, D) } }
+```
+
+```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."}
+plot_ly(type = "surface" , x = x.se, y = x.E , z = p_E_se ) %>%
+layout(title = "Minimization of f at V0=12.395 an sv=0.212",
+       scene = list(xaxis = list(title = "se"), 
+                    yaxis = list(title = "E_0"), 
+                    zaxis = list(title = "pd")))  #%>%
+#add_markers(y = 3, x = 0.8, z = 0.1269396, inherit = TRUE)
+```
+
 ## GoT: capital structure.
 
-The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. Surprisingly, the firm data corresponds exactly as the data in the example 24.3. She is planning to ask the Iron Bank of Braavos for a loan using the peaceful civilized way (without dragons). However, she would like to reduce the probability of default of the firm first, in that way she might negotiate better credit conditions. Daenerys has some understanding about very basic finance because she knows that she could either reduce the debt, or increase the capital in order to reduce the probability of default. Doing both alternatives at the same time is clearly more expensive so she is not very keen about it. 
+The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. Surprisingly, the firm data corresponds exactly as the data in the example 24.3 ([@Hull]). She is planning to ask the Iron Bank of Braavos for a loan using the peaceful civilized way (without dragons). However, she would like to reduce the probability of default of the firm first, in that way she might negotiate better credit conditions. Daenerys has some understanding about very basic finance because she knows that she could either reduce the debt, or increase the capital in order to reduce the probability of default. Doing both alternatives at the same time is clearly more expensive so she is not very keen about it. 
 
 What is the best strategy to reduce the probability of default? Reduce the debt by 2 or increase the capital by 2?
 
@@ -819,4 +798,4 @@ points(8, pd(E0, se, rf, 1.5, 8), pch = 19, cex = 2, col = "yellow")
 points(6, pd(E0, se, rf, 2, 6), pch = 19, cex = 2, col = "purple")
 ```
 
-You are expected to discuss the results and implications.
+Nice.

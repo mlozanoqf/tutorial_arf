@@ -44,10 +44,6 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 
 ```{r load libraries}
 # Merton model.
-library(knitr)
-library(Sim.DiffProc)
-library(bazar) # para la función almost.equal
-library(scatterplot3d)
 # Copula models
 library(MASS)
 library(viridis)
