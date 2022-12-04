@@ -8,9 +8,14 @@ title: ''
 ```{r load libraries Merton.}
 library(knitr)
 library(plotly)
-library(knitr)
 library(Sim.DiffProc)
 library(scatterplot3d)
+```
+
+```{r echo=FALSE}
+# This removes all items in environment. 
+# It is a good practice to start your code this way.
+rm(list=ls())
 ```
 
 # The Merton model.
