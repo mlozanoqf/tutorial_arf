@@ -15,6 +15,7 @@ library(mnormt) #dnorm()
 library(ggplot2)
 library(plotly)
 library(rayshader)
+library(vembedr)
 ```
 
 ```{r echo=FALSE}
@@ -433,6 +434,31 @@ ggplot(x2, aes(x = f1, y = f2) ) +
 ```
 
 
+```{r eval=FALSE, include=FALSE}
+densray <- ggplot(x2, aes(x = f1, y = f2) ) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", 
+                  colour = "white") +
+    coord_fixed() +
+  ggtitle("All simulated cases: A rayshader view.")
+
+plot_gg(densray, width = 4, height = 4, scale = 400, zoom = 0.7,
+        multicore = TRUE)
+# Movie and picture.
+render_movie("dens.mp4", frames = 1840) #460)
+render_snapshot("dens.png", clear = TRUE)
+
+```
+
+This is the 3-D <tt>`rayshader``</tt> video version of the plot above.
+
+```{r}
+embed_url("https://youtu.be/3p-B19R8RwA")
+
+#https://youtube.com/shorts/S_Nze696sTU?feature=share
+```
+
+And a third interactive version.
+
 ```{r fig.cap="An interactive view."}
 f <- function(x, y) dmnorm(cbind(x, y), c(0, 0), corr_pos02)
 z <- outer(sort(x2[1:100,1]), sort(x2[1:100,2]), f)
@@ -441,11 +467,13 @@ z <- outer(sort(x2[1:100,1]), sort(x2[1:100,2]), f)
 #contour(x2[1:100,1], x2[1:100,2], z)
 plot_ly(type = "surface" , x = sort(x2[1:100,2]), 
         y = sort(x2[1:100,1]) , z = z ) %>%
-layout(title = "Surface",
+layout(#title = "Surface",
        scene = list(xaxis = list(title = "f1", range = c(-2,2)),
                     yaxis = list(title = "f2", range = c(-2,2)), 
-                    zaxis = list(title = "Density")))
+                    zaxis = list(title = "Density"))) %>%
+hide_colorbar()
 ```
+
 
 ```{r eval=FALSE, include=FALSE}
 df <- tibble(x2)
