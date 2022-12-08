@@ -80,7 +80,7 @@ htmltools::tagList(
 a <- toc()
 ```
 
-This document took `r as.numeric(a$toc-a$tic)` seconds to compile in Rmarkdown.
+This document took `r as.numeric(a$toc-a$tic)` seconds to compile in Rmarkdown, R version 4.2.1.
 
 # References.
 

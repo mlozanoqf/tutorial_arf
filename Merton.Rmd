@@ -88,6 +88,8 @@ The function that we minimize in the estimation of the credit risk Merton model 
 
 ## The estimation.
 
+For an introductory reference to understand the basics of credit see @brealey2020principles. 
+
 Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the probability of default $pd$ among other interesting results.
 
 These are the known parameters.

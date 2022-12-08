@@ -449,7 +449,7 @@ render_snapshot("dens.png", clear = TRUE)
 
 ```
 
-This is the 3-D <tt>`rayshader``</tt> video version of the plot above.
+This is the 3-D <tt>`rayshader`</tt> video version of the plot above.
 
 ```{r}
 embed_url("https://youtu.be/3p-B19R8RwA")
