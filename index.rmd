@@ -1,6 +1,6 @@
 ---
 title: Credit risk with R.
-subtitle: Dr. Martin Lozano.
+subtitle: Dr. Martín Lozano.
 author:
 - name: Back to main [`r fontawesome::fa("home")`](https://mlozanoqf.github.io/)
 #  affiliation: Academic website. [Web.](https://sites.google.com/site/mlozanoqf/)

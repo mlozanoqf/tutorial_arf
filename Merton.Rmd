@@ -10,6 +10,7 @@ library(knitr)
 library(plotly)
 library(Sim.DiffProc)
 library(scatterplot3d)
+library(vembedr)
 ```
 
 ```{r echo=FALSE}
@@ -316,7 +317,14 @@ data.frame(x.T, spread.T)
 
 ## Inside view of the Merton's model.
 
-The model assumes that the assets follow a geometric Brownian motion stochastic process. Let's assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
+The model assumes that the assets follow a geometric Brownian motion stochastic process. A regular Wiener stochastic process looks like this.
+
+
+```{r}
+embed_url("https://youtu.be/X-VRWeqG_I8")
+```
+
+Let's go back to our main example and assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
 
 ```{r fig.cap="Simulation of 10 paths of the assets."}
 # Merton assumes V follows a geometric Brownian motion process.
@@ -336,7 +344,7 @@ points(rep(366, 2), paths[366, paths[366, ] < 10],
        pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la grafica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?

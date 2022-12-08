@@ -287,9 +287,24 @@ abline(v = 10000, lty = 2)
 
 We normally conduct a simulation approach because we might adapt the distribution function parameters to match what we see in the real life situations. This is how we can reproduce what may happen in the future and at the same time allow for some randomness.
 
+In a different context, here we have an old video in which we drop 2,000 blue balls. Balls are dropped randomly given a normal distribution. Note how the bell-shape distribution is formed as we increase the number of balls. 
+
+```{r}
+embed_url("https://youtu.be/P1Ky6-a8DE0")
+```
+
+
 ## Two firms.
 
-Consider the case in which we have two firms instead of one. The main difference now is that instead of simulating one firm we need two. Moreover, each firm follows a standard normal distribution function and both of them are correlated by a given correlation value so the firms are not independent. If they are not independent, then what happens to one firm has some impact on what happens to the other. In this case, we assume 0.2 as a correlation value. The case of two firms is not the one presented in @Hull example but it can help us to visualize how the Gaussian copula approach works in a two-dimension plot.
+Consider the case in which we have two firms instead of one. The main difference now is that instead of simulating one firm we need two. Moreover, each firm follows a standard normal distribution function and both of them are correlated by a given correlation value so the firms are not independent. If they are not independent, then what happens to one firm has some impact on what happens to the other. 
+
+In a different context, here we have an old video in which we drop many blue balls. Balls are dropped randomly given a multi-variate normal distribution. Note how the 3-D bell-shape distribution is formed as we increase the number of balls. 
+
+```{r}
+embed_url("https://youtu.be/5iv5Zksf_zo")
+```
+
+The case of two firms is not the one presented in @Hull example but it can help us to visualize how the Gaussian copula approach works in a two-dimension plot where the default correlation is 0.2.
 
 The simulation of both firms' performance measures is <tt>`x2`</tt>.
 
@@ -453,8 +468,6 @@ This is the 3-D <tt>`rayshader`</tt> video version of the plot above.
 
 ```{r}
 embed_url("https://youtu.be/3p-B19R8RwA")
-
-#https://youtube.com/shorts/S_Nze696sTU?feature=share
 ```
 
 And a third interactive version.
@@ -694,6 +707,32 @@ legend("bottomright", legend = c(paste(onlyf2.pd0[5])), bty = "n")
 par(pty = "s")
 ```
 Very interesting indeed. 
+
+The Gaussian copula model is not the only copula model. See how other distributions work.
+
+t-coupla:
+
+```{r}
+embed_url("https://youtu.be/XZPVnanmEtw")
+```
+
+Gumbel coupla:
+
+```{r}
+embed_url("https://youtu.be/Oq27fu86ahU")
+```
+
+Frank coupla:
+
+```{r}
+embed_url("https://youtu.be/4OOF_FTrZ3w")
+```
+
+Clayton coupla:
+
+```{r}
+embed_url("https://youtu.be/vtzkgnWjFQ4")
+```
 
 ```{r eval=FALSE, include=FALSE}
 m <- 2 # number of firms
