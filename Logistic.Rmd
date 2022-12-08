@@ -178,7 +178,7 @@ train <- dat[index_train, ]
 test <- dat[-index_train, ]
 ```
 
-We have 29,083 observations in <tt>`dat`</tt>. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the <tt>`train`</tt>. The <tt>`test`</tt> are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the <tt>`dat`</tt> may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allow us to replicate a real situation in which our database is unsorted, with different characteristics.
+We have 29,083 observations in <tt>`dat`</tt>. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the <tt>`train`</tt>. The <tt>`test`</tt> are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the <tt>`dat`</tt> may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allows us to replicate a real situation in which our database is unsorted, with different characteristics.
 
 Let's see if the recent created <tt>`train`</tt> and <tt>`test`</tt> have the same basic properties than <tt>`dat`</tt>.
 
@@ -265,7 +265,7 @@ pred_John
 
 These values are low as they are close to 0. We could interpret this as a certain ability of the models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. For example: *How can we determine if the prediction is low enough to consider it as a non-default?* We may need a cut-off value to decide. We will explore this issue later.
 
-Another aspect is: *What about the rest of the cases in the test set?* We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for John Doe. Fortunately, this issue is easy to address as we only need to change the <tt>`newdata`</tt> parameter in the <tt>`predict`</tt> function. In particular, instead of <tt>`newdata = John_Doe`</tt>, which is one observation, and can change it to <tt>`newdata = test`</tt>, which is the entire 9,695 test set.
+Another aspect is: *What about the rest of the cases in the test set?* We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for John Doe. Fortunately, this issue is easy to address as we only need to change the <tt>`newdata`</tt> parameter in the <tt>`predict()`</tt> function. In particular, instead of <tt>`newdata = John_Doe`</tt>, which is one observation, and can change it to <tt>`newdata = test`</tt>, which is the entire 9,695 test set.
 
 ```{r Predictions of the entire test set}
 # Predict the loan status with the three models.
@@ -392,8 +392,9 @@ The <tt>`logi_full`</tt> model predictions looks better than the other models.
 
 Another question is: *How can we know these model predictions corresponds to a default or no default?* The loan status predictions go from 0 to 0.854 for the case of the <tt>`logi_full`</tt> model. At the end, these loan status estimations need to be interpreted or classified as a default or no default because we are interested on that. *Are they closer enough to 0 to consider a no default?* This issue is addressed by setting up a cut-off rate so we can split all estimated loan status into 0 or 1.
 
-Let's arbitrarily consider a cutoff of 0.15 for now. This mean that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
+Let's arbitrarily consider a cutoff of 0.15 for now. This means that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). This classification rule can be used by a financial firm to decide whether to accept or reject new loan applications by rejecting loan applications with an estimated loan status above 0.15, and accepting those with an estimated loan status below 0.15. The accept/reject loan decision now depends on a model estimation. However, this simple approach could be controversial as managers may be interested in allocating more loans, not less. An alternative that meets credit risk and managers interests is to create several cutoff ranges instead of a single cutoff of 0.15. For example, the financial firm may accept loan applications with an estimated loan status between 0.15 and 0.25 with a higher interest rate to compensate for the additional credit risk. On the other hand, we may consider a different view by incorporating a social criterion to help those people who are naturally excluded by the financial industry given their economic condition. If this is the case, then, we may be interested to identify those applicants with a lower estimated loan status.
 
+For now, consider that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
 
 ```{r fig.cap = "Full models predictions histogram and cut-off."}
 ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
@@ -482,7 +483,7 @@ pred_full_20 <- ifelse(pred_logi_full > cutoff, 1, 0)
 CrossTable(test$loan_st, pred_full_20, prop.r = TRUE,
            prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
 ```
-With a cutoff of 0.1994621 we accept 7,309 + 447 applications as those are the ones that the model predicts a no default. We can compare both confusion matrix:
+With a cutoff of 0.1994621 we accept 7,309 + 447 = 7,756 applications as those are the ones that the model predicts a no default. We can compare both confusion matrix:
 
 ```{r Cutoff of 15 and 19 comparison}
 cat <- c("correct no-default", "false default", 
@@ -518,7 +519,7 @@ data.frame("total" = length(pred_full_20), accept_20, reject_20)
 
 Taking the 20% highest estimates of <tt>`pred_logi_full`</tt> as default and the lowest 80% <tt>`pred_logi_full`</tt> as no-default mean that by construction, we accept 7,756 loan applications (80% of the total) and reject 1,939 (20% of the total). Then, the criterion determines the number of accepted applications, and the model determines which applications to accept/reject. 
 
-We can evaluate our loan application rule as we have the corresponding real values in <tt>`loan_st`</tt>. First, let's illustrate the decision making process given the model estimates. 
+We can evaluate our loan accept/reject rule as we have the corresponding real values in <tt>`loan_st`</tt>. First, let's illustrate the decision making process given the model estimates. 
 
 ```{r Accept and reject decision}
 # First 10 accept decisions.
@@ -540,7 +541,9 @@ head(data.frame(real_pred_20[,1:2],
         "good decision", "bad decision"))), 12)
 ```
 
-Here, we have the first 10 accepted loan applications. A good decision is because we accept the loan that did not default. A bad decision is because we accept the loan application and defaulted. We also have some cases in which we rejected a good customer and that is not good.
+In the table above, we have the first 12 loan applications. According to our rule, we accept 10 applications and we reject 2 (application #26 and #34). A *good decision* is because we accept the loan that did not default. A *bad decision* is because we accept the loan application and defaulted. We also have some cases in which we rejected a good customer and that is not good. This table above is interesting although a bit problematic as it incorporates a counterfactual approach. In particular, we are evaluating the cases in which we reject the application. A more pragmatic approach is to evaluate our rule according to the cases in which we actually accept the loan application. This is the basically a bad rate measure: *how many accepted loan applications default?* 
+
+Remember we accepted 10 and rejected 2 loans. We can identify who default.
 
 ```{r A more efficient way to conduct the model evaluation}
 # We accept loans that the model predicts a no-default (0).
@@ -550,7 +553,7 @@ accepted_loans <- real_pred_20[pred_full_20 == 0, 1]
 # The code above says: if we accept the application, tell me what happened.
 head(accepted_loans, 10)
 ```
-Here, we have the first 10 accepted loans. We fail at the third (which is row 18) and the tenth (which is row 37) as the previous table indicates.
+Note that the third and the tenth application default. These are applications #18 and #37 as expected. Now let's evaluate not 12 applications but all of them, which are 7,756. The bad rate is now expressed as a percentage of the total:
 
 ```{r Bad rate calculation}
 # bad_rate is the proportion of accepted loans that are in fact default.
@@ -560,7 +563,7 @@ bad_rate
 
 This is, by following the model-based rule, we accepted 7,756 loan applications that represent 80% of the total applications. However, 5.76% of those accepted applications were in fact a default. In particular, we accepted 447 loans that are defaults so: $447/7756=0.0576328$.
 
-Models are not perfect but we are always interested to find out a good model that leads to a lower bad rate because we do not want to accept many defaults. If we keep the same model, we could reduce this 5.76% by being more strict in the loan application which in simple terms mean to reduce the acceptance rate. This alternative could be controversial as a lower acceptance rate represents lower income (less customers) for the bank or financial firm. In any case, consider we reduce the acceptance rate from 80% to 65% so we can evaluate the impact over the bad rate.
+Models are not perfect but we are always interested to find out a good model that leads to a lower bad rate because (in principle) we do not want to accept many defaults. If we keep the same model, we could reduce this 5.76% by being more strict in the loan application which in simple terms mean to reduce the acceptance rate. This alternative could be controversial as a lower acceptance rate represents lower income (less customers) for the bank or financial firm. In any case, consider we reduce the acceptance rate from 80% to 65% so we can evaluate the impact over the bad rate.
 
 ```{r Bad rate when the acceptance rate is 65}
 # New cutoff value.

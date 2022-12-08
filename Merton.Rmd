@@ -99,7 +99,6 @@ se <- 0.8 # Stock return volatility.
 rf <- 0.05 # Risk-free rate.
 TT <- 1 # Maturity.
 D <- 10 # Value of the debt. The Bloomberg function DDIS is useful.
-kable(data.frame(E0, se, rf, TT, D), caption = "Known parameters.")
 ```
 We need equations 24.3 and 24.4 to estimate $V_0$ and $\sigma_V$.
 
@@ -119,7 +118,9 @@ V0_sv <- optim(c(1, 1), min.footnote10)
 # Define the values as parameters.
 V0 <- V0_sv$par[1]
 sv <- V0_sv$par[2]
-kable(data.frame(V0, sv), caption = "Asset value and volatility.")
+kable(data.frame("Market value" = V0, 
+                 "Volatility" = sv), 
+      caption = "Assets.")
 ```
 
 Calculate the probability of default $N(-d_2)$ as a function of $V_0$ and $\sigma_V$.
@@ -130,10 +131,9 @@ PD <- function(V0, sv) {
              (sv * sqrt(TT))) - sv * sqrt(TT))) }
 # Calculate the probability of default given the previous parameters.
 pd <- PD(V0, sv)
-# Gather the results.
-ans <- data.frame(pd, V0, sv)
-kable(ans, caption = "Main model results.")
+pd
 ```
+The probability of default is 12.69396%.
 
 Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
 
@@ -144,28 +144,29 @@ d2 <- d1 - sv * sqrt(TT)
 Nd1 <- pnorm(d1)
 Nd2 <- pnorm(d2)
 ans <- data.frame(d1, Nd1, d2, Nd2)
-kable(ans, caption = "Inspect the role of d and N(d).")
+ans
 ```
 
 
 Now, let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
 
+
 ```{r fig.cap="The red area represents the probability of default."}
 xseq <- seq(-4, 4, 0.01) 
 densities <- dnorm(xseq, 0, 1) # Standard normal distribution.
 # Graphical evaluation of N(-d_2).
-plot(xseq, densities, xlab = "d values (d_2 is the dotted line)", 
+plot(xseq, densities, xlab = "d values (-d_2 is the dotted line)", 
      ylab = "Density", type = "l", lwd = 2, cex = 2)
 abline(h = 0)
-polygon(c(xseq[xseq >= d2], d2), c(densities[xseq >= d2], 0), col = "red")
-polygon(c(xseq[xseq < d2], d2), c(densities[xseq < d2], 0), col = "blue")
+polygon(c(xseq[xseq >= -d2], -d2), c(densities[xseq >= -d2], 0), col = "green")
+polygon(c(xseq[xseq < -d2], -d2), c(densities[xseq < -d2], 0), col = "red")
 legend("topleft", legend = c("N(d_2)=0.8730604 
-is represented in blue and
+in green and
 N(-d_2)=0.1269396 in red.
 
 N(d_2)+N(-d_2)=1."),
 bg = "white", bty = "n", cex = 0.9)
-abline(v = d2, lty = 2, lwd = 3)
+abline(v = -d2, lty = 2, lwd = 3)
 ```
 
 Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. We do not have an analytic math expressions (closed form) to calculate $V_0$ and $\sigma_V$, instead we have approximate values or estimates given the minimization of equations 24.3 and 24.4 in [@Hull]. In order to see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_v$. This value is supposed to be positive as both $F(x,y)$ and $G(x,y)$ functions are squared, so we expect a positive number close to zero when evaluated at $x=V_0$ and $y=\sigma_v$.
@@ -176,7 +177,7 @@ min.footnote10(x = c(V0, sv))
 round(min.footnote10(x = c(V0, sv)), 6)
 ```
 
-The minimization conducted in the function <tt>`min.footnote10`</tt> above worked fairly well as the value is zero in practical terms.
+The minimization conducted in the function <tt>`min.footnote10()`</tt> above worked fairly well as the value is zero in practical terms.
 
 There is another way to approach how the minimization work. We can propose a graphical analysis. In particular, we can verify whether $V_0=12.39578$ and $\sigma_V=0.2123041$ minimizes the objective function. To illustrate this in two axis, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
 
@@ -230,7 +231,8 @@ Contour plots or level plots are a way to show a three-dimensional surface on a 
 
 ```{r fig.cap="Minimization of the function: a contour view."}
 # The nlevels is high to emphasize the minimum value in blue.
-contour(V0.seq, sv.seq, z, xlab = "V0", ylab = "sv", 
+contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])), 
+        ylab = expression(paste(sigma[V])), 
         lwd = 2, nlevels = 300)
 points(V0, sv, pch = 19, col = "blue", cex = 2)
 ```
@@ -240,10 +242,11 @@ The following plot cannot be seen in a PDF output, but it can be seen in a brows
 
 ```{r fig.cap="Minimization of the function: an interactive view."}
 plot_ly(type = "surface" , x = sv.seq, y = V0.seq , z = z ) %>%
-layout(title = "Minimization of f at V0=12.395 an sv=0.212",
-       scene = list(xaxis = list(title = "sv"), 
-                    yaxis = list(title = "V0"), 
-                    zaxis = list(title = "f=F^2+G^2")))  #%>%
+layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
+       scene = list(xaxis = list(title = "Assets volatility"), 
+                    yaxis = list(title = "Assets", 
+                    zaxis = list(title = "f=F^2+G^2"))))  %>%
+hide_colorbar()
 #add_markers(y = 12.3957765, x = 0.2123041, z = 0, inherit = TRUE)
 ```
 
@@ -642,10 +645,11 @@ for(i in 1 : l){ # Is there an easier way to do this?
 
 ```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."}
 plot_ly(type = "surface" , x = x.se, y = x.E , z = p_E_se ) %>%
-layout(title = "Minimization of f at V0=12.395 an sv=0.212",
-       scene = list(xaxis = list(title = "se"), 
-                    yaxis = list(title = "E_0"), 
-                    zaxis = list(title = "pd")))  #%>%
+layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
+       scene = list(xaxis = list(title = "Volatility of equity"), 
+                    yaxis = list(title = "Market value of equity"), 
+                    zaxis = list(title = "Probability of default")))  %>%
+  hide_colorbar()
 #add_markers(y = 3, x = 0.8, z = 0.1269396, inherit = TRUE)
 ```
 
