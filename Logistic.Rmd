@@ -27,7 +27,7 @@ This section relies on the DataCamp course *Credit Risk Modeling in R* by Lore D
 
 ## Explore the database.
 
-Let's load the data called <tt>`loan_data_ARF.rds`</tt> and then understand its structure. This database is available upon request.
+Let's load the data called <tt>`loan_data_ARF.rds`</tt> and then understand its structure before conducting any further analysis. This database is available [here](https://github.com/mlozanoqf/tutorial_arf/blob/main/loan_data_ARF.rds).
 
 
 ```{r Create database, eval=FALSE, include=FALSE}
@@ -82,14 +82,12 @@ Clearly, <tt>`loan_data_ARF.rds`</tt> is past information as we know with certai
 A variable name is too long when there exists a shorter name that equally conveys the purpose of the variable. Let's rename some of them.
 
 ```{r}
-colnames(dat)[1] <- "loan_st"
-colnames(dat)[2] <- "l_amnt"
-colnames(dat)[3] <- "int"
-colnames(dat)[5] <- "emp_len"
-colnames(dat)[6] <- "home"
-colnames(dat)[7] <- "income"
-colnames(dat)
+old_names <- colnames(dat)
+colnames(dat) <- c("loan_st", "l_amnt", "int", "grade", "emp_len", 
+                   "home", "income", "age", "sex", "region")
+data.frame(old_names, "new_names" = colnames(dat))
 ```
+
 
 We can take a look at the information in different ways. For example, look at the first 10 rows out of 29,092.
 
@@ -97,7 +95,7 @@ We can take a look at the information in different ways. For example, look at th
 head(dat, 10)
 ```
 
-Note that sex is 1 for female and 0 for male. Now, instead of looking the details of the first 10 rows, we can summarize with respect to <tt>`home`</tt> with the <tt>`CrossTable()`</tt> function.
+Note that <tt>`sex`</tt> is 1 for female and 0 for male. Now, instead of looking the details of the first 10 rows, we can summarize with respect to <tt>`home`</tt> with the <tt>`CrossTable()`</tt> function.
 
 ```{r CrossTable as a way to summarize data}
 CrossTable(dat$home)
@@ -142,7 +140,7 @@ high_income <- dat[(dat$income > 1000000), ]
 high_income
 ```
 
-One guy is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. Cleaning data is a common task when dealing with large databases. This is fine as long as we do not alter the nature of the data. 
+One guy (19486) is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. Cleaning data is a common task when dealing with large databases. This is fine as long as we do not alter the nature of the data. 
 
 ```{r}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
@@ -154,10 +152,8 @@ Remember the database has originally 29,092 rows and now we are dropping 9 so we
 ```{r fig.cap = "Annual income without extreme values."}
 ggplot(dat, aes(income)) + 
   geom_boxplot() +
-  labs(y = "Density",
-       x = "Annual income",
-       title = "Annual income boxplot.",
-       subtitle = NULL) +
+  labs(y = "Density", x = "Annual income",
+       title = "Annual income boxplot.", subtitle = NULL) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -187,17 +183,19 @@ We have 29,083 observations in <tt>`dat`</tt>. The code above randomly selects $
 Let's see if the recent created <tt>`train`</tt> and <tt>`test`</tt> have the same basic properties than <tt>`dat`</tt>.
 
 ```{r}
-dat_sum <- table(dat$loan_st)/sum(table(dat$loan_st))
-train_sum <- table(train$loan_st)/sum(table(train$loan_st))
-test_sum <- table(test$loan_st)/sum(table(test$loan_st))
-rbind(dat_sum, train_sum, test_sum)
+dat_prop <- table(dat$loan_st)/sum(table(dat$loan_st))
+train_prop <- table(train$loan_st)/sum(table(train$loan_st))
+test_prop <- table(test$loan_st)/sum(table(test$loan_st))
+prop <- data.frame(rbind(dat_prop, train_prop, test_prop))
+colnames(prop) <- c("no defaults", "defaults")
+prop
 ```
 
-Take a look of the training set structure.
+Take a look of the training set.
 
 ```{r training set structure}
 # See the data structure.
-str(train)
+head(train)
 ```
 
 Variables as factors are useful for model estimation and data visualization. Factors are variables in R which take on a limited number of different values; such variables are often referred to as categorical variables. 
@@ -303,7 +301,7 @@ ggplot(data.frame(pred_logi_age), aes(x = pred_logi_age)) +
 
 The <tt>`logi_age`</tt> fails to predict values ranging from 0 to 1. In fact, these values are quite concentrated in a very small range of values. As a consequence, this model fails to differentiate between default and no default predictions.
 
-Let's visualize the predictions of the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>.
+Let's visualize the predictions of the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>. We first collect all predictions in a single data frame just for convenience.
 
 ```{r}
 pred_logi <- data.frame(cbind(pred_logi_age, pred_logi_int,
@@ -311,6 +309,7 @@ pred_logi <- data.frame(cbind(pred_logi_age, pred_logi_int,
 pred_logi <- gather(pred_logi, key = "model",  value = "pred")
 ```
 
+Now we plot the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>.
 
 ```{r fig.cap = "Interest rate and multi models predictions histograms."}
 ggplot(pred_logi[pred_logi$model != "pred_logi_age",], 
@@ -321,6 +320,8 @@ ggplot(pred_logi[pred_logi$model != "pred_logi_age",],
        subtitle = "Multi model performs somewhat better.") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
+
+Let's add the <tt>`age`</tt> model as well.
 
 ```{r fig.cap = "Age, Interest rate and multi models predictions boxplot."}
 ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
@@ -363,17 +364,21 @@ pred_logi <- data.frame(cbind(pred_logi_age, pred_logi_int,
 pred_logi <- gather(pred_logi, key = "model",  value = "pred")
 ```
 
+A graphical comparison of the new <tt>`pred_logi_full`</tt> and <tt>`pred_logi_multi`</tt>.
+
 ```{r fig.cap = "Multi and full models predictions histograms."}
 ggplot(pred_logi[pred_logi$model != "pred_logi_age" &
                   pred_logi$model != "pred_logi_int" ,], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
-  labs(y = "Density",
-       x = "Default prediction",
+  labs(y = "Density", x = "Default prediction",
        title = "Multi and full models predictions histograms.",
        subtitle = "Full model performs somewhat better.") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
+
+And all of them together.
+
 ```{r fig.cap = "Age, Interest rate, multi and full models predictions boxplot."}
 ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
   geom_boxplot() +
@@ -413,7 +418,7 @@ These are only the first 6 rows in the test set. We can see that the rule works 
 
 Note that the rows numbers in the table above are 1, 2, 18, 26, 27 and 28. These are not 1, 2, 3, 4, 5 and 6 because the <tt>`test`</tt> rows were selected randomly out of the <tt>`dat`</tt>. So, the row numbers in the table above correspond to the original place in <tt>`dat`</tt>.
 
-Is <tt>`logi_full`</tt> a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default).
+Is <tt>`logi_full`</tt> a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default). Let's take a sample of 10 observations to conduct the comparison easily. Note that the model correctly predicts a no default in most cases. Rows 308 and 329 predict a default incorrectly and row 323 predict a default correctly.
 
 ```{r}
 # Let's take from rows 101 to 110.
@@ -421,7 +426,7 @@ Is <tt>`logi_full`</tt> a good model after all? We can add a new column to the p
            as.data.frame.numeric(test$loan_st)))[101:110,]
 ```
 
-Let's take a sample of 10 observations to conduct the comparison easily. Note that the model correctly predict a no default in most cases. Rows 308 and 329 predict a default incorrectly and row 323 predict a default correctly. There is an easy way to evaluate the rest of the cases in the test set using a simple table called confusion matrix. 
+There is an easy way to evaluate the rest of the cases in the test set using a simple table called confusion matrix. 
 
 ```{r Confusion matrix at cutoff of 15}
 # Construct a confusion matrix.
