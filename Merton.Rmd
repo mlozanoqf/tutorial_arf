@@ -453,11 +453,12 @@ This firm can be represented as an European call option payoff. The payoff of a 
 ET <- pmax(VT - D, 0) # payoff function of a typical call option.
 plot(sort(VT), sort(ET), type = "l", lwd = 4, xlim = c(5, 20), 
      ylim = c(0, 10), xlab = "Simulated assets at maturity (V_T)",
-     ylab ="Simulated equity at maturity (E_T)")
+     ylab = "Simulated equity at maturity (E_T)")
 abline(v = 10, lty = 2)
 legend("left", legend = c("According to the model,
-E_T=0 happens in 12.657%
-of the 100,000 cases."),
+E_T=0 happens 
+in 12.657% of the 
+100,000 cases."),
 bg = "white", bty = "n", cex = 0.9)
 ```
 

@@ -114,10 +114,7 @@ This table reveals defaults by home ownership. We can use histograms to see one 
 ggplot(dat, aes(x = int)) + 
   geom_histogram(aes(y=..density..), binwidth = 0.5, colour = "black", 
                  fill = "white") +
-  labs(y = "Density",
-       x = "Interest rate",
-       title = "Interest rate histogram.",
-       subtitle = NULL) +
+  labs(y = "Density", x = "Interest rate") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -127,9 +124,7 @@ The following is a boxplot figure for the annual income.
 ggplot(dat, aes(income)) + 
   geom_boxplot() +
   labs(y = "Density",
-       x = "Annual income",
-       title = "Annual income boxplot.",
-       subtitle = NULL) +
+       x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -152,8 +147,7 @@ Remember the database has originally 29,092 rows and now we are dropping 9 so we
 ```{r fig.cap = "Annual income without extreme values."}
 ggplot(dat, aes(income)) + 
   geom_boxplot() +
-  labs(y = "Density", x = "Annual income",
-       title = "Annual income boxplot.", subtitle = NULL) +
+  labs(y = "Density", x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -292,10 +286,8 @@ Let's explore all the predicted <tt>`loan_st`</tt> values for the  <tt>`logi_age
 
 ```{r fig.cap = "Age model prediction histogram."}
 ggplot(data.frame(pred_logi_age), aes(x = pred_logi_age)) + 
-  geom_density( fill = "red") +
-  labs(y = "Density", x = "Default prediction",
-       title = "Age model prediction histogram.",
-       subtitle = "Very limited prediction range.") +
+  geom_density(fill = "red") +
+  labs(y = "Density", x = "Default prediction") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -315,9 +307,7 @@ Now we plot the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>.
 ggplot(pred_logi[pred_logi$model != "pred_logi_age",], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
-  labs(y = "Density", x = "Default prediction",
-       title = "Interest rate and multi models predictions histograms.",
-       subtitle = "Multi model performs somewhat better.") +
+  labs(y = "Density", x = "Default prediction") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -326,9 +316,7 @@ Let's add the <tt>`age`</tt> model as well.
 ```{r fig.cap = "Age, Interest rate and multi models predictions boxplot."}
 ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
   geom_boxplot() +
-  labs(y = "Model", x = "Default prediction",
-       title = "Predictions boxplot.",
-       subtitle = "Multi model performs relatively better.") +
+  labs(y = "Model", x = "Default prediction") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
@@ -371,9 +359,7 @@ ggplot(pred_logi[pred_logi$model != "pred_logi_age" &
                   pred_logi$model != "pred_logi_int" ,], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
-  labs(y = "Density", x = "Default prediction",
-       title = "Multi and full models predictions histograms.",
-       subtitle = "Full model performs somewhat better.") +
+  labs(y = "Density", x = "Default prediction") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
@@ -382,9 +368,7 @@ And all of them together.
 ```{r fig.cap = "Age, Interest rate, multi and full models predictions boxplot."}
 ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
   geom_boxplot() +
-  labs(y = "Model", x = "Default prediction",
-       title = "Predictions boxplot.",
-       subtitle = "Full model performs relatively better.") +
+  labs(y = "Model", x = "Default prediction") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
@@ -401,9 +385,7 @@ ggplot(pred_logi[pred_logi$model == "pred_logi_full",],
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = 0.15, linetype = "longdash") +
-  labs(y = "Density", x = "Default prediction",
-       title = "Full model prediction histogram.",
-       subtitle = "A cutoff of 0.15.") +
+  labs(y = "Density", x = "Default prediction") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
@@ -456,14 +438,12 @@ cutoff
 This new approach (taking the 20% highest estimates of <tt>`pred_logi_full`</tt> as default) represents a cut-off of 0.1994621. Graphically:
 
 
-```{r fig.cap = "Full model prediction histogram new cutoff."}
+```{r fig.cap = "Full model prediction histogram new cutoff of 0.1994621."}
 ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
   geom_vline(xintercept = cutoff, linetype = "longdash") +
-  labs(y = "Density", x = "Default prediction",
-       title = "Full model prediction histogram.",
-       subtitle = "A cutoff of 0.1994621.") +
+  labs(y = "Density", x = "Default prediction") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
@@ -643,11 +623,11 @@ The <tt>`logi_full`</tt> model is better because for any acceptance rate we can 
 
 The model ability to predict defaults and no defaults can be measured by the AUC. The AUC can be defined as the probability that the fit model will score a randomly drawn positive sample higher than a randomly drawn negative sample. AUC stands for area under the curve in the following context:
 
-```{r}
+```{r fig.cap = "Full model in red, age model in blue."}
 ROC_logi_full <- roc(test$loan_st, pred_logi_full)
 ROC_logi_age <- roc(test$loan_st, pred_logi_age)
 # Draw the ROCs on one plot
-plot(ROC_logi_full, col = "red", main = "Full model in red, age model in blue")
+plot(ROC_logi_full, col = "red")
 lines(ROC_logi_age, col = "blue")
 ```
 
@@ -663,21 +643,21 @@ auc(ROC_logi_age)
 
 Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule. A pure-random approval rule would look like this:
 
-```{r}
+```{r fig.cap = "Random rule model."}
 set.seed(2020)
 pred_rand_model <- runif(length(pred_logi_age))
 ROC_rand <- roc(test$loan_st, pred_rand_model)
 # Draw the ROCs on one plot
-plot(ROC_rand, col = "orange", main = "Random rule model.")
+plot(ROC_rand, col = "orange")
 auc(ROC_rand)
 ```
 
 In theory, this random evaluation process would lead to an AUC of $0.5 = (1 \times 1)/2$. In contrast, now imagine we have a perfect model:
 
-```{r}
+```{r fig.cap = "Perfect model."}
 pred_perfect_model <- as.numeric(test$loan_st)
 ROC_perfect <- roc(test$loan_st, pred_perfect_model)
-plot(ROC_perfect, main = "Perfect model.")
+plot(ROC_perfect)
 auc(ROC_perfect)
 ```
 
