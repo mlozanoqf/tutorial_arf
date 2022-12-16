@@ -344,7 +344,7 @@ points(rep(366, 2), paths[366, paths[366, ] < 10],
        pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la grﾃ｡fica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?
