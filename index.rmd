@@ -93,10 +93,4 @@ This document took `r as.numeric(a$toc-a$tic)` seconds to compile in Rmarkdown, 
 
 # References.
 
-````{=html}
-```{r, echo=FALSE, results='asis'}
-xfun::file_string('contact.html')
-```
-````
-
 
