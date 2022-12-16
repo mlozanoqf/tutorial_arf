@@ -1,8 +1,7 @@
 ---
 title: Credit risk with `r fontawesome::fa("r-project")` <span style="color:white">R</span>
-
 subtitle: Dr. Martín Lozano.
-author:
+#author: xfun::file_string('contact.html')
 #- name: Back to main [`r fontawesome::fa("home")`](https://mlozanoqf.github.io/)
 #  affiliation: Academic website. [Web.](https://sites.google.com/site/mlozanoqf/)
 date: "\\faClock \\hspace{1 mm} Current commit: `r format(Sys.time(), '%d/%m/%Y, %H:%M:%S.')`"
@@ -21,7 +20,6 @@ output:
 abstract: This material relies on John C. Hull [@Hull] credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding [@Rref]. As in the philosophy of Donald Knuth [@knuth1984literate], the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 bibliography: references.bib
 ---
------------------------
 
 ```{=tex}
 \newpage 
@@ -57,9 +55,14 @@ htmltools::tagList(
 )
 ```
 
-# [`r fa("arrow-circle-left", fill = "black")`](https://mlozanoqf.github.io/) {-}
+````{=html}
+```{r, echo=FALSE, results='asis'}
+xfun::file_string('contact.html')
+```
+````
 
----
+# [`r fa("arrow-circle-left", fill = "black")`](https://mlozanoqf.github.io/) Back to main. {-}
+
 
 \newpage
 
@@ -86,8 +89,14 @@ htmltools::tagList(
 a <- toc()
 ```
 
-This document took `r as.numeric(a$toc-a$tic)` seconds to compile in Rmarkdown, R version 4.2.1.
+This document took `r as.numeric(a$toc-a$tic)` seconds to compile in Rmarkdown, `r R.version.string`.
 
 # References.
+
+````{=html}
+```{r, echo=FALSE, results='asis'}
+xfun::file_string('contact.html')
+```
+````
 
 
