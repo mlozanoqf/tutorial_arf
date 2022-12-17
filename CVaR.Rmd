@@ -3,6 +3,9 @@ title: ''
 output: pdf_document
 ---
 
+```{r}
+library(ggplot2)
+```
 # Credit VaR example 24.7.
 
 This replicates @Hull example 24.7.
