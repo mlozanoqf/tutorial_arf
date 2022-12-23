@@ -50,13 +50,14 @@ col = c("blue", "red"), lwd = 2, lty = 2, bg = "white", cex = 0.8)
 ```
 
 
-```{r fig.cap="Distribution of losses."}
+```{r fig.cap="Distribution of losses with ggplot."}
 dat <- data.frame(Loss, l)
 ggplot(dat, aes(x = Loss, fill = "Losses in millions")) + 
   geom_density(color = "darkblue", fill = "lightblue") +
-geom_vline(aes(xintercept = CVaR.999),  
-               color = "red", linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = CVaR.999), 
+             color = "red", linetype = "dashed", size = 1) +
   geom_vline(aes(xintercept = CVaR.99 ),   
-               color = "blue", linetype = "dashed", size = 1)
+             color = "blue", linetype = "dashed", size = 1) +
+  scale_x_continuous(labels = scales::dollar)
 ```
 Nice.
