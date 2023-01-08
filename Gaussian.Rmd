@@ -19,8 +19,6 @@ library(vembedr)
 ```
 
 ```{r echo=FALSE}
-# This removes all items in environment. 
-# It is a good practice to start your code this way.
 rm(list=ls())
 ```
 

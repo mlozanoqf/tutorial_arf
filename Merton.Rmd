@@ -91,6 +91,12 @@ The function that we minimize in the estimation of the credit risk Merton model 
 
 For an introductory reference to understand the basics of credit see @brealey2020principles. 
 
+This is a nice introduction of the Merton Model for credit risk assessment:
+
+```{r}
+embed_url("https://youtu.be/TjVvatkjlsM")
+```
+
 Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the probability of default $pd$ among other interesting results.
 
 These are the known parameters.
@@ -170,6 +176,12 @@ N(-d_2)=0.1269396 in red.
 N(d_2)+N(-d_2)=1."),
 bg = "white", bty = "n", cex = 0.9)
 abline(v = -d2, lty = 2, lwd = 3)
+```
+
+Here you can find an alternative explanation about $N(-d_2)$:
+
+```{r}
+embed_url("https://youtu.be/lV0ytJYbVzc")
 ```
 
 Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. We do not have an analytic math expressions (closed form) to calculate $V_0$ and $\sigma_V$, instead we have approximate values or estimates given the minimization of equations 24.3 and 24.4 in [@Hull]. In order to see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_v$. This value is supposed to be positive as both $F(x,y)$ and $G(x,y)$ functions are squared, so we expect a positive number close to zero when evaluated at $x=V_0$ and $y=\sigma_v$.
@@ -344,7 +356,7 @@ points(rep(366, 2), paths[366, paths[366, ] < 10],
        pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la grﾃ｡fica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gr?ｾ??ｽ｡fica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?

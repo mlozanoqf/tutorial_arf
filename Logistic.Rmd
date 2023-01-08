@@ -12,6 +12,7 @@ library(ggplot2)
 library(tidyr) # gather()
 library(dplyr)
 library(pROC) # roc
+library(vembedr)
 ```
 
 ```{r echo=FALSE}
@@ -662,6 +663,12 @@ auc(ROC_perfect)
 ```
 
 In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identify defaults (100% sensitivity) and at the same time the model correctly identify no-defaults (100% specificity).
+
+Edward Malthouse explains these concepts quite well:
+
+```{r}
+embed_url("https://youtu.be/HljSmQhLs8M")
+```
 
 ```{r eval=FALSE, include=FALSE}
 log_1_remove_home <- glm(loan_st ~ grade + home + income
