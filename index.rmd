@@ -17,7 +17,7 @@ output:
     theme: readable #darkly 
     includes:
       after_body: analytics_arf.html
-abstract: This material relies on @Hull credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding [@Rref]. As in the philosophy of @knuth1984literate, the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision..
+abstract: This material relies on @Hull credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding [@Rref]. As in the philosophy of @knuth1984literate, the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 bibliography: references.bib
 link-citations: yes
 ---
@@ -44,6 +44,7 @@ tic()
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 ```
+
 
 ```{r, xaringanExtra-clipboard, echo=FALSE}
 htmltools::tagList(
