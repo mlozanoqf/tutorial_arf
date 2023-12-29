@@ -44,6 +44,6 @@ a <- toc()
 
 This document took `r round(as.numeric((a$toc-a$tic)), 2)` seconds to compile in Quarto version `r quarto::quarto_version()`, and `r R.version.string`.
 
-#  References.
+#  References. {.unnumbered}
 ::: {#refs}
 :::
