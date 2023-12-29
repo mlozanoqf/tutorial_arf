@@ -1,9 +1,4 @@
----
-title: ''
-#output: bookdown::gitbook:
-  html_document:
-    df_print: paged
----
+
 
 ```{r load libraries Merton.}
 library(knitr)
@@ -43,7 +38,9 @@ kable(dat, caption = "Observations.", row.names = TRUE) # The table.
 
 Graphically:
 
-```{r fig.cap="Original data."}
+```{r}
+#| label: fig-od
+#| fig-cap: "Original data."
 # A scatter plot.
 plot(y ~ x, data = dat, pch = 19, cex = 2)
 ```
@@ -68,7 +65,9 @@ The minimization result is represented by a line, and the line is characterized 
 
 We can plot it and verify that this is indeed the right answer.
 
-```{r fig.cap="Line that minimize the residual sum of squares."}
+```{r}
+#| label: fig-ltmtrsos
+#| fig-cap: "Line that minimize the residual sum of squares."
 # View the results.
 plot(y ~ x, data = dat, pch = 19, ylim = c(-2, 12), xlim = c(0, 6), cex = 2)
 abline(a, b, col = "red", lwd = 3)
@@ -160,7 +159,9 @@ ans
 Now, let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
 
 
-```{r fig.cap="The red area represents the probability of default."}
+```{r}
+#| label: fig-trartpod
+#| fig-cap: "The red area represents the probability of default."
 xseq <- seq(-4, 4, 0.01) 
 densities <- dnorm(xseq, 0, 1) # Standard normal distribution.
 # Graphical evaluation of N(-d_2).
@@ -208,7 +209,9 @@ FG.V0 <- mapply(FG, V0.seq, sv.rep)
 
 We are ready to plot.
 
-```{r fig.cap="Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."}
+```{r}
+#| label: fig-hwftvotaactvoaatz
+#| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
 # Plot the results.
 plot(V0.seq, FG.V0, type = "l", xlab = expression(paste(V[0])),
      ylab = expression(paste(F(x,y)^2+G(x,y)^2)), cex.lab = 0.8, lwd = 3)
@@ -219,7 +222,9 @@ points(V0, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
 
 Clearly, the minimization worked well here. For the sake of completeness, now we fix the $V_0$ value and evaluate the function again.
 
-```{r fig.cap="Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."}
+```{r}
+#| label: fig-hwftvotaatzactvota
+#| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
 # Now fix V0, and evaluate different sv values.
 sv.seq <- seq(0, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
@@ -236,7 +241,9 @@ points(sv, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
 
 We can show the same as before but in a 3D plot.
 
-```{r fig.cap="Minimization of the function."}
+```{r}
+#| label: fig-motf
+#| fig-cap: "Minimization of the function."
 # outer evaluates the function for each combination of the vectors.
 z <- outer(V0.seq, sv.seq, FG) # z is now 100x100 matrix.
 persp(V0.seq, sv.seq, z, col = "springgreen", shade = 0, xlab = "V0",
@@ -244,7 +251,9 @@ persp(V0.seq, sv.seq, z, col = "springgreen", shade = 0, xlab = "V0",
 ```
 Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
 
-```{r fig.cap="Minimization of the function: a contour view."}
+```{r}
+#| label: fig-motfacv
+#| fig-cap: "Minimization of the function: a contour view."
 # The nlevels is high to emphasize the minimum value in blue.
 contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])), 
         ylab = expression(paste(sigma[V])), 
@@ -255,7 +264,9 @@ points(V0, sv, pch = 19, col = "blue", cex = 2)
 The following plot cannot be seen in a PDF output, but it can be seen in a browser as an interactive plot. This green plot is nice but it is not interactive. We could plot interactive three-dimension plots with other R packages like <tt>`plotly`</tt> and show them in a html context or java environment. 
 
 
-```{r fig.cap="Minimization of the function: an interactive view."}
+```{r}
+#| label: fig-motfaiv
+#| fig-cap: "Minimization of the function: an interactive view."
 plot_ly(type = "surface" , x = sv.seq, y = V0.seq , z = z ) %>%
 layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
        scene = list(xaxis = list(title = "Assets volatility"), 
@@ -338,7 +349,9 @@ embed_url("https://youtu.be/X-VRWeqG_I8")
 
 Let's go back to our main example and assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
 
-```{r fig.cap="Simulation of 10 paths of the assets."}
+```{r}
+#| label: fig-so10pota
+#| fig-cap: "Simulation of 10 paths of the assets."
 # Merton assumes V follows a geometric Brownian motion process.
 V0.sim <- function(i) {  # the argument i is not used here.
   GBM(N = 365, T = 1, t0 = 0, x0 = V0, theta = 0.05, sigma = sv) }
@@ -356,7 +369,7 @@ points(rep(366, 2), paths[366, paths[366, ] < 10],
        pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gr?ｾ??ｽ｡fica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?
@@ -364,7 +377,9 @@ which(colSums(paths < 10) > 0)
 ```
 The value of the assets was lower than $10 at some time in the second, fourth and ninth alternate universes. Let's plot these cases.
 
-```{r fig.cap="Note that the blue path finally did not default. Recovery is possible as in the real life."}
+```{r}
+#| label: fig-nttbpfdnd
+#| fig-cap: "Note that the blue path finally did not default. Recovery is possible as in the real life."
 # There might be an easier way to select these cases.
 matplot(paths[,which(colSums(paths < 10) > 0)], type = "l", 
         col = c("green", "blue", "red"), lwd = 2, lty = 1,
@@ -384,7 +399,9 @@ The probability of default of 20% can be disappointing because it is significant
 
 Here are 100 simulated paths of $V_0$ to $V_T$.
 
-```{r fig.cap="Simulation of 100 paths of the assets."}
+```{r}
+#| label: fig-so100pota
+#| fig-cap: "Simulation of 100 paths of the assets."
 set.seed(3) # Reproducibility  
 paths <- sapply(1:100, V0.sim) # Create 100 paths.
 # Plot results.
@@ -403,7 +420,9 @@ sum(paths[366,] < 10) / 100
 
 Let's see all the 17 cases that end in default.
 
-```{r fig.cap="Default cases."}
+```{r}
+#| label: fig-dc
+#| fig-cap: "Default cases."
 # These are the 17 default cases.
 matplot(paths[,which(paths[366,] < 10)], type = "l", col = "black", 
         lwd = 1, lty = 1, ylab = expression(paste(V[t])), 
@@ -414,7 +433,9 @@ points(1, V0, pch = 19, cex = 1.5, col = "blue")
 
 Now, let's see the 11 cases in which $V_t$ eventually went lower than $10 but at the end did not default. 
 
-```{r fig.cap="All these paths went lower than 10 at some point, but at the end the value of the assets are higher than 10. These are paralell universes in which the firm finally survived after some drama."}
+```{r}
+#| label: fig-atpwl1asp
+#| fig-cap: "All these paths went lower than 10 at some point, but at the end the value of the assets are higher than 10. These are paralell universes in which the firm finally survived after some drama."
 # V_t < 10
 almost_default <- which(colSums(paths < 10) > 0)
 # V_T < 10
@@ -431,7 +452,9 @@ points(1, V0, pch = 19, cex = 1.5, col = "blue")
 
 Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 ([@Hull]). Note that instead of drawing the complete paths, we can directly get the distribution of $V_T$. The resulting distribution is log-normal.
 
-```{r fig.cap="Histogram of 100,000 values of the assets at maturity."}
+```{r}
+#| label: fig-ho1votaam
+#| fig-cap: "Histogram of 100,000 values of the assets at maturity."
 set.seed(13)
 # 100,000 values of VT at once.
 VT <- exp(rnorm(100000, log(V0) + (rf - (sv^2) / 2)*TT, sv*sqrt(TT)))
@@ -461,7 +484,9 @@ Note that 0.12657 is now much closer than 0.12693963. Convergence achieved.
 
 This firm can be represented as an European call option payoff. The payoff of a typical stock option is $c=max(S_T-K, 0)$ or equivalently in terms of Merton's model: $E_T=max(V_T-D, 0)$.
 
-```{r fig.cap="A view of the firm's balance sheet in the future. Looks like a typical European call option payoff."}
+```{r}
+#| label: fig-avotfbssitf
+#| fig-cap: "A view of the firm's balance sheet in the future. Looks like a typical European call option payoff."
 ET <- pmax(VT - D, 0) # payoff function of a typical call option.
 plot(sort(VT), sort(ET), type = "l", lwd = 4, xlim = c(5, 20), 
      ylim = c(0, 10), xlab = "Simulated assets at maturity (V_T)",
@@ -552,7 +577,9 @@ pd.se <- mapply(pd, E0, x.se, rf, TT, D)
 
 Let's plot the probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as the $E_0$ has 50 values from 1 to 20. By doing this, we end up with 50 values of the probability of default. 
 
-```{r fig.cap="The probability of default as a function of the equity at time zero."}
+```{r}
+#| label: fig-tpodaafoteaatz
+#| fig-cap: "The probability of default as a function of the equity at time zero."
 plot(x.E, pd.E, type = "l", ylab = "Probability of default", 
      xlab = "Equity at time zero", lwd = 3, ylim = c(0, 0.15))
 lines(x.E, pd.E)
@@ -563,7 +590,9 @@ points(E0, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 
 These relationships between the parameters and the probability of default are all non-linear. This is interesting because according to the model, the current levels of the parameters are important when deciding which parameter might lead to a high or low impact over the probability of default.
 
-```{r fig.cap="The probability of default as a function of the risk-free rate."}
+```{r}
+#| label: fig-tpodaafotrfr
+#| fig-cap: "The probability of default as a function of the risk-free rate."
 plot(x.rf, pd.rf, type = "l", ylab = "Probability of default", 
      xlab = "Risk-free rate", lwd = 3)
 abline(h = 0, lty = 2)
@@ -574,7 +603,9 @@ points(rf, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 
 Probability of default as a function of debt. Note that adding 1 or subtracting 1 unit of debt has different impact over the probability of default.
 
-```{r fig.cap="The probability of default as a function of the debt."}
+```{r}
+#| label: fig-tpodaafotd
+#| fig-cap: "The probability of default as a function of the debt."
 plot(x.D, pd.D, type = "l", ylab = "Probability of default", 
      xlab = "Debt", lwd = 3, ylim = c(0, 0.15))
 abline(h = 0, lty = 2)
@@ -585,7 +616,9 @@ points(D, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 
 Probability of default as a function of maturity. Note that asking for a higher debt maturity (as in a negotiation), do not lead to a lower probability of default if we keep the rest of the parameters unchanged in our firm. Imagine we arrange a meeting with the bank manager and we ask for more time to pay our debt. The bank manager should not (in principle) extend the debt maturity as long as we commit to do some changes in the firm. For example, we can negotiate a longer maturity and promise to increase the firm's equity.
 
-```{r fig.cap="The probability of default as a function of the debt's maturity."}
+```{r}
+#| label: fig-tpodaafotdm
+#| fig-cap: "The probability of default as a function of the debt's maturity."
 plot(x.T, pd.T, type = "l", ylab = "Probability of default", 
      xlab = "Maturity", lwd = 3)
 abline(h = 0, lty = 2)
@@ -596,7 +629,9 @@ points(TT, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 
 Probability of default as a function of the volatility of the equity $\sigma_E$.
 
-```{r fig.cap="The probability of default as a function of the volatility of the equity."}
+```{r}
+#| label: fig-tpodaafote
+#| fig-cap: "The probability of default as a function of the volatility of the equity."
 plot(x.se, pd.se, type = "l", ylab = "Probability of default",
      xlab = "Standard deviation of equity", lwd = 3)
 abline(h = 0, lty = 2)
@@ -610,7 +645,9 @@ In the previous plots we evaluate the probability of default function by changin
 
 One alternative is to evaluate the probability of default function 50 times by taking the 50 pairs of values of $E_0$ and $\sigma_E$. By doing that, we will end with three vectors of size 50 that we can plot as a three dimension scatter plot.
 
-```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity."}
+```{r}
+#| label: fig-tpodaafoteatzatvoe
+#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity."
 ED <- mapply(pd, x.E, x.se, rf, TT, D)
 p.ED <- scatterplot3d(x.E, x.se, ED, pch = 16, type = "h", color = 1:50, 
                       angle = 100, xlab = "Equity at time zero", 
@@ -632,7 +669,9 @@ for(i in 1 : l){ # Is there an easier way to do this?
 
 Let's plot the results.
 
-```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."}
+```{r}
+#| label: fig-tpodaafoteatzatvoeaposv
+#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."
 # Plot results.
 p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd", 
                xlab = "Equity at time zero", 
@@ -645,7 +684,9 @@ points(trans3d(E0, se, pd1, p.ED1), cex = 2, pch = 19, col = "blue")
 
 Now the plot becomes a plane. A contour plot simplify the reading of a three dimension plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the probability of default is represented by the contour lines. 
 
-```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: A contour view."}
+```{r}
+#| label: fig-tpodaafoteatzatvoeacv
+#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: A contour view."
 contour(x.E, x.se, p_E_se, xlab = "Equity at time zero", 
         ylab = "Volatility of equity", lwd = 2)
 points(E0, se, pch = 19, col = "blue", cex = 2)
@@ -666,7 +707,9 @@ for(i in 1 : l){ # Is there an easier way to do this?
     p_E_se[i,j] <- mapply(pd, x.E[i], x.se[j], rf, TT, D) } }
 ```
 
-```{r fig.cap="The probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."}
+```{r}
+#| label: fig-tpodaafoteatzatvoeaiv
+#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."
 plot_ly(type = "surface" , x = x.se, y = x.E , z = p_E_se ) %>%
 layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
        scene = list(xaxis = list(title = "Volatility of equity"), 
@@ -694,7 +737,9 @@ E5 <- mapply(pd, 5, se, rf, TT, D.seq)
 
 Plot the results.
 
-```{r fig.cap="GoT problem. Probability of default and capital structure."}
+```{r}
+#| label: fig-gppodacs
+#| fig-cap: "GoT problem. Probability of default and capital structure."
 # We use these vectors for colors and legends in the following plots.
 colors <- c("green", "purple", "black", "blue", "red")
 leg <- c("E0=1", "E0=2", "E0=3 (initial value)", "E0=4", "E0=5")
@@ -715,7 +760,9 @@ points(D, pd1, pch = 19, cex = 2)
 
 Let's illustrate the alternatives as clear as possible.
 
-```{r fig.cap="GoT solution. Probability of default and capital structure."}
+```{r}
+#| label: fig-gspodacs
+#| fig-cap: "GoT solution. Probability of default and capital structure."
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
      xlab = "Debt value. Initially, D=10",
      ylab = "Probability of default. Initially PD=12.69%")
@@ -737,7 +784,9 @@ points(8, pd(3, se, rf, TT, 8), pch = 19, cex = 2, col = "yellow")
 
 Consider a different initial situation. Now, $E_0=2$ and $D=2$ and the rest remains the same. In this case, the probability of default is now 7.13%. What is the best strategy to reduce the probability of default? Reduce the debt by 1 or increase the capital by 1?
 
-```{r fig.cap="GoT problem 2. Probability of default and capital structure."}
+```{r}
+#| label: fig-gp2podacs
+#| fig-cap: "GoT problem 2. Probability of default and capital structure."
 leg2 <- c("E0=1", "E0=2 (initial value)", "E0=3", "E0=4", "E0=5")
 
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
@@ -757,7 +806,9 @@ points(2, pd(2, se, rf, TT, 2), pch = 19, cex = 2, col = "purple")
 
 The solution can be illustrated as follows:
 
-```{r fig.cap="GoT solution 2. Probability of default and capital structure."}
+```{r}
+#| label: fig-gs2podacs
+#| fig-cap: "GoT solution 2. Probability of default and capital structure."
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
      xlab = "Debt value. Initially, D=2",
      ylab = "Probability of default. Initially PD=7.13%", 
@@ -790,7 +841,9 @@ T4 <- mapply(pd, E0, se, rf, 2, D.seq)
 T5 <- mapply(pd, E0, se, rf, 2.5, D.seq)
 ```
 
-```{r fig.cap="GoT problem 3. More debt or longer maturity?"}
+```{r}
+#| label: fig-gp3mdolm
+#| fig-cap: "GoT problem 3. More debt or longer maturity?"
 leg3 <- c("T=2.5", "T=2", "T=1.5", "T=1", "T=0.5")
 
 plot(D.seq, T5, type = "l", col = "green", lwd = 3,
@@ -809,7 +862,9 @@ points(6, pd(E0, se, rf, 1.5, 6), pch = 19, cex = 2)
 
 Let's visualize the result.
 
-```{r fig.cap="GoT answer 3. More debt or longer maturity?"}
+```{r}
+#| label: fig-ga3mdolm
+#| fig-cap: "GoT answer 3. More debt or longer maturity?"
 plot(D.seq, T5, type = "l", col = "green", lwd = 3,
      xlab = "Debt value. Initially, D=6",
      ylab = "Probability of default. Initially PD=20.33%")

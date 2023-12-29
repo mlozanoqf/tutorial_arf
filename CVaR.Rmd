@@ -1,7 +1,4 @@
----
-title: ''
-output: pdf_document
----
+
 
 ```{r}
 library(ggplot2)
@@ -40,7 +37,9 @@ sim.var99 <- sort(Loss)[10000 * 0.99]
 
 Now, visually:
 
-```{r fig.cap="Distribution of losses."}
+```{r}
+#| label: fig-dol
+#| fig-cap: "Distribution of losses."
 hist(Loss, 100, xlim = c(0, 7), xlab = "Losses in millions", main = NULL)
 abline(v = CVaR.999, lty = 2, col = "red", lwd = 2)
 abline(v = CVaR.99, lty = 2, col = "blue", lwd = 2)
@@ -50,7 +49,9 @@ col = c("blue", "red"), lwd = 2, lty = 2, bg = "white", cex = 0.8)
 ```
 
 
-```{r fig.cap="Distribution of losses with ggplot."}
+```{r}
+#| label: fig-dolwg
+#| fig-cap: "Distribution of losses with ggplot."
 dat <- data.frame(Loss, l)
 ggplot(dat, aes(x = Loss, fill = "Losses in millions")) + 
   geom_density(color = "darkblue", fill = "lightblue") +

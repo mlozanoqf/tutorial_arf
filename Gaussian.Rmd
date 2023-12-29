@@ -1,9 +1,4 @@
----
-title: ''
-#output: bookdown::gitbook:
-  html_document:
-    df_print: paged
----
+
 
 ```{r load libraries}
 # Copula models
@@ -31,7 +26,9 @@ Copulas allow us to decompose a joint probability distribution into their margin
 In a finance-context, the variable $x$ represents a firm's future (unknown) performance measure that goes from $-4$ to $4$ in the horizontal axis. Strictly speaking, more extreme values of $x$ like $-\infty$ and $+\infty$ are theoretically possible but are very rare and happen quite infrequently at least in real-life situations. At the moment, we do not care too much about what kind of performance measure this is, it could be liquidity for example, solvency, or any other that it is normalized to have values between $-4$ and $4$. In a statistics-context, we can think that $x$ is equivalent to the so-called $z$-score in the context of the standardized normal distribution function. 
 
 
-```{r fig.cap="Standard normal distribution function."}
+```{r}
+#| label: fig-sndf
+#| fig-cap: "Standard normal distribution function."
 # The standard normal distribution function is: y = f(x).
 x <- seq(-4, 4, 0.001) # First define x.
 y <- 1 / sqrt(2 * pi) * exp(-x ^ 2 / 2) # Define y as a function of x.
@@ -51,7 +48,9 @@ D <- dnorm(x)
 P <- pnorm(x)
 ```
 
-```{r fig.cap="Six months probability of default."}
+```{r}
+#| label: fig-smpod
+#| fig-cap: "Six months probability of default."
 plot(x, D, type = "l", lwd = 3, col = "blue" , 
      ylab = "Standard normal density function: dnorm(x)")
 abline(h = 0, lty = 2)
@@ -61,7 +60,9 @@ polygon(c(x[x < -2.5], -2.5), c(D[x < -2.5], 0), col = "red")
 
 Now assume the firm will default in one year as long as the firm performance $x$ in one year is lower than a higher given threshold: $\bar{x}=-2$. Then, the one year probability of default is $N(-2)$ or <tt>`pnorm(-2)=0.02275013`</tt> which is still low but higher than the six months probability of default. Note that the new red area is 2.27%.
 
-```{r fig.cap="One year probability of default."}
+```{r}
+#| label: fig-oypod
+#| fig-cap: "One year probability of default."
 plot(x, D, type = "l", lwd = 3, col = "blue" , 
      ylab = "Standard normal density function: dnorm(x)")
 abline(h = 0, lty = 2)
@@ -107,7 +108,9 @@ Note that the only distribution function that we are currently analyzing is the 
 
 Instead of a density function, we can plot the cumulative probability distribution. Now, we do not need the $N(\cdot)$ function to compute the probability as the vertical axis already represents the probability of default.
 
-```{r fig.cap="The higher the x, the higher the probability of default."}
+```{r}
+#| label: fig-thtxthtpod
+#| fig-cap: "The higher the x, the higher the probability of default."
 plot(x, P, type = "l", lwd = 3,
      ylab = "Cumulative probability function: pnorm(x)", xlab = "x")
 abline(h = 0.5, lty = 2)
@@ -115,7 +118,9 @@ abline(v = 0, lty = 2)
 ```
 Both in the same plot.
 
-```{r fig.cap="Cumulative density and probability functions."}
+```{r}
+#| label: fig-cdapf
+#| fig-cap: "Cumulative density and probability functions."
 plot(x, P, type = "l", lwd = 3,
      ylab = "pnorm(x) and dnorm(x)", xlab = "x")
 lines(x, D, type = "l", lwd = 3, col = "blue")
@@ -149,7 +154,9 @@ kable(ans, caption = "PD at specific years.")
 
 This is how we can illustrate the case of a probability of default of 15% in 5 years. The green area represents the 15% of the whole area below the bell-shaped curve.
 
-```{r fig.cap="Gaussian density distribution function."}
+```{r}
+#| label: fig-gddf
+#| fig-cap: "Gaussian density distribution function."
 plot(x, D, type = "l", col = 'black', lwd = 3, ylim = c(0, 0.4), xlab = "x",
      ylab = "Standard normal density function: dnorm(x)")
 abline(h = 0, lty = 2)
@@ -172,7 +179,9 @@ bg = "white", pch = 19, cex = 0.8, bty = "n", col = "green")
 A complementary view is the cumulative probability function. Let's illustrate the same case: a probability of default of 15% in 5 years. In this case, we do not need to calculate the area since the y-axis already represents the probability.
 
 
-```{r fig.cap="Gaussian probability distribution function."}
+```{r}
+#| label: fig-gpdf
+#| fig-cap: "Gaussian probability distribution function."
 plot(x, P, type = "l", col = 'black', lwd = 3, ylim = c(0, 1),
      xlab = "x",
      ylab = "Cumulative probability function: pnorm(x)")
@@ -193,7 +202,9 @@ bg = "white", pch = 19, cex = 1, bty = "n", col = "green")
 
 A closer view to the figure above to see the 3-year and 5-year cases:
 
-```{r fig.cap="Gaussian probability distribution function: Zoom version."}
+```{r}
+#| label: fig-gpdfzv
+#| fig-cap: "Gaussian probability distribution function: Zoom version."
 plot(x, P, type = "l", col = 'black', lwd = 5, ylim = c(0, 0.22), 
      xlim = c(-4, 0), ylab = "Cumulative probability function: pnorm(x)",
      xlab = "x")
@@ -246,7 +257,9 @@ kable(ans, caption = "Theoretic versus simulated probabilities of default.")
 
 Let's view the results of the simulated approach. First in a histogram.
 
-```{r fig.cap="Simulated Gaussian probability distribution function. Somewhat different with respect to the theoretical."}
+```{r}
+#| label: fig-sgpdfsdwrttt
+#| fig-cap: "Simulated Gaussian probability distribution function. Somewhat different with respect to the theoretical."
 # Some parameters we need to plot.
 L <- c(-4, 4) # axis limits.
 colors2 <- c("blue", "red", "purple", "pink", "green")
@@ -269,7 +282,9 @@ The area at the left hand side of each colored line represents the cumulative pr
 
 Now let's see all the simulated data at once.
 
-```{r fig.cap="An alternative view."}
+```{r}
+#| label: fig-aav
+#| fig-cap: "An alternative view."
 plot(x.sim, ylab = "x.sim", pch = ".", ylim = c(-4, 4),
      xlab = "Number of simulaltions")
 abline(h = x.y[1], lwd = 2, col = "blue")
@@ -428,7 +443,9 @@ We can perform a simple test to verify that everything is alright. For example, 
 
 Let's visualize all 10,000 cases. Each dot represents a couple of Firm 1 and Firm 2 $x$ values and the dotted lines the threshold that represents the probability of default in 5 years.
 
-```{r fig.cap="All 10,000 simulated cases."}
+```{r}
+#| label: fig-a1sc
+#| fig-cap: "All 10,000 simulated cases."
 par(pty = "s") # Figures are shown in a perfect square (not a rectangle).
 plot(x2, pch = ".", cex = 1) 
 abline(v = x.y[5], lty = 2)
@@ -439,7 +456,9 @@ legend("bottomright", legend = c(paste(nrow(x2))), bty = "n")
 These 10,000 observations are highly concentrated around the mean which is very close to zero. This can be also easily seen in the following density plot.
 
 
-```{r fig.cap="All 10,000 simulated cases: A density view."}
+```{r}
+#| label: fig-a1scadv
+#| fig-cap: "All 10,000 simulated cases: A density view."
 ggplot(x2, aes(x = f1, y = f2) ) +
   stat_density_2d(aes(fill = ..level..), geom = "polygon", 
                   colour = "white") +
@@ -470,7 +489,9 @@ embed_url("https://youtu.be/3p-B19R8RwA")
 
 And a third interactive version.
 
-```{r fig.cap="An interactive view."}
+```{r}
+#| label: fig-aiv
+#| fig-cap: "An interactive view."
 f <- function(x, y) dmnorm(cbind(x, y), c(0, 0), corr_pos02)
 z <- outer(sort(x2[1:100,1]), sort(x2[1:100,2]), f)
 
@@ -523,7 +544,9 @@ plot_gg(rayplot, width = 4, height = 4, scale = 400, zoom = 0.7,
 
 We can visualize the default cases. First, the case when both firms default at year 5.
 
-```{r fig.cap="Both firms default at year 5."}
+```{r}
+#| label: fig-bfday5
+#| fig-cap: "Both firms default at year 5."
 par(pty = "s")
 plot(X[["both", 5]], xlim  = L, ylim = L, pch = ".", cex = 1) 
 abline(v = x.y[5], lty = 2)
@@ -535,7 +558,9 @@ The values within the plot represent the number of cases. Here, we have 343 time
 
 Now, the case in which any firm defaults in 5 years.
 
-```{r fig.cap="Any firm defaults in 5 years."}
+```{r}
+#| label: fig-afdi5y
+#| fig-cap: "Any firm defaults in 5 years."
 par(pty = "s")
 plot(X[["any", 5]], xlim = L, ylim = L, pch = ".", cex = 1)
 abline(v = x.y[5], lty = 2)
@@ -545,7 +570,9 @@ legend("topright", legend = c(paste(any.pd[5]*n)), bty = "n")
 
 Only firm 1 defaults in 5 years.
 
-```{r fig.cap="Only firm 1 defaults in 5 years."}
+```{r}
+#| label: fig-of1di5y
+#| fig-cap: "Only firm 1 defaults in 5 years."
 par(pty = "s")
 plot(X[["onlyf1", 5]], xlim = L, ylim = L, pch = ".", cex = 1)
 abline(v = x.y[5], lty = 2)
@@ -555,7 +582,9 @@ legend("topright", legend = c(paste(onlyf1.pd[5]*n)), bty = "n")
 
 Only firm 2 defaults in 5 years.
 
-```{r fig.cap="Only firm 2 defaults in 5 years."}
+```{r}
+#| label: fig-of2di5y
+#| fig-cap: "Only firm 2 defaults in 5 years."
 par(pty = "s")
 plot(X[["onlyf2", 5]], xlim = L, ylim = L, pch = ".", cex = 1)
 abline(v = x.y[5], lty = 2)
@@ -565,7 +594,9 @@ legend("topright", legend = c(paste(onlyf2.pd[5]*n)), bty = "n")
 
 This is the case in which only one firm defaults.
 
-```{r fig.cap="Only one firm defaults in 5 years."}
+```{r}
+#| label: fig-oofdi5y
+#| fig-cap: "Only one firm defaults in 5 years."
 par(pty = "s")
 plot(X[["one", 5]], xlim = L, ylim = L, pch = ".", cex = 1)
 abline(h = x.y[5], lty =2)
@@ -575,7 +606,9 @@ legend("topright", legend = c(paste(one.pd[5]*n)), bty = "n")
 
 This is the case in which no one firm defaults.
 
-```{r fig.cap="No firm defaults in 5 years."}
+```{r}
+#| label: fig-nfdi5y
+#| fig-cap: "No firm defaults in 5 years."
 par(pty = "s")
 plot(X[["none", 5]], xlim = L, ylim = L, pch = ".", cex = 1)
 abline(h = x.y[5], lty =2)
@@ -585,7 +618,9 @@ legend("topright", legend = c(paste(none.pd[5]*n)), bty = "n")
 
 It is a good idea to summarize all previous plots in one.
 
-```{r fig.cap="Which firm defaults at year 5?"}
+```{r}
+#| label: fig-wfday5
+#| fig-cap: "Which firm defaults at year 5?"
 # none
 par(mfrow = c(2, 3), oma = c(0, 0, 2, 0))
 par(pty = "s")
@@ -676,7 +711,9 @@ onlyf2.pd0 <- data.frame(X0["onlyf2.pd",]) * n
 A graphical analysis shows that in the case of 0.2 it is more likely that both firms default at the same time, and it is less likely that any firm default at the same time.
 
 
-```{r fig.cap="Cases per quadrant. Dotted lines corresponds to year 5."}
+```{r}
+#| label: fig-cpqdlcty5
+#| fig-cap: "Cases per quadrant. Dotted lines corresponds to year 5."
 par(mfrow=c(1, 2), oma = c(0, 0, 2, 0))
 par(pty = "s")
 plot(X[["none", 5]], pch = ".", xlim = L, ylim = L, 
