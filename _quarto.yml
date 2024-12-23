@@ -34,5 +34,5 @@ format:
     include-in-header:
       - back-to-top.html
       - progressbar.html
-  
+    css: styles.css
 link-citations: true

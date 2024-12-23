@@ -1,0 +1,13 @@
+/* Change the hyperlink color */
+a {
+  color: #333333; /* You can use any hex color code */
+}
+
+/* Target TOC active links with higher specificity */
+#TOC .nav-link.active, 
+#TOC .toc-entry a.active, 
+.nav-link.active {
+  color: #FF5733 !important; /* Custom color for active link */
+  font-weight: bold;         /* Make it bold for emphasis */
+  /* text-decoration: underline; /* Optional: Add underline */
+}
