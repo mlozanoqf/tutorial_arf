@@ -4,11 +4,15 @@ Credit risk models play a pivotal role in the financial landscape, providing ins
 
 # Loan analysis.
 
+The main objective of this section is to predict whether a person or client applying for a loan will repay it or not. This issue can be considered a classification problem, where based on information about the client and the characteristics of their loan application, the client is classified into one of two categories: whether they will default or not. There are various ways to approach this classification problem; in this section, we will use a simple machine learning model called logistic regression. The model is first estimated or trained and then evaluated using new data to determine how well it performs the classification.
+
 ```{r echo=FALSE}
 # This removes all items in environment. 
 # It is a good practice to start your code this way.
 rm(list=ls())
 ```
+
+Let's load the required R packages first.
 
 ```{r Loan analysis}
 # Logistic models
@@ -70,11 +74,16 @@ dat <- readRDS("loan_data_ARF.rds")
 str(dat)
 ```
 
-This could be a typical database taken from any given financial institution like a bank or a firm that uses credit channels to sell their products or services. Here, we have 29,092 observations of 10 variables. Each observation corresponds to the personal and loan characteristics of one loan. An important variable, our dependent variable, is <tt>`loan_st`</tt> the value of 0 is no default and the value of 1 is default. A default occurs when a borrower is unable to make timely payments, misses payments, or avoids or stops making payments on interest or principal owed. Then, the definition of default depends on the interests and objectives of the analysis, here we simply classify between default or no default. The variable <tt>`loan_st`</tt> is dichotomous or categorical. Here, we are interested to predict whether a new application will default or not.
 
-Clearly, <tt>`loan_data_ARF.rds`</tt> is past information as we know with certainty whether the individual defaulted (1) or not (0). Past information is helpful to better understand how likely is that one individual may default according to their personal and loan characteristics. Past information is useful to train our quantitative models to make predictions of new applicants, and even evaluate the performance of our classifications.
+This dataset could represent a typical collection of data from a financial institution, such as a bank or a company that uses credit channels to sell its products or services. It contains 29,092 observations across 10 variables. Each observation corresponds to the personal and loan characteristics of an individual loan. 
 
-A variable name is too long when there exists a shorter name that equally conveys the purpose of the variable. Let's rename some of them.
+A key variable, our dependent variable, is `loan_st`, which indicates loan status. A value of 0 represents no default, while a value of 1 represents default. A default occurs when a borrower fails to make timely payments, misses payments, or ceases payments on the interest or principal owed. The definition of default can vary depending on the goals and interests of the analysis. For the purposes of this study, we classify loans simply as either default or no default. 
+
+The variable `loan_st` is dichotomous, or categorical. Our primary interest lies in predicting whether a new loan application will result in default or not.
+
+Clearly, `loan_data_ARF.rds` represents past information, as we know with certainty whether an individual defaulted (1) or not (0). Historical data is valuable for understanding how likely an individual is to default based on their personal and loan characteristics. It is also essential for training quantitative models to predict outcomes for new applicants and for evaluating the performance of our classifications.
+
+A variable name is considered too long when a shorter name can convey the same purpose just as effectively. Let's rename some of them.
 
 ```{r}
 old_names <- colnames(dat)
@@ -82,6 +91,8 @@ colnames(dat) <- c("loan_st", "l_amnt", "int", "grade", "emp_len",
                    "home", "income", "age", "sex", "region")
 data.frame(old_names, "new_names" = colnames(dat))
 ```
+
+New variable names have now been assigned. 
 
 We can take a look at the information in different ways. For example, look at the first 10 rows out of 29,092.
 
@@ -114,44 +125,67 @@ ggplot(dat, aes(x = int)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-The following is a boxplot figure for the annual income.
+The following is a dotplot figure for the annual income.
 
 ```{r}
 #| label: fig-aib
-#| fig-cap: "Annual income boxplot."
+#| fig-cap: "Annual income dotplot."
 ggplot(dat, aes(income)) + 
-  geom_boxplot() +
+  geom_dotplot(binwidth = 100000, fill = "blue") +
   labs(y = "Density",
        x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
-
-The plot above looks suspicious. We have a very large value of the annual income in the horizontal axis (6,000,000). Also, there are few individuals with a very high income. We should explore further and investigate if these are valid observations or simply a mistake in the original database.
+The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (6,000,000). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these are valid observations or errors in the original dataset.
 
 ```{r Extract the row of the high income individuals}
 high_income <- dat[(dat$income > 1000000), ]
 high_income
 ```
 
-One guy (19486) is not only rich, he is 144 years old. So, my decision is to drop these 9 observations. Cleaning data is a common task when dealing with large databases. This is fine as long as we do not alter the nature of the data.
+One individual (ID 19486) is not only extremely wealthy but also 144 years old. As a result, I have decided to remove these nine observations. Data cleaning is a common task when working with large datasets, and it is acceptable as long as the integrity of the data remains intact.
 
 ```{r}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
 dat <- dat[-high_income_index$value,]
 ```
 
-Remember the database has originally 29,092 rows and now we are dropping 9 so we end up with 29,083. See the result.
+Remember, the original dataset contains 29,092 rows. After removing 9 observations, we are left with 29,083 rows. Let's take a look at the result.
 
 ```{r}
 #| label: fig-aiwev
 #| fig-cap: "Annual income without extreme values."
 ggplot(dat, aes(income)) + 
-  geom_boxplot() +
+  geom_dotplot(binwidth = 10000, fill = "blue") +
   labs(y = "Density", x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
 Somewhat better now.
+
+We could also explore some gender issues.
+
+```{r Gender issues}
+summary_table <- dat |>
+  group_by(sex) |>
+  summarize(
+    Mean = mean(income),
+    Median = median(income),
+    Min = min(income),
+    Max = max(income),
+    Count = n()
+  ) |>
+  mutate(
+    Gender = case_when(
+      sex == 0 ~ "Male",
+      sex == 1 ~ "Female"
+    )
+ )
+  
+summary_table
+```
+
+The table shows that females tend to have slightly higher average and median incomes compared to males. Additionally, the income distribution for females appears more variable, with a wider range of incomes. While the sample sizes for both groups are similar, females are slightly more represented. Overall, the data suggests a modest income advantage for females and greater variability in their earnings.
 
 ## Logistic models.
 
@@ -172,29 +206,37 @@ train <- dat[index_train, ]
 test <- dat[-index_train, ]
 ```
 
+Variables as factors are useful for model estimation and data visualization. Factors are variables in R which take on a limited number of different values; such variables are often referred to as categorical variables.
+
 We have 29,083 observations in <tt>`dat`</tt>. The code above randomly selects $29083 \times (2/3)=19388$ rows to form the <tt>`train`</tt>. The <tt>`test`</tt> are the remaining $29083-19388=9695$ rows. The random selection is highly recommended as the <tt>`dat`</tt> may have some structure or sorting that could bias our model estimation and negatively impact our model test. For example, imagine that for some weird reason the database is sorted in such a way that the first observations are all no default. If that is the case, then the training and the test set would not have portions of default and no default cases and we may distort the whole analysis. The random selection allows us to replicate a real situation in which our database is unsorted, with different characteristics.
 
 Let's see if the recent created <tt>`train`</tt> and <tt>`test`</tt> have the same basic properties than <tt>`dat`</tt>.
 
 ```{r}
-dat_prop <- table(dat$loan_st)/sum(table(dat$loan_st))
-train_prop <- table(train$loan_st)/sum(table(train$loan_st))
-test_prop <- table(test$loan_st)/sum(table(test$loan_st))
-prop <- data.frame(rbind(dat_prop, train_prop, test_prop))
+# Combine data into a list for processing
+data_list <- list(dat = dat$loan_st, train = train$loan_st, test = test$loan_st)
+
+# Compute proportions and combine into a data frame
+prop <- do.call(rbind, lapply(data_list, function(x) prop.table(table(x))))
 colnames(prop) <- c("no defaults", "defaults")
+row.names(prop) <- c("dat_prop", "train_prop", "test_prop")
 prop
 ```
 
-Take a look of the training set.
-
-```{r training set structure}
-# See the data structure.
-head(train)
-```
-
-Variables as factors are useful for model estimation and data visualization. Factors are variables in R which take on a limited number of different values; such variables are often referred to as categorical variables.
+The proportions of "defaults" and "no defaults" in the train and test datasets are very similar to those in the original dataset, indicating that both samples are representative. Specifically, the proportion of "defaults" in the train and test datasets closely matches that of the original dataset, as does the proportion of "no defaults." This suggests that the random sampling process has preserved the overall distribution of the target variable, ensuring that the train and test sets reflect the characteristics of the full dataset.
 
 Assume we think that the <tt>`loan_st`</tt> depends on the age of the individual. We can estimate a simple logistic model to learn about the relationship between age and loan status.
+
+
+$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 \cdot \text{age}$.
+
+Where:
+
+* $p$ is the probability that `loan_st = 1` (e.g., the probability of default).
+
+* $\beta_0$ is the intercept, and $\beta_1$ is the coefficient for the predictor variable `age`.
+
+The dependent variable in logistic regression is expressed as: $\log\left(\frac{p}{1-p}\right)$. This transformation, known as the *logit function*, maps probabilities $p$ which range between 0 and 1 to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s) (e.g., age) and the transformed dependent variable, making estimation feasible. The fraction $\frac{p}{1-p}$, called the *odds*, represents the ratio of the probability of an event happening $p$ to the probability of it not happening $1-p$, making it a natural choice for modeling binary outcomes.
 
 ```{r logi_age estimation}
 # Fitting a simple logistic model.
@@ -202,7 +244,53 @@ logi_age <- glm(loan_st ~ age, family = "binomial", data = train)
 logi_age
 ```
 
-Apparently, there is a negative relationship between age and loan status. The AIC value (13,580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
+The estimated model is: $\log\left(\frac{p}{1-p}\right) = -1.90097 - 0.00623 \cdot \text{age}$.
+
+Apparently, there is a negative relationship between age and loan status. 
+
+We can solve for $p$: $p = \frac{\exp(-1.90097 - 0.00623 \cdot \text{age})}{1 + \exp(-1.90097 - 0.00623 \cdot \text{age})}$.
+
+Substituting `age = 18`: $p = \frac{\exp(-1.90097 - 0.00623 \cdot 18)}{1 + \exp(-1.90097 - 0.00623 \cdot 18)}$,
+
+$p = \frac{\exp(-2.01311)}{1 + \exp(-2.01311)} \approx \frac{0.1333}{1 + 0.1333} = \frac{0.1333}{1.1333} \approx 0.1176$.
+
+
+Substituting `age = 60`: $p = \frac{\exp(-1.90097 - 0.00623 \cdot 60)}{1 + \exp(-1.90097 - 0.00623 \cdot 60)}$,
+
+$p = \frac{\exp(-2.27477)}{1 + \exp(-2.27477)} \approx \frac{0.1037}{1 + 0.1037} = \frac{0.1037}{1.1037} \approx 0.0939$.
+
+The results of the default probability estimation evaluated at ages 18 and 60 are not very promising because the difference in probabilities is very small. This means that the model does not generate significantly differentiated default probabilities, even when evaluated over a wide age range. This can be problematic because it suggests that this is a poor model.
+
+The following is a graphical representation of the logistic regression model's output.
+
+```{r}
+#| label: fig-scolcam
+#| fig-cap: "Sigmoid curve or logistic curve: age model."
+# Define the function for the logistic regression model
+logistic_function <- function(age) {
+  beta0 <- -1.90097
+  beta1 <- -0.00623
+  p <- exp(beta0 + beta1 * age) / (1 + exp(beta0 + beta1 * age))
+  return(p)
+}
+
+# Generate a sequence of ages
+ages <- seq(-1000, 500, by = 1)
+
+# Apply the logistic function to each age
+p_values <- sapply(ages, logistic_function)
+
+# Create the plot
+library(ggplot2)
+ggplot(data = data.frame(age = ages, p = p_values), 
+       aes(x = age, y = p)) +
+  geom_line(color = "blue", size = 2) +
+  labs(x = "Age", y = "Probability (p)") +
+  theme_minimal()
+```
+The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. This implies that, to observe the full range of probabilities from 0 to 1, we would require age values that are unrealistic or implausibly extreme. Such behavior suggests that the model is poorly specified, as it fails to generate meaningful distinctions in probabilities across a realistic range of ages.
+
+The AIC value of the age model (13,580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
 
 Let's estimate another simple model where the interest rate category is used as a predictor of the <tt>`loan_st`</tt>. Remember we are not conducting any prediction at all at this moment, we are only estimating models using the training set.
 
@@ -390,8 +478,28 @@ Let's arbitrarily consider a cutoff of 0.15 for now. This means that every estim
 For now, consider that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
 
 ```{r}
+#| label: fig-fmpaco
+#| fig-cap: "Full model predictions and cut-off."
+# Convert the predictions to a data frame
+pred_data <- data.frame(
+  Observation = seq_along(pred_logi_full),  # Sequence for observation index
+  Predicted_Probabilities = pred_logi_full
+)
+
+# Create the plot
+ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
+  geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
+  geom_hline(yintercept = 0.15, color = "red", size = 1) +  # Horizontal line
+  labs(x = "Observation", 
+       y = "Default prediction") +
+  theme_minimal()
+
+```
+
+
+```{r}
 #| label: fig-fmphaco
-#| fig-cap: "Full models predictions histogram and cut-off."
+#| fig-cap: "Full model predictions histogram and cut-off."
 ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
