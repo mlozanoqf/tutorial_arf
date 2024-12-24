@@ -25,16 +25,16 @@ xfun::file_string('contact.html')
 ```
 
 
-<!-- ```{r Merton, child = 'Merton.Rmd'} -->
-<!-- ``` -->
+```{r Merton, child = 'Merton.Rmd'}
+```
 
 
-<!-- ```{r Gaussian, child = 'Gaussian.Rmd'} -->
-<!-- ``` -->
+```{r Gaussian, child = 'Gaussian.Rmd'}
+```
 
 
-<!-- ```{r CVaR, child = 'CVaR.Rmd'} -->
-<!-- ``` -->
+```{r CVaR, child = 'CVaR.Rmd'}
+```
 
 
 ```{r include=FALSE}
