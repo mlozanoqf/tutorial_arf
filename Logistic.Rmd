@@ -187,6 +187,8 @@ summary_table
 
 The table shows that females tend to have slightly higher average and median incomes compared to males. Additionally, the income distribution for females appears more variable, with a wider range of incomes. While the sample sizes for both groups are similar, females are slightly more represented. Overall, the data suggests a modest income advantage for females and greater variability in their earnings.
 
+The better we understand the data, the better positioned we are to analyze it, gain deeper insights into the problem, and interpret the solutions more effectively. However, there is a risk of falling into the trap of overexploration, losing sight of the main problem and failing to address the objectives. Data cleaning, for instance, can be an ongoing task. Removing outliers with excessively high incomes is just one example of how data cleaning can be approached. For now, we pause the exploration and cleaning process and move on to the next section, where we estimate models that will help us achieve the outlined objectives.
+
 ## Logistic models.
 
 Logistic models allows us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable like <tt>`loan_st`</tt>. In this case, the binary dependent variable is default (1) or no default (0). A good reference for this section is @hull2020machine.
@@ -228,7 +230,7 @@ The proportions of "defaults" and "no defaults" in the train and test datasets a
 Assume we think that the <tt>`loan_st`</tt> depends on the age of the individual. We can estimate a simple logistic model to learn about the relationship between age and loan status.
 
 
-$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 \cdot \text{age}$.
+$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 \times \text{age}$.
 
 Where:
 
@@ -238,26 +240,27 @@ Where:
 
 The dependent variable in logistic regression is expressed as: $\log\left(\frac{p}{1-p}\right)$. This transformation, known as the *logit function*, maps probabilities $p$ which range between 0 and 1 to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s) (e.g., age) and the transformed dependent variable, making estimation feasible. The fraction $\frac{p}{1-p}$, called the *odds*, represents the ratio of the probability of an event happening $p$ to the probability of it not happening $1-p$, making it a natural choice for modeling binary outcomes.
 
+Let's estimate the age model.
+
 ```{r logi_age estimation}
 # Fitting a simple logistic model.
 logi_age <- glm(loan_st ~ age, family = "binomial", data = train)
 logi_age
 ```
 
-The estimated model is: $\log\left(\frac{p}{1-p}\right) = -1.90097 - 0.00623 \cdot \text{age}$.
+The estimated model is: $\log\left(\frac{p}{1-p}\right) = -1.90097 - 0.00623 \times \text{age}$.
 
-Apparently, there is a negative relationship between age and loan status. 
+The model suggests there is a negative relationship between age and loan status. 
 
-We can solve for $p$: $p = \frac{\exp(-1.90097 - 0.00623 \cdot \text{age})}{1 + \exp(-1.90097 - 0.00623 \cdot \text{age})}$.
+We can solve for $p$ to find the estimate of the probability of default according to the age model: $p = \frac{\exp(-1.90097 - 0.00623 \times \text{age})}{1 + \exp(-1.90097 - 0.00623 \times \text{age})}$. Let's evaluate $p$ for a couple of age values.
 
-Substituting `age = 18`: $p = \frac{\exp(-1.90097 - 0.00623 \cdot 18)}{1 + \exp(-1.90097 - 0.00623 \cdot 18)}$,
+Substituting `age = 18`: $p = \frac{\exp(-1.90097 - 0.00623 \times 18)}{1 + \exp(-1.90097 - 0.00623 \times 18)}$,
 
-$p = \frac{\exp(-2.01311)}{1 + \exp(-2.01311)} \approx \frac{0.1333}{1 + 0.1333} = \frac{0.1333}{1.1333} \approx 0.1176$.
+$p = \frac{\exp(-2.01311)}{1 + \exp(-2.01311)} \approx \frac{0.1333}{1 + 0.1333} \approx 0.1176$.
 
+Substituting `age = 60`: $p = \frac{\exp(-1.90097 - 0.00623 \times 60)}{1 + \exp(-1.90097 - 0.00623 \times 60)}$,
 
-Substituting `age = 60`: $p = \frac{\exp(-1.90097 - 0.00623 \cdot 60)}{1 + \exp(-1.90097 - 0.00623 \cdot 60)}$,
-
-$p = \frac{\exp(-2.27477)}{1 + \exp(-2.27477)} \approx \frac{0.1037}{1 + 0.1037} = \frac{0.1037}{1.1037} \approx 0.0939$.
+$p = \frac{\exp(-2.27477)}{1 + \exp(-2.27477)} \approx \frac{0.1037}{1 + 0.1037} \approx 0.0939$.
 
 The results of the default probability estimation evaluated at ages 18 and 60 are not very promising because the difference in probabilities is very small. This means that the model does not generate significantly differentiated default probabilities, even when evaluated over a wide age range. This can be problematic because it suggests that this is a poor model.
 
@@ -319,7 +322,9 @@ When a customer fill out a credit application form, we collect information but w
 
 ## Prediction and model evaluation.
 
-Let's take our three models: <tt>`logi_age`</tt>, <tt>`logi_int`</tt> and <tt>`logi_multi`</tt> from the previous subsection to carry out a simple prediction exercise. We start by identifying one observation in the test set and ask the models to predict the <tt>`loan_st`</tt>. This is, we take the first guy age, then we apply the <tt>`logi_age`</tt> model, and compare the predicted <tt>`loan_st`</tt> with respect to what really happened. Remember we know what really happened with this guy because we have the information in the test set. Every model is expected to produce different <tt>`loan_st`</tt> predictions. If the model is good, then the predicted <tt>`loan_st`</tt> will match what really happened.
+Let's evaluate the predictive performance of our three models: `logi_age`, `logi_int`, and `logi_multi`, introduced in the previous subsection. We begin by selecting a single observation from the test set and asking each model to predict the `loan_st` (loan status) for this individual. Specifically, we take the age of the first person in the test set, use it as input for the `logi_age` model, and then compare the model's predicted loan_st with the actual outcome recorded in the test set. Since the test set contains the true loan status for this individual, we can directly assess how well the model performed. Each model is expected to generate a potentially different prediction for the `loan_st`. A good model should produce a prediction that matches the actual outcome for this observation, indicating its reliability in capturing the underlying patterns in the data.
+
+Let's call the first individual John Doe for practical purposes.
 
 ```{r One applicant}
 # Define one single observation in test_set.
@@ -327,36 +332,57 @@ John_Doe <- as.data.frame(test[1, ])
 John_Doe
 ```
 
-We know in advance that the <tt>`loan_st`</tt> of this observation taken from the test set is 0. However, the models cannot know this simply because we did not use the test set to estimate the logistic models. Our models were estimated using the training set. A good credit risk model should predict a no default given this new applicant.
+We know in advance that the `loan_st` for this observation, taken from the test set, is 0. However, the models cannot know this because the test set was not used to estimate the logistic models. Instead, the models were trained using the training set. A good credit risk model should predict no default for this new applicant called John Doe.
 
-The values of <tt>`loan_st`</tt> in the test set is either 0 or 1. However, the logistic models estimate the <tt>`loan_st`</tt> as values in the range of 0 to 1. This mean that we would expect the estimated <tt>`loan_st`</tt> to be close to 0. *But, how close?* We will deal with this issue later.
+The values of `loan_st` in the test set are either 0 or 1. However, the logistic models predict the `loan_st` as probability estimates within the range of 0 to 1, as illustrated in @fig-scolcam. This means we would expect the estimated `loan_st` for John Doe to be close to 0. *But how close?* We will address this issue later.
+
+This code predicts the loan status for John Doe using three logistic regression models. Each prediction represents the probability that John Doe defaults on a loan, based on the respective model.
 
 ```{r Predictions of one single applicant in the test set}
-# Predict the loan status.
-logi_age_pred <- predict(logi_age, newdata = John_Doe, type = "response")
-logi_int_pred <- predict(logi_int, newdata = John_Doe, type = "response")
-logi_multi_pred <- predict(logi_multi, newdata = John_Doe, type = "response")
-# Collect all.
-pred_John <- rbind("logi_age" = logi_age_pred, 
-                     "logi_int" = logi_int_pred, 
-                     "logi_multi" = logi_multi_pred)
-# Prepare a table.
+# List of models
+models <- list("logi_age" = logi_age, "logi_int" = logi_int, "logi_multi" = logi_multi)
+
+# Predict the loan status for John Doe using all models
+pred_John <- sapply(models, predict, newdata = John_Doe, type = "response")
+
+# Convert to a table with appropriate column name
+pred_John <- as.data.frame(pred_John)
 colnames(pred_John) <- "Loan status predictions for John Doe."
+
+# Display the predictions
 pred_John
 ```
 
-These values are low as they are close to 0. We could interpret this as a certain ability of the models to predict this single case from the test set. However, several questions remains unanswered and requires further analysis. For example: *How can we determine if the prediction is low enough to consider it as a non-default?* We may need a cut-off value to decide. We will explore this issue later.
+These values are low, as they are close to 0. We could interpret this as some ability of the models to correctly predict that John Doe will not default. However, we have already illustrated that at least the age model is highly problematic. Additionally, several questions remain unanswered and require further analysis. For example, *how can we determine if the prediction is low enough to classify it as a non-default?* We may need a cut-off value to make this decision. We will explore this issue later.
 
-Another aspect is: *What about the rest of the cases in the test set?* We have 9,695 observations in the test set and in the example above we only test for the first one. We are interested in the entire test set, not only for John Doe. Fortunately, this issue is easy to address as we only need to change the <tt>`newdata`</tt> parameter in the <tt>`predict()`</tt> function. In particular, instead of <tt>`newdata = John_Doe`</tt>, which is one observation, and can change it to <tt>`newdata = test`</tt>, which is the entire 9,695 test set.
+Another important consideration is: *What about the rest of the cases in the test set?* The test set contains 9,695 observations, yet the example above only evaluates the first one. Our interest lies in assessing the entire test set, not just John Doe. Fortunately, this issue is easy to resolve by modifying the `newdata` parameter in the `predict()` function. Specifically, instead of using `newdata = John_Doe`, which refers to a single observation, we can replace it with `newdata = test`, encompassing all 9,695 observations in the test set.
+
+<!-- ```{r Predictions of the entire test set} -->
+<!-- # List of models -->
+<!-- models <- list("logi_age" = logi_age, "logi_int" = logi_int, "logi_multi" = logi_multi) -->
+
+<!-- # Predict loan status and calculate range and AIC for each model -->
+<!-- pred_range <- sapply(models, function(model) { -->
+<!--   c(range(predict(model, newdata = test, type = "response")), AIC(model)) -->
+<!-- }) -->
+
+<!-- # Convert to a data frame and label the columns -->
+<!-- pred_range <- as.data.frame(t(pred_range)) -->
+<!-- colnames(pred_range) <- c("min(loan_st)", "max(loan_st)", "AIC") -->
+
+<!-- # Display the result -->
+<!-- pred_range -->
+<!-- ``` -->
+
 
 ```{r Predictions of the entire test set}
 # Predict the loan status with the three models.
 pred_logi_age <- predict(logi_age, newdata = test, type = "response")
 pred_logi_int <- predict(logi_int, newdata = test, type = "response")
-pred_logi_multi <- predict(logi_multi, newdata = test, 
+pred_logi_multi <- predict(logi_multi, newdata = test,
                            type = "response")
 
-pred_range <- rbind("logi_age" = range(pred_logi_age), 
+pred_range <- rbind("logi_age" = range(pred_logi_age),
                      "logi_int" = range(pred_logi_int),
                      "logi_multi" = range(pred_logi_multi))
 aic <- rbind(logi_age$aic, logi_int$aic, logi_multi$aic)
@@ -365,11 +391,29 @@ colnames(pred_range) <- c("min(loan_st)", "max(loan_st)", "AIC")
 pred_range
 ```
 
-Now, instead of the prediction of one single applicant we have conducted a prediction of all 9,695 applicants in the test set. The lower value column corresponds to the lower predicted <tt>`loan_st`</tt> for each model. The logistic models produce values in the range of zero to one, and in this case the ranges are rather narrow.
+Now, instead of predicting for a single applicant, we have made predictions for all 9,695 applicants in the test set. The first column shows the lower predicted `loan_st` for each model, and the logistic models produce values in the range of 0 to 1. In this case, the predicted ranges are quite narrow.
 
-Narrow ranges (the difference between higher and lower <tt>`loan_st`</tt> predicted values) could be problematic because the model could not be able to discriminate between defaults (predictions closer to 1) and no-defaults (predictions closer to 0). The higher AIC corresponds to the worst in-sample model and the lower AIC to the best in-sample model. Here, we can see some in and out of sample consistency because the best model according to the AIC, corresponds to the model with the higher prediction range.
+Narrow ranges (i.e., the small difference between the highest and lowest predicted `loan_st` values) could be problematic because the model might struggle to discriminate between defaults (predictions closer to 1) and non-defaults (predictions closer to 0) as suggested in @fig-scolcam. The higher the AIC, the worse the in-sample model, and the lower the AIC, the better the model. Here, we see some consistency between in-sample and out-of-sample performance: the model with the highest prediction range also has the lowest AIC, indicating it is the best in-sample model.
 
-Let's explore all the predicted <tt>`loan_st`</tt> values for the <tt>`logi_age`</tt>:
+Let's explore all the predicted <tt>`loan_st`</tt> values for the <tt>`logi_age`</tt>. First let's see all of them.
+
+```{r}
+#| label: fig-amp
+#| fig-cap: "Age model predictions."
+# Convert the predictions to a data frame
+pred_data <- data.frame(
+  Observation = seq_along(pred_logi_age),  # Sequence for observation index
+  Predicted_Probabilities = pred_logi_age
+)
+
+# Create the plot
+ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
+  geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
+  labs(x = "Observation (test set)", 
+       y = "Default prediction") +
+  theme_minimal()
+```
+Now its distribution.
 
 ```{r}
 #| label: fig-amph
@@ -475,7 +519,9 @@ Another question is: *How can we know these model predictions corresponds to a d
 
 Let's arbitrarily consider a cutoff of 0.15 for now. This means that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). This classification rule can be used by a financial firm to decide whether to accept or reject new loan applications by rejecting loan applications with an estimated loan status above 0.15, and accepting those with an estimated loan status below 0.15. The accept/reject loan decision now depends on a model estimation. However, this simple approach could be controversial as managers may be interested in allocating more loans, not less. An alternative that meets credit risk and managers interests is to create several cutoff ranges instead of a single cutoff of 0.15. For example, the financial firm may accept loan applications with an estimated loan status between 0.15 and 0.25 with a higher interest rate to compensate for the additional credit risk. On the other hand, we may consider a different view by incorporating a social criterion to help those people who are naturally excluded by the financial industry given their economic condition. If this is the case, then, we may be interested to identify those applicants with a lower estimated loan status.
 
-For now, consider that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). Graphically it looks like this:
+For now, consider that every estimated loan status below 0.15 will be considered as 0 (no-default), and every estimated loan status above 0.15 will be considered as 1 (default). 
+
+Graphically, it looks like this:
 
 ```{r}
 #| label: fig-fmpaco
@@ -490,12 +536,12 @@ pred_data <- data.frame(
 ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
   geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
   geom_hline(yintercept = 0.15, color = "red", size = 1) +  # Horizontal line
-  labs(x = "Observation", 
+  labs(x = "Observation (test set)", 
        y = "Default prediction") +
   theme_minimal()
 
 ```
-
+Alternatively, we can illustrate the distribution.
 
 ```{r}
 #| label: fig-fmphaco
@@ -508,12 +554,16 @@ ggplot(pred_logi[pred_logi$model == "pred_logi_full",],
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
-Here, predicted <tt>`loan_st`</tt> values at the left of the dashed line represent no default predictions and values at the right of the dashed line represent default predictions. Let's set up the rule to convert the estimated loan status into a binary (0 or 1) variable. See how this transformation takes place:
+Here, predicted <tt>`loan_st`</tt> values at the left of the dashed line represent no default predictions and values at the right of the dashed line represent default predictions. Let's set up the rule to convert the estimated loan status into a binary (0 or 1) variable. 
+
+See how this transformation takes place:
 
 ```{r Specifying a cut-off of 15}
 # Make a binary predictions-vector using a cut-off of 15%
 pred_cutoff_15 <- ifelse(pred_logi_full > 0.15, 1, 0)
-head(cbind(pred_logi_full, "rounded" = round(pred_logi_full, 4), pred_cutoff_15))
+head(cbind(pred_logi_full, 
+           "pred_logi_full_rounded" = round(pred_logi_full, 4), 
+           pred_cutoff_15))
 ```
 
 These are only the first 6 rows in the test set. We can see that the rule works as expected because every estimated loan status below 0.15 is now considered as 0 (no-default), and every estimated loan status above 0.15 is considered as 1 (default). The table above shows how we can create this binary variable given the logistic model prediction.
