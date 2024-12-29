@@ -706,7 +706,7 @@ In the table above, we see the outcomes of the first 12 loan applications. Accor
 
 While this table provides valuable insights, it is somewhat problematic because it incorporates a counterfactual approach. Specifically, we are evaluating the rejected applications based on their potential outcomes if they had been accepted. This requires us to hypothesize about what would have happened, which introduces assumptions and uncertainty, as these scenarios did not actually occur. A more practical and grounded approach is to focus on evaluating the rule based solely on the cases where we do accept loan applications. This is where the concept of the "bad rate" becomes useful. The bad rate measures the proportion of accepted loans that default, providing a straightforward and actionable metric. By concentrating on the actual outcomes of accepted applications, the bad rate allows us to assess the effectiveness of our rule without relying on speculative counterfactuals, making it a more reliable and convenient evaluation method.
 
-Remember that the `real_pred_20` object is significant because it contains both the binary model predictions and the actual loan status, essentially, the modelÅfs prediction and the corresponding real outcomes. In the code below, we first filter for accepted loans, which are cases where the prediction equals 0. If this condition is met, we assign the value from the first column, which represents the loan status.
+Remember that the `real_pred_20` object is significant because it contains both the binary model predictions and the actual loan status, essentially, the model's prediction and the corresponding real outcomes. In the code below, we first filter for accepted loans, which are cases where the prediction equals 0. If this condition is met, we assign the value from the first column, which represents the loan status.
 
 As a result, `accepted_loans` becomes a vector of zeros and ones: a value of 0 indicates a loan that did not default, while a value of 1 indicates a loan that defaulted. The length of the `accepted_loans` vector 7,756 corresponds to the number of loans allocated based on the cutoff value of 0.1994621 and the predictions from the `logi_full` model.
 
@@ -816,7 +816,7 @@ data.frame(accept_rate = bank_logi_age$accept_rate,
            "Bad_model_bad_rate" = bank_logi_age$bad_rate, 
            "Good_model_bad_rate)" = bank_logi_full$bad_rate)
 ```
-The full model is superior because it achieves a lower bad rate at any given acceptance rate. A plot can effectively highlight the key differences between the two models: `logi_full` and `logi_age`.
+The full model is superior because it achieves a lower bad rate at any given acceptance rate. A plot can effectively highlight the key differences between the two models: `logi_age` and `logi_full`.
 
 ```{r}
 #| label: fig-agaabm
@@ -840,9 +840,12 @@ highlight_lines <- tibble(
   color = c("black", "red", "black", "red")
 )
 
-# Plot
-ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = model)) +
-  geom_line(size = 1.2) +
+# Add a color column to distinguish facets
+combined_data <- combined_data %>%
+  mutate(facet_color = ifelse(model == "logi_full", "blue", "orange"))
+
+ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
+  geom_line(size = 1.2) +  # Use facet-specific colors for the lines
   geom_vline(data = highlight_lines, aes(xintercept = accept_rate, color = color),
              linetype = "dashed", size = 1.1) +
   geom_hline(data = highlight_lines, aes(yintercept = bad_rate, color = color),
@@ -850,7 +853,10 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = model)) +
   facet_wrap(~model, nrow = 1) +
   labs(x = "Acceptance rate", y = "Bad rate") +
   theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  scale_color_identity() +  # Use the colors directly without adding them to the legend
+  scale_x_continuous(breaks = c(0, 0.65, 0.8, 1)) +
+  scale_y_continuous(breaks = c(0, 0.0371, 0.0576, 0.1093))
 ```
 
 
@@ -877,21 +883,29 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = model)) +
 
 The `logi_full` model is superior because, at any acceptance rate, it achieves a lower bad rate compared to the `logi_age` model. This advantage arises from the `logi_full` model's ability to identify defaults and non-defaults with greater precision. The value of a strong model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
 
-The model's ability to predict defaults and non-defaults can be assessed using the AUC metric. AUC, which stands for Area Under the Curve, represents the probability that the fitted model assigns a higher score to a randomly selected positive sample than to a randomly selected negative sample. This metric is defined in the following context:
+The ROC (Receiver Operating Characteristic) curve is a graphical representation used to evaluate the performance of a binary classification model, such as a credit risk model designed to predict defaults and non-defaults. In this context, the ROC curve plots the true positive rate, or sensitivity, against the false positive rate or specificity across various cutoff or acceptance rates. 
+
+The area under the ROC curve (AUC) quantifies the model's ability to discriminate between the two classes: a higher AUC indicates better performance. For example, a model with an AUC close to 1 suggests it can effectively distinguish between defaulting and non-defaulting borrowers, while an AUC of 0.5 indicates no better performance than random guessing. By analyzing the trade-off between sensitivity (correctly identifying defaults) and specificity (correctly identifying non-defaults), the ROC curve helps determine an optimal threshold for classification, balancing the cost of misclassifying borrowers.
 
 ```{r}
-#| label: fig-fmiramib
-#| fig-cap: "Full model in red, age model in blue."
+#| label: fig-fmibamio
+#| fig-cap: "ROC curves: Full model in blue, age model in orange."
+
+# Calculate ROC curves
 ROC_logi_full <- roc(test$loan_st, pred_logi_full)
 ROC_logi_age <- roc(test$loan_st, pred_logi_age)
-# Draw the ROCs on one plot
-plot(ROC_logi_full, col = "red")
-lines(ROC_logi_age, col = "blue")
+
+# Draw the ROC curves on one plot
+plot(ROC_logi_full, col = "blue", lwd = 3)
+lines(ROC_logi_age, col = "orange", lwd = 3)
+legend("bottomright", 
+       legend = c("Full model AUC: 0.8213", 
+                  "Age model AUC: 0.5301"), 
+       col = c("blue", "orange"), 
+       lwd = 3)
 ```
 
-Sensitivity refers to the model's ability to correctly identify defaults, also known as true positives. Specificity, on the other hand, measures the model's ability to correctly identify non-default loans, also referred to as true negatives.
-
-As expected, the area under the curve (AUC) is higher for the red line which corresponds to the <tt>`logi_full`</tt> model. We can calculate the exact values:
+As expected, in @fig-fmibamio the area under the curve (AUC) is higher for the blue line which corresponds to the `logi_full` model. We can calculate the exact values for both models:
 
 ```{r AUC good and bad model}
 # Compute the AUCs:
@@ -899,7 +913,93 @@ auc(ROC_logi_full)
 auc(ROC_logi_age)
 ```
 
-Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule. A pure-random approval rule would look like this:
+Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule. 
+
+Sensitivity refers to the model's ability to correctly identify defaults, also known as true positives. Specificity, on the other hand, measures the model's ability to correctly identify non-default loans, also referred to as true negatives. In practical terms, a highly sensitive model minimizes the risk of missing actual defaults, ensuring that loans likely to fail are identified and rejected. However, an extreme focus on sensitivity can lead to over-rejection, where many creditworthy applicants are misclassified as high risk. This conservative approach reduces potential defaults but can severely limit revenue, harming the firm's profitability and growth.
+
+Conversely, a model with high specificity ensures that most creditworthy borrowers are approved, maximizing loan issuance and short-term revenue. Yet, an exclusive focus on specificity may allow a significant number of risky loans to go undetected, resulting in a higher rate of defaults. Over time, the accumulation of bad debts could undermine the firm's financial stability, potentially leading to insolvency. Thus, balancing sensitivity and specificity is essential: the former safeguards against default-related losses, while the latter promotes profitable lending. The optimal trade-off will depend on the firm's risk appetite, financial goals, and regulatory constraints.
+
+If a firm were to accept all loans, it would achieve 100% specificity by correctly identifying all non-default loans, but it would fail to identify defaults, leading to the maximum bad rate possible and significant financial losses. Conversely, if the firm were to reject all loans that might potentially default, it would achieve 100% sensitivity by correctly identifying all defaults. However, this would result in rejecting all loan applications, including creditworthy borrowers, and consequently, the firm would not issue any loans. While this would eliminate credit risk, it would also severely restrict the firm's revenue and growth potential. In both cases, while some risks may be mitigated, the firm would face substantial operational challenges: one approach would expose the firm to financial instability due to the maximum bad rate, while the other would stifle business growth by not issuing any loans. Both scenarios emphasize the importance of balancing risk mitigation with sustainable business growth.
+
+The @fig-fmibamio has a full range of acceptance rates. Let's evaluate the values of sensitivity and specificity at two acceptance rates that we have reviewed before: 65% and 80%.
+
+
+```{r}
+# Obtener coordenadas
+coords_full80 <- coords(ROC_logi_full, x = 0.20)
+coords_age80 <- coords(ROC_logi_age, x = 0.20)
+coords_full65 <- coords(ROC_logi_full, x = 0.35)
+coords_age65 <- coords(ROC_logi_age, x = 0.35)
+
+# Crear un data.frame combinando los resultados
+results_df <- data.frame(
+  Model = c("logi_full", "logi_age", "logi_full", "logi_age"),
+    Acceptance_rate = 1-c(coords_full80$threshold, coords_age80$threshold, 
+                coords_full65$threshold, coords_age65$threshold),
+  Sensitivity = c(coords_full80$sensitivity, coords_age80$sensitivity, 
+                  coords_full65$sensitivity, coords_age65$sensitivity),
+  Specificity = c(coords_full80$specificity, coords_age80$specificity, 
+                  coords_full65$specificity, coords_age65$specificity)
+)
+
+# Mostrar el data.frame
+print(results_df)
+
+```
+
+```{r}
+#| label: fig-fmibeitar
+#| fig-cap: "Full model in blue, evaluated in two acceptance rates: 65% in black, 80% in red."
+# Draw the ROCs on one plot with a title
+plot(ROC_logi_full, col = "blue", lwd = 3)
+abline(v = coords_full80$specificity, col = "red", lty = 2, lwd = 2)
+abline(h = coords_full80$sensitivity, col = "red", lty = 2, lwd = 2)
+abline(v = coords_full65$specificity, col = "black", lty = 2, lwd = 2)
+abline(h = coords_full65$sensitivity, col = "black", lty = 2, lwd = 2)
+legend("bottomright", 
+       legend = c("Acceptance rate of 80%", 
+                  "Acceptance rate of 65%"), 
+       col = c("red", "black"), 
+       lwd = 3, lty = 2)
+```
+
+Let's check if these sensitivity and specificity results are correct. 
+
+The sensitivity value is: $\text{Sensitivity} = \frac{\text{True positives}}{\text{True positives} + \text{False negatives}}$.
+
+The specificity value is: $\text{Specificity} = \frac{\text{True negatives}}{\text{True negatives} + \text{False positives}}$.
+
+
+For the case of an acceptance rate of 80%:
+
+```{r Confusion matrix pred_full_20a}
+# Calculate the predictions with the same model and new cutoff.
+pred_full_20 <- ifelse(pred_logi_full > 0.2, 1, 0)
+# Show results in a confusion matrix.
+CrossTable(test$loan_st, pred_full_20, prop.r = FALSE,
+           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+$\text{Sensitivity} = \frac{612}{612 + 448} = 0.5773585$.
+
+$\text{Specificity} = \frac{7317}{7317 + 1318} = 0.8473654$.
+
+For the case of an acceptance rate of 65%:
+
+```{r Confusion matrix pred_full_35a}
+# Calculate the predictions with the same model and new cutoff.
+pred_full_35 <- ifelse(pred_logi_full > 0.35, 1, 0)
+# Show results in a confusion matrix.
+CrossTable(test$loan_st, pred_full_35, prop.r = FALSE,
+           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+
+$\text{Sensitivity} = \frac{292}{292 + 768} = 0.2754717$.
+
+$\text{Specificity} = \frac{8272}{8272 + 363} = 0.9579618$.
+
+In a credit risk model that predicts default and non-default cases, there is an inherent trade-off between sensitivity and specificity. Increasing sensitivity often comes at the cost of reducing specificity, as lowering the cutoff for classifying defaults (or increasing the acceptance rate) may capture more actual defaulters but also increase the number of non-defaulting borrowers misclassified as defaulters (false positives). Conversely, raising the cutoff (or reducing the acceptance rate) improves specificity by reducing false positives but risks missing actual defaulters (false negatives), thereby lowering sensitivity.
+
+A pure-random approval rule would look like this:
 
 ```{r}
 #| label: fig-rrm
@@ -908,7 +1008,7 @@ set.seed(2020)
 pred_rand_model <- runif(length(pred_logi_age))
 ROC_rand <- roc(test$loan_st, pred_rand_model)
 # Draw the ROCs on one plot
-plot(ROC_rand, col = "orange")
+plot(ROC_rand, col = "red")
 auc(ROC_rand)
 ```
 
