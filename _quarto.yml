@@ -1,38 +1,68 @@
-title: Credit risk with {{< fa brands r-project >}} <span style="color:white">R</span>
+project:
+  type: book
+  output-dir: _book
 
-author: Dr. Martín Lozano.
-date-modified: now
-date-format: "MMMM D, YYYY, HH:mm:ss a."
+book:
+  title: "Credit Risk with R"
+  subtitle: "Tutorial"
+  author: "Dr. Martin Lozano"
+  page-navigation: true
+  search: true
+  date: today
+  date-format: "MMMM D, YYYY"
+  sidebar:
+    style: docked
+    collapse-level: 1
+  page-footer:
+    left: "Credit Risk with R"
+    right: 'Dr. Martin Lozano &middot; <a href="mailto:mlozanoqf@gmail.com">mlozanoqf@gmail.com</a> &middot; <a href="https://mlozanoqf.github.io/">mlozanoqf.github.io</a>'
+  chapters:
+    - index.qmd
+    - part: "Credit Scoring and Data"
+      chapters:
+        - 01-logistic.qmd
+    - part: "Structural and Portfolio Models"
+      chapters:
+        - 02-merton.qmd
+        - 03-gaussian-copula.qmd
+        - 04-cvar.qmd
+    - part: "References and Support"
+      chapters:
+        - references.qmd
 
-
-abstract: This material relies on @Hull credit risk chapters and Lore Dirick credit risk DataCamp course. Some mathematical background is skipped to emphasize the data analysis, model logic, discussion, graphical approach and R coding [@Rref]. As in the philosophy of @knuth1984literate, the objective of this document is to explain to human beings what we want a computer to do as literate programming. This is a work in progress and it is under revision.
 bibliography: references.bib
+link-citations: true
 
-theme:
-  light: flatly
-  dark: darkly
+crossref:
+  chapters: true
+
+execute:
+  warning: false
+  message: false
 
 format:
   html:
-    toc: true
-    toc-title: Contents
+    theme:
+      light: flatly
+      dark: darkly
+    toc: false
+    toc-title: "On this page"
+    toc-location: right
+    toc-depth: 2
     smooth-scroll: true
     code-fold: true
-    code-tools:
-      source: false
-      toggle: true
+    code-copy: true
+    code-tools: false
     code-block-bg: true
     code-block-border-left: "#31BAE9"
     code-line-numbers: true
-    number-sections: true
-    crossref:
-      chapters: true
-    toc-location: left
-    toc-depth: 2
+    number-sections: false
     page-layout: full
-    include-after-body: analytics_arf.html
-    include-in-header:
+    include-after-body:
+      - analytics_arf.html
       - back-to-top.html
       - progressbar.html
+      - local-navigation.html
+      - page-sections.html
+      - sidebar-accordion.html
     css: styles.css
-link-citations: true
