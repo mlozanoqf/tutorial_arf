@@ -43,29 +43,3 @@ The material relies on Hull's credit risk chapters, Lore Dirick's credit risk co
 
 This is a work in progress and remains under revision.
 :::
-
-::: {.home-section-grid}
-::: {.home-section}
-**Credit scoring and data**
-
-Start with loan-level default prediction, logistic regression, model evaluation, cutoffs, acceptance rates, bad rates, and ROC curves.
-
-[Go to logistic credit scoring](01-logistic.qmd)
-:::
-
-::: {.home-section}
-**Structural and portfolio models**
-
-Continue with the Merton model, Gaussian copula dependence, and a compact Credit VaR example.
-
-[Go to the Merton model](02-merton.qmd)
-:::
-
-::: {.home-section}
-**References and support**
-
-Use the reference list to trace the academic sources and technical materials behind the examples.
-
-[Go to references](references.qmd)
-:::
-:::
