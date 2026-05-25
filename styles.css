@@ -72,6 +72,11 @@ table {
   margin-block-end: 0.75rem;
 }
 
+body:has(.home-panel) #title-block-header,
+body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
+  display: none;
+}
+
 #title-block-header .quarto-title-meta {
   margin-block-end: 0.5rem;
 }
@@ -94,6 +99,10 @@ table {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+#quarto-sidebar .sidebar-menu-container li.sidebar-item:has(> .sidebar-item-container > a.sidebar-link[href$="index.html"]) {
+  display: none;
 }
 
 #quarto-sidebar li.sidebar-item-section.sidebar-section-current > .sidebar-item-container > .sidebar-link,

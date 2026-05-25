@@ -10,8 +10,20 @@ function initSidebarAccordion() {
     sidebar.querySelectorAll("ul.sidebar-section.depth1.collapse[id]")
   );
 
-  sidebar.querySelectorAll('a.sidebar-link[href="./index.html"]').forEach(function (link) {
+  function pageNameFromUrl(value) {
+    var url = new URL(value, window.location.href);
+    var pageName = url.pathname.split("/").pop();
+
+    return pageName || "index.html";
+  }
+
+  sidebar.querySelectorAll("a.sidebar-link[href]").forEach(function (link) {
+    if (pageNameFromUrl(link.getAttribute("href")) !== "index.html") {
+      return;
+    }
+
     var item = link.closest("li.sidebar-item");
+
     if (item) {
       item.style.display = "none";
     }
@@ -55,13 +67,6 @@ function initSidebarAccordion() {
         sectionItem.classList.toggle("sidebar-section-current", section === currentSection);
       }
     });
-  }
-
-  function pageNameFromUrl(value) {
-    var url = new URL(value, window.location.href);
-    var pageName = url.pathname.split("/").pop();
-
-    return pageName || "index.html";
   }
 
   function markCurrentSection() {

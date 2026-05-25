@@ -17,13 +17,16 @@ book:
     left: "Credit Risk with R"
     right: 'Dr. Martin Lozano &middot; <a href="mailto:mlozanoqf@gmail.com">mlozanoqf@gmail.com</a> &middot; <a href="https://mlozanoqf.github.io/">mlozanoqf.github.io</a>'
   chapters:
-    - index.qmd
+    - text: "Credit Risk with R"
+      href: index.qmd
     - part: "Credit Scoring and Data"
       chapters:
         - 01-logistic.qmd
-    - part: "Structural and Portfolio Models"
+    - part: "Structural Models"
       chapters:
         - 02-merton.qmd
+    - part: "Portfolio Models"
+      chapters:
         - 03-gaussian-copula.qmd
         - 04-cvar.qmd
     - part: "References and Support"

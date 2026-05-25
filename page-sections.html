@@ -15,11 +15,18 @@ function initPageSectionMenu() {
 
   if (isHomePage) {
     if (titleHeader) {
+      titleHeader.style.display = "none";
+
       var homeBreadcrumbs = titleHeader.querySelector(".quarto-title-breadcrumbs");
       if (homeBreadcrumbs) {
         homeBreadcrumbs.style.display = "none";
       }
     }
+
+    if (breadcrumbs) {
+      breadcrumbs.style.display = "none";
+    }
+
     return;
   }
 
