@@ -33,12 +33,15 @@ jobs:
       - name: Set up R
         shell: pwsh
         run: |
-          choco install r.project -y --no-progress
-          $rRoot = Get-ChildItem "C:\Program Files\R" -Directory |
-            Sort-Object Name -Descending |
-            Select-Object -First 1
-          "$($rRoot.FullName)\bin\x64" | Out-File -FilePath $env:GITHUB_PATH -Append
-          "$($rRoot.FullName)\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          $ErrorActionPreference = "Stop"
+          $rVersion = "4.5.2"
+          choco install r.project --version=$rVersion --allow-downgrade -y --no-progress
+          $rRoot = "C:\Program Files\R\R-$rVersion"
+          if (-not (Test-Path $rRoot)) {
+            throw "Expected R $rVersion at $rRoot"
+          }
+          "${rRoot}\bin\x64" | Out-File -FilePath $env:GITHUB_PATH -Append
+          "${rRoot}\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Check tool versions
         run: |

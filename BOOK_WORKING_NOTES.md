@@ -129,6 +129,7 @@ Relevant local source:
   - `45c47a3` added `xgboost` to the publishing workflow R package installation.
   - `8933026` pinned the build runner to `windows-2022`.
   - `f445c55` removed third-party setup actions for R/Quarto and uses Chocolatey instead.
+- A later workflow run reached `quarto render` but failed at `01-logistic.qmd` while invoking Chocolatey's latest `R-4.6.0` with `The pipe is being closed`; local targeted render succeeded under `R-4.5.2`, so the workflow pins Chocolatey's `r.project` package to `4.5.2`.
 - The workflow can still fail while GitHub Actions/Pages is degraded, especially when downloading official actions such as `actions/configure-pages`.
 - `Hull 11th.pdf` remains local and untracked. Do not commit it unless the user explicitly asks.
 
