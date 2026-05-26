@@ -122,10 +122,20 @@ Relevant local source:
 - A full `quarto render` succeeded on 2026-05-26.
 - The render processed 7 inputs and created `_book/index.html`.
 - After the render, root `index.html` and `index_files` were restored to avoid generated deletion noise.
-- The commit for the current batch should include source files and this renamed note, but should exclude `Hull 11th.pdf`.
+- The main content batch was committed and pushed as `28bd579` (`Expand book chapters and Merton valuation notes`).
+- GitHub Actions/Pages failed after the push, but the push itself succeeded.
+- GitHub Status reported an active incident with Actions and Pages on 2026-05-26, including failures starting Actions runs and downloading actions from `codeload.github.com`.
+- Additional workflow commits were pushed while diagnosing:
+  - `45c47a3` added `xgboost` to the publishing workflow R package installation.
+  - `8933026` pinned the build runner to `windows-2022`.
+  - `f445c55` removed third-party setup actions for R/Quarto and uses Chocolatey instead.
+- The workflow can still fail while GitHub Actions/Pages is degraded, especially when downloading official actions such as `actions/configure-pages`.
+- `Hull 11th.pdf` remains local and untracked. Do not commit it unless the user explicitly asks.
 
 ## Next session
 
 - Continue with the Merton chapter.
 - First likely task: polish the opening of the risk-neutral valuation section so it says very clearly what is being valued, why equity payoff and default are linked, and why risk-neutral valuation gives a valid price in a risky world.
 - Then continue through Merton adjustment points 2 through 9.
+- If GitHub Actions has recovered, re-run the latest failed workflow or trigger a new push.
+- Consider simplifying the publication workflow or adding a documented fallback for local publishing if Actions keeps being fragile.
