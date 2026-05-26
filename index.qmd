@@ -7,39 +7,27 @@ knitr::opts_chunk$set(
 )
 ```
 
+```{r book-edition, echo=FALSE, results='asis'}
+source("R/book-edition.R")
+write_book_edition_script()
+```
+
 ```{r contact-links, echo=FALSE, results='asis'}
 xfun::file_string("contact.html")
 ```
 
-```{r last-modified, echo=FALSE, results='asis'}
-render_time <- Sys.time()
-month_names <- c(
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-)
-am_pm <- if (as.integer(format(render_time, "%H")) < 12) "am" else "pm"
-formatted_modified <- paste0(
-  month_names[as.integer(format(render_time, "%m"))],
-  " ",
-  as.integer(format(render_time, "%d")),
-  format(render_time, ", %Y, %H:%M:%S "),
-  am_pm,
-  "."
-)
-
-cat(
-  '<div class="home-last-modified">',
-  '<span class="home-last-modified-label">Modified</span>',
-  '<span class="date-modified">', formatted_modified, '</span>',
-  '</div>\n',
-  sep = ""
-)
+```{r publication-dates, echo=FALSE, results='asis'}
+write_book_dates()
 ```
 
+# Credit Risk with R {.unnumbered}
+
+## Preface {.unnumbered}
+
 ::: {.home-panel}
-This tutorial introduces credit risk models with R, with emphasis on model logic, data analysis, graphical interpretation, and reproducible code.
+This book is written for readers who want to close the gap between credit risk models, the logic behind those models, and the code required to implement them. The aim is to keep intuition, mathematical structure, data analysis, graphical interpretation, and reproducible R code in the same conversation.
 
-The material relies on Hull's credit risk chapters, Lore Dirick's credit risk course materials, and the literate programming spirit of @knuth1984literate: the goal is to explain to human beings what we want a computer to do.
+The style is deliberately explicit. Credit risk work depends on many small choices: how a default variable is coded, how a model threshold is selected, how a probability is interpreted, how a portfolio loss is simulated, and how a result becomes a lending or risk management decision. For that reason, the book does not treat code as a black box. Each step is meant to explain what is being computed, why it matters, and where its limitations are.
 
-This is a work in progress and remains under revision.
+The organizing principle follows the literate programming spirit of @knuth1984literate: the goal is to explain to human beings what we want a computer to do. The book remains under active revision, with the emphasis on clarity, reproducibility, and practical interpretation.
 :::

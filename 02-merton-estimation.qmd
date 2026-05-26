@@ -1,0 +1,248 @@
+## The estimation
+
+```{r merton-estimation-setup, include=FALSE}
+source("R/merton-packages.R")
+```
+
+Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the probability of default $pd$ among other interesting results.
+
+These are the known parameters.
+
+```{r}
+# List of known parameters.
+E0 <- 3 # Value of the equity as today, this is market capitalization.
+se <- 0.8 # Stock return volatility.
+rf <- 0.05 # Risk-free rate.
+TT <- 1 # Maturity.
+D <- 10 # Value of the debt. The Bloomberg function DDIS is useful.
+```
+We need equations 24.3 and 24.4 to estimate $V_0$ and $\sigma_V$.
+
+```{r}
+eq24.3 <- function(V0, sv) { 
+  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) -
+  D * exp(-rf * TT) * pnorm(((log(V0 / D) +
+  (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - sv * sqrt(TT)) - E0)) }
+eq24.4 <- function(V0, sv) { 
+  ((pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) *
+      sv * V0 - se * E0)) }
+# Footnote 10 indicates that we should minimize F(x,y)^2+G(x,y)^2
+min.footnote10 <- function(x) 
+  (eq24.3(x[1], x[2]))^2 + (eq24.4(x[1], x[2]))^2
+# The minimization leads to the values of V0 and sv.
+V0_sv <- optim(c(1, 1), min.footnote10)
+# Define the values as parameters.
+V0 <- V0_sv$par[1]
+sv <- V0_sv$par[2]
+kable(data.frame("Market value" = V0, 
+                 "Volatility" = sv), 
+      caption = "Assets.")
+```
+
+Calculate the probability of default $N(-d_2)$ as a function of $V_0$ and $\sigma_V$.
+
+```{r}
+PD <- function(V0, sv) { 
+  pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) / 
+             (sv * sqrt(TT))) - sv * sqrt(TT))) }
+# Calculate the probability of default given the previous parameters.
+pd <- PD(V0, sv)
+pd
+```
+The probability of default is 12.69396%.
+
+Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
+
+```{r}
+# Inspect the role of d and N(d).
+d1 <- (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
+d2 <- d1 - sv * sqrt(TT)
+Nd1 <- pnorm(d1)
+Nd2 <- pnorm(d2)
+ans <- data.frame(d1, Nd1, d2, Nd2)
+ans
+```
+
+
+Now, let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
+
+
+```{r}
+#| label: fig-trartpod
+#| fig-cap: "The red area represents the probability of default."
+xseq <- seq(-4, 4, 0.01) 
+densities <- dnorm(xseq, 0, 1) # Standard normal distribution.
+# Graphical evaluation of N(-d_2).
+plot(xseq, densities, xlab = "d values (-d_2 is the dotted line)", 
+     ylab = "Density", type = "l", lwd = 2, cex = 2)
+abline(h = 0)
+polygon(c(xseq[xseq >= -d2], -d2), c(densities[xseq >= -d2], 0), col = "green")
+polygon(c(xseq[xseq < -d2], -d2), c(densities[xseq < -d2], 0), col = "red")
+legend("topleft", legend = c("N(d_2)=0.8730604 
+in green and
+N(-d_2)=0.1269396 in red.
+
+N(d_2)+N(-d_2)=1."),
+bg = "white", bty = "n", cex = 0.9)
+abline(v = -d2, lty = 2, lwd = 3)
+```
+
+Here you can find an alternative explanation about $N(-d_2)$:
+
+```{r}
+embed_url("https://youtu.be/lV0ytJYbVzc")
+```
+
+Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. We do not have an analytic math expressions (closed form) to calculate $V_0$ and $\sigma_V$, instead we have approximate values or estimates given the minimization of equations 24.3 and 24.4 in [@Hull]. In order to see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_v$. This value is supposed to be positive as both $F(x,y)$ and $G(x,y)$ functions are squared, so we expect a positive number close to zero when evaluated at $x=V_0$ and $y=\sigma_v$.
+
+```{r}
+# Evaluate how good is the minimization.
+min.footnote10(x = c(V0, sv))
+round(min.footnote10(x = c(V0, sv)), 6)
+```
+
+The minimization conducted in the function <tt>`min.footnote10()`</tt> above worked fairly well as the value is zero in practical terms.
+
+There is another way to approach how the minimization work. We can propose a graphical analysis. In particular, we can verify whether $V_0=12.39578$ and $\sigma_V=0.2123041$ minimizes the objective function. To illustrate this in two axis, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
+
+```{r}
+# Fix sv and evaluate different values of V0.
+V0.seq <- seq(from = 4, to = 20, length.out = 100)
+sv.rep <- rep(sv, 100)
+# Function to be evaluated.
+FG <- function(V0, sv) { (eq24.3(V0, sv))^2 + (eq24.4(V0, sv))^2 }
+# Apply the function with fixed sv and different V0 values.
+FG.V0 <- mapply(FG, V0.seq, sv.rep)
+```
+
+We are ready to plot.
+
+```{r}
+#| label: fig-hwftvotaactvoaatz
+#| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
+# Plot the results.
+plot(V0.seq, FG.V0, type = "l", xlab = expression(paste(V[0])),
+     ylab = expression(paste(F(x,y)^2+G(x,y)^2)), cex.lab = 0.8, lwd = 3)
+abline(v = V0, lty = 2)
+abline(h = FG(V0, sv), lty = 2)
+points(V0, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
+```
+
+Clearly, the minimization worked well here. For the sake of completeness, now we fix the $V_0$ value and evaluate the function again.
+
+```{r}
+#| label: fig-hwftvotaatzactvota
+#| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
+# Now fix V0, and evaluate different sv values.
+sv.seq <- seq(0, 0.6, length.out = 100)
+V0.rep <- rep(V0, 100)
+# Evaluate the function with these parameters.
+FG.sv <- mapply(FG, V0.rep, sv.seq)
+# Plot the results.
+plot(sv.seq, FG.sv, type = "l", xlab = expression(paste(sigma[V])), 
+     ylab = expression(paste(F(x, y)^2 + G(x, y)^2)), 
+     cex.lab = 0.8, lwd = 3)
+abline(v = sv, lty = 2)
+abline(h = FG(V0, sv), lty = 2)
+points(sv, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
+```
+
+We can show the same as before but in a 3D plot.
+
+```{r}
+#| label: fig-motf
+#| fig-cap: "Minimization of the function."
+# outer evaluates the function for each combination of the vectors.
+z <- outer(V0.seq, sv.seq, FG) # z is now 100x100 matrix.
+persp(V0.seq, sv.seq, z, col = "springgreen", shade = 0, xlab = "V0",
+      ylab = "sv", zlab = "Objective function.")
+```
+Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
+
+```{r}
+#| label: fig-motfacv
+#| fig-cap: "Minimization of the function: a contour view."
+# The nlevels is high to emphasize the minimum value in blue.
+contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])), 
+        ylab = expression(paste(sigma[V])), 
+        lwd = 2, nlevels = 300)
+points(V0, sv, pch = 19, col = "blue", cex = 2)
+```
+
+The following plot cannot be seen in a PDF output, but it can be seen in a browser as an interactive plot. This green plot is nice but it is not interactive. We could plot interactive three-dimension plots with other R packages like <tt>`plotly`</tt> and show them in a html context or java environment. 
+
+
+```{r}
+#| label: fig-motfaiv
+#| fig-cap: "Minimization of the function: an interactive view."
+plot_ly(type = "surface" , x = sv.seq, y = V0.seq , z = z ) %>%
+layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
+       scene = list(xaxis = list(title = "Assets volatility"), 
+                    yaxis = list(title = "Assets", 
+                    zaxis = list(title = "f=F^2+G^2"))))  %>%
+hide_colorbar()
+#add_markers(y = 12.3957765, x = 0.2123041, z = 0, inherit = TRUE)
+```
+
+The Merton model allows us to calculate more values in this credit risk assessment. 
+
+```{r}
+# Other results in the Merton's model.
+market_value_debt <- V0 - E0
+pv_promised_payment_debt <- D * exp(-rf * TT)
+Expected_Loss <- (pv_promised_payment_debt - market_value_debt) /
+  pv_promised_payment_debt
+recovery_rate <- 1 - (Expected_Loss / pd)
+ans <- data.frame(market_value_debt, pv_promised_payment_debt, 
+                  Expected_Loss, recovery_rate, pd)
+kable(t(ans), caption = "Other results in the Merton's model.")
+```
+
+Could we figure out the implied bond yield spread? It would be similar to the fair interest rate that this firm has to pay given its probability of default and recovery rate. Take Hull's equation 24.2 as a reference: $\lambda(T)=S(T)/(1-R)$ and solve for $S(T)$: $S(T)=\lambda(T)\times(1-R)$, so $S(T)=(0.12693963)\times(1-0.90350393)$. This is 122.4918 basis points more than the risk-free rate. Then, with five parameters we can calculate (among other things) the firm's probability of default and the correspondent yield spread of this firm's bond. It would be interesting to compare this value with the market yield spread and evaluate whether the market yield is over or underestimated according to our theoretical value. 
+
+This is the spread function.
+
+```{r}
+spread <- function(E0, se, rf, TT, D) { 
+  eq24.3 <- function(V0, sv) { 
+  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - 
+      D * exp(-rf * TT) * pnorm(((log(V0 / D) +
+  (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - sv * sqrt(TT)) - E0)) }
+eq24.4 <- function(V0, sv) { 
+  ((pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) *
+      sv * V0 - se * E0)) }
+  min.footnote10 <- function(x) 
+  (eq24.3(x[1], x[2]))^2 + (eq24.4(x[1], x[2]))^2
+V0_sv <- optim(c(1, 1), min.footnote10)
+V0 <- V0_sv$par[1]
+sv <- V0_sv$par[2]
+pd <- pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) /
+          (sv * sqrt(TT))) - sv * sqrt(TT)))
+
+market_value_debt <- V0 - E0
+pv_promised_payment_debt <- D * exp(-rf * TT)
+Expected_Loss <- (pv_promised_payment_debt - market_value_debt) /
+  pv_promised_payment_debt
+recovery_rate <- 1 - (Expected_Loss / pd)
+spread <- pd * (1-recovery_rate)
+spread
+}
+```
+
+Let's evaluate the spread function.
+
+```{r}
+spread(E0 = 3, se = 0.8, rf = 0.05, TT = 1, D = 10)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+x.T <- seq(0.5, 10, 0.5)
+spread.T <- mapply(spread, E0 = 3, se = 0.8, rf = 0.05, x.T, D = 10)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+data.frame(x.T, spread.T)
+```
+

@@ -1,0 +1,184 @@
+## Inside view of the Merton's model
+
+```{r merton-inside-view-setup, include=FALSE}
+source("R/merton-common.R")
+```
+
+Let's go back to our main example and assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
+
+```{r}
+#| label: fig-so10pota
+#| fig-cap: "Simulation of 10 paths of the assets."
+# Merton assumes V follows a geometric Brownian motion process.
+V0.sim <- function(i) {  # the argument i is not used here.
+  GBM(N = 365, T = 1, t0 = 0, x0 = V0, theta = 0.05, sigma = sv) }
+set.seed(3) # Reproducibility  
+paths <- sapply(1:10, V0.sim) # Create 10 paths for V.
+# Plot results.
+matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
+abline(h = D, col = "red", lwd = 2)
+points(1, V0, pch = 19, cex = 1.5, col = "blue")
+points(rep(366, 8), paths[366, paths[366, ] > 10], 
+       pch = 1, cex = 1.5, col = "green")
+points(rep(366, 2), paths[366, paths[366, ] < 10], 
+       pch = 1, cex = 1.5, col = "red")
+```
+
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+
+```{r}
+# Which path went lower than D?
+which(colSums(paths < 10) > 0)
+```
+The value of the assets was lower than $10 at some time in the second, fourth and ninth alternate universes. Let's plot these cases.
+
+```{r}
+#| label: fig-nttbpfdnd
+#| fig-cap: "Note that the blue path finally did not default. Recovery is possible as in the real life."
+# There might be an easier way to select these cases.
+matplot(paths[,which(colSums(paths < 10) > 0)], type = "l", 
+        col = c("green", "blue", "red"), lwd = 2, lty = 1,
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
+abline(h = D, col = "red", lwd = 2)
+points(1, V0, pch = 19, cex = 1.5, col = "blue")
+```
+
+The blue path was lower than 10 at some time, but at $t=T$ it is clearly higher than 10. For this reason, the blue path does not represent a firm's default. See how the assets are not high enough to pay the debt at maturity only in two cases: green and red. Thus, according to this simulation the probability of default is 20%. Here is how we can calculate the cases in which $V_T<D$.
+
+```{r}
+sum(paths[366,] < 10) / 10
+```
+
+The probability of default of 20% can be disappointing because it is significantly higher than 12.693963%. This is because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
+
+Here are 100 simulated paths of $V_0$ to $V_T$.
+
+```{r}
+#| label: fig-so100pota
+#| fig-cap: "Simulation of 100 paths of the assets."
+set.seed(3) # Reproducibility  
+paths <- sapply(1:100, V0.sim) # Create 100 paths.
+# Plot results.
+matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
+abline(h = D, col = "red", lwd = 2)
+points(1, V0, pch = 19, cex = 1.5, col = "blue")
+```
+
+Given the simulation above, the probability of default is 17%. This is closer to 12.693963%.
+
+```{r}
+sum(paths[366,] < 10) / 100
+```
+
+Let's see all the 17 cases that end in default.
+
+```{r}
+#| label: fig-dc
+#| fig-cap: "Default cases."
+# These are the 17 default cases.
+matplot(paths[,which(paths[366,] < 10)], type = "l", col = "black", 
+        lwd = 1, lty = 1, ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
+abline(h = D, col = "red", lwd = 2)
+points(1, V0, pch = 19, cex = 1.5, col = "blue")
+```
+
+Now, let's see the 11 cases in which $V_t$ eventually went lower than $10 but at the end did not default. 
+
+```{r}
+#| label: fig-atpwl1asp
+#| fig-cap: "All these paths went lower than 10 at some point, but at the end the value of the assets are higher than 10. These are paralell universes in which the firm finally survived after some drama."
+# V_t < 10
+almost_default <- which(colSums(paths < 10) > 0)
+# V_T < 10
+default <- which((paths[366,] < 10))
+# There should be an easier way to do this:
+matplot(paths[,almost_default[which(almost_default %in% 
+                                      default == FALSE)]], 
+        type = "l", col = c(1:11), lwd = 1, lty = 1, 
+        ylab = expression(paste(V[t])), 
+        xlab = "Time in days (from 0 to T)")
+abline(h = D, col = "red", lwd = 2)
+points(1, V0, pch = 19, cex = 1.5, col = "blue")
+```
+
+Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 ([@Hull]). Note that instead of drawing the complete paths, we can directly get the distribution of $V_T$. The resulting distribution is log-normal.
+
+```{r}
+#| label: fig-ho1votaam
+#| fig-cap: "Histogram of 100,000 values of the assets at maturity."
+set.seed(13)
+# 100,000 values of VT at once.
+VT <- exp(rnorm(100000, log(V0) + (rf - (sv^2) / 2)*TT, sv*sqrt(TT)))
+# Plot results.
+h <- hist(VT, 100, plot = FALSE)
+ccat <- cut(h$breaks, c(-Inf, D, Inf))
+# You may also need to change the xlim if a big red square appears as changes in maturity may imply larger values of VT. I recommend trying without xlim and see.
+plot(h, main = NULL, col = c("red", "blue")[ccat], 
+     xlab = "Value of the assets at maturity", xlim = c(4, 30))
+legend("topright", 
+legend = c("The red area is 12.657%, and represents
+the simulated probability of default.
+The probability of default of the model
+following the textbook example is 
+N(-d_2)=12.69396%. As we can see,
+both are very close."),
+col = c("red", "blue"), pch = c(19), bg = "white", bty = "n", cex = 0.8)
+```
+
+The probability of default can be calculated as:
+
+```{r}
+sum(VT < 10) / 100000
+```
+
+Note that 0.12657 is now much closer than 0.12693963. Convergence achieved.
+
+This firm can be represented as an European call option payoff. The payoff of a typical stock option is $c=max(S_T-K, 0)$ or equivalently in terms of Merton's model: $E_T=max(V_T-D, 0)$.
+
+```{r}
+#| label: fig-avotfbssitf
+#| fig-cap: "A view of the firm's balance sheet in the future. Looks like a typical European call option payoff."
+ET <- pmax(VT - D, 0) # payoff function of a typical call option.
+plot(sort(VT), sort(ET), type = "l", lwd = 4, xlim = c(5, 20), 
+     ylim = c(0, 10), xlab = "Simulated assets at maturity (V_T)",
+     ylab = "Simulated equity at maturity (E_T)")
+abline(v = 10, lty = 2)
+legend("left", legend = c("According to the model,
+E_T=0 happens 
+in 12.657% of the 
+100,000 cases."),
+bg = "white", bty = "n", cex = 0.9)
+```
+
+This diagram show the firm's market values in the future at maturity. This is because the $E_T$ is a function of $V_T$ and $D$. As long as $V_T<D$, then the value of $E_T=0$. Otherwise, the value of $E_T= V_T-D$, just as the accounting equation suggest but in future terms. Note that the Merton's model says nothing about the estimated value of $E_T$, instead we have an estimate about how likely is that $V_T<D$, or in other words how likely is that $E_T<0$.
+
+Then, we know that $E_T= max(V_T-D, 0)$. The Black-Scholes-Merton formula can also estimate the theoretical value of $E_0$. This is, if the observable market value given by the market capitalization available in any financial site is $E_0=3$, we can retrieve the theoretical value of $E_0$ so we can compare whether the firm observable market value is over or undervalued. In other words, the Black-Scholes-Merton model can give us an estimate of the firm value. In particular, the model gives the value of the equity today as:
+
+$E_0=V_0N(d_1)-De^{-rT}N(d_2)$
+
+This is equation 24.3 in [@Hull]. To estimate $E_0$, we need $V_0$ and $\sigma_V$ and these two values were already estimated before with the implementation of the min.footnote10 function above. It is true that this minimization requires $E_0$, the point here is to use the observable market capitalization $E_0=3$ to find out the unobservable $V_0$ and $\sigma_V$ and then estimate the theoretical value of $E_0$.
+
+The code is:
+
+```{r}
+# Black-Scholes call.
+E0.theo <- function(V0, D, rf, TT, sv) {
+  d1 <- (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
+  d2 <- d1 - sv * sqrt(TT)
+  c <- V0 * pnorm(d1) - D * exp(-rf * TT) * pnorm(d2)
+}
+V0 <- 12.39578 # Assets.
+D <- 10 # Debt.
+rf <- 0.05 # Risk-free rate.
+TT <- 1 # Maturity.
+sv <- 0.2123041 # Volatility of assets.
+(E0.theo(V0, D, rf, TT, sv))
+```
+Then, we can argue that the market value of the firm is slightly undervalued since the theoretical value of the firm is 3.000357 compared with 3. This approach opens the possibility to value firms. It also opens the possibility to compare the book value in the Balance sheet of the total assets versus the estimate $V_0$. This will allow us to understand the difference between book value and market value of the assets, not only of the equity. We can even implement a similar analysis about the market value of the debt just as we did before. 
+

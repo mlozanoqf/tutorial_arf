@@ -1,0 +1,390 @@
+```{r include=FALSE}
+source("R/logistic-models.R")
+```
+
+## The bank strategy
+
+A bank could be interested to understand the relationship between the acceptance rate and the bad rate given a model that predicts the loan status.
+
+<!-- ```{r The bank strategy} -->
+<!-- # Function. -->
+<!-- bank <- function(prob_of_def){ -->
+<!--   cutoff <- rep(NA, 21) -->
+<!--   bad_rate <- rep(NA, 21) -->
+<!--   accept_rate <- seq(1, 0, by = -0.05) -->
+<!--   for (i in 1:21){ -->
+<!--     cutoff[i] <- quantile(prob_of_def, accept_rate[i]) -->
+<!--     pred_i <- ifelse(prob_of_def > cutoff[i], 1, 0) -->
+<!--     pred_as_good <- test$loan_st[pred_i == 0] -->
+<!--     bad_rate[i] <- sum(pred_as_good == 1)/length(pred_as_good)} -->
+<!--   table <- cbind(accept_rate, cutoff = round(cutoff, 4),  -->
+<!--                  bad_rate = round(bad_rate, 4)) -->
+<!--   return(list(table = table, bad_rate = bad_rate,  -->
+<!--               accept_rate = accept_rate, cutoff = cutoff)) -->
+<!--   } -->
+<!-- ``` -->
+
+```{r}
+bank <- function(prob_of_def) {
+  # Pre-define the acceptance rates
+  accept_rate <- seq(1, 0, by = -0.05)
+  
+  # Calculate cutoffs for each acceptance rate
+  cutoff <- quantile(prob_of_def, accept_rate)
+  
+  # Calculate bad rates for each cutoff
+  bad_rate <- sapply(cutoff, function(thresh) {
+    pred_i <- ifelse(prob_of_def > thresh, 1, 0)
+    pred_as_good <- test$loan_st[pred_i == 0]
+    mean(pred_as_good == 1)
+  })
+  
+  # Create the result table
+  table <- cbind(
+    accept_rate,
+    cutoff = round(cutoff, 4),
+    bad_rate = round(bad_rate, 4)
+  )
+  
+  return(list(table = table, bad_rate = bad_rate, accept_rate = accept_rate, cutoff = cutoff))
+}
+```
+
+We can evaluate this function for the `logi_full` model and compare it to a less effective model, such as `logi_age`. In principle, we expect the `logi_full` model to demonstrate a more favorable relationship between the acceptance rate and the bad rate, that is, lower bad rates for a given acceptance rate. Financial institutions are generally interested in increasing the acceptance rate without significantly increasing the bad rate.
+
+Let's apply the function to the `pred_logi_full` and the `logi_age`.
+
+```{r The bank strategy a good and a bad model}
+# Apply the bank function.
+bank_logi_full <- bank(pred_logi_full)
+bank_logi_age <- bank(pred_logi_age)
+
+data.frame(accept_rate = bank_logi_age$accept_rate,
+           "Bad_model_bad_rate" = bank_logi_age$bad_rate, 
+           "Good_model_bad_rate)" = bank_logi_full$bad_rate)
+```
+The table suggests that the full model is more useful for decision-making because it achieves a lower bad rate at any given acceptance rate. A plot can effectively highlight the key differences between the two models: `logi_age` and `logi_full`.
+
+```{r}
+#| label: fig-agaabm
+#| fig-cap: "A bad and a good model."
+# Combine the two datasets for easier comparison
+bank_logi_full$model <- "logi_full"
+bank_logi_age$model <- "logi_age"
+combined_data <- bind_rows(bank_logi_full, bank_logi_age)
+
+# Add vertical and horizontal lines for visualization
+highlight_lines <- tibble(
+  model = c("logi_full", "logi_full", "logi_age", "logi_age"),
+  accept_rate = c(bank_logi_full[["accept_rate"]][8],
+                  bank_logi_full[["accept_rate"]][5],
+                  bank_logi_age[["accept_rate"]][8],
+                  bank_logi_age[["accept_rate"]][5]),
+  bad_rate = c(bank_logi_full[["bad_rate"]][8],
+               bank_logi_full[["bad_rate"]][5],
+               bank_logi_age[["bad_rate"]][8],
+               bank_logi_age[["bad_rate"]][5]),
+  color = c("black", "red", "black", "red")
+)
+
+# Add a color column to distinguish facets
+combined_data <- combined_data %>%
+  mutate(facet_color = ifelse(model == "logi_full", "blue", "orange"))
+
+ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
+  geom_line(size = 1.2) +  # Use facet-specific colors for the lines
+  geom_vline(data = highlight_lines, aes(xintercept = accept_rate, color = color),
+             linetype = "dashed", size = 1.1) +
+  geom_hline(data = highlight_lines, aes(yintercept = bad_rate, color = color),
+             linetype = "dashed", size = 1.1) +
+  facet_wrap(~model, nrow = 1) +
+  labs(x = "Acceptance rate", y = "Bad rate") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none") +
+  scale_color_identity() +  # Use the colors directly without adding them to the legend
+  scale_x_continuous(breaks = c(0, 0.65, 0.8, 1)) +
+  scale_y_continuous(breaks = c(0, 0.0371, 0.0576, 0.1093))
+```
+
+
+<!-- ```{r} -->
+<!-- #| label: fig-agaabm -->
+<!-- #| fig-cap: "A good and a bad model." -->
+<!-- # Plot the strategy functions -->
+<!-- par(mfrow = c(1, 2)) -->
+<!-- plot(bank_logi_full$accept_rate, bank_logi_full$bad_rate,  -->
+<!--      type = "l", xlab = "Acceptance rate", ylab = "Bad rate",  -->
+<!--      lwd = 2, main = "logi_full") -->
+<!-- abline(v = bank_logi_full[["accept_rate"]][8], lty = 2) -->
+<!-- abline(h = bank_logi_full[["bad_rate"]][8], lty = 2) -->
+<!-- abline(v = bank_logi_full[["accept_rate"]][5], lty = 2, col = "red") -->
+<!-- abline(h = bank_logi_full[["bad_rate"]][5], lty = 2, col = "red") -->
+<!-- plot(bank_logi_age$accept_rate, bank_logi_age$bad_rate, -->
+<!--      type = "l", xlab = "Acceptance rate",  -->
+<!--      ylab = "Bad rate", lwd = 2, main = "logi_age") -->
+<!-- abline(v = bank_logi_age[["accept_rate"]][8], lty = 2) -->
+<!-- abline(h = bank_logi_age[["bad_rate"]][8], lty = 2) -->
+<!-- abline(v = bank_logi_age[["accept_rate"]][5], lty = 2, col = "red") -->
+<!-- abline(h = bank_logi_age[["bad_rate"]][5], lty = 2, col = "red") -->
+<!-- ``` -->
+
+The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
+
+The ROC (Receiver Operating Characteristic) curve is a graphical representation used to evaluate the performance of a binary classification model, such as a credit risk model designed to predict defaults and non-defaults. In this context, the ROC curve plots the true positive rate, or sensitivity, against the false positive rate, which is equal to $1 - \text{specificity}$, across various cutoff values. We will still report specificity directly because it has a clear credit-risk interpretation: the proportion of non-default loans correctly identified as non-defaults.
+
+The area under the ROC curve (AUC) quantifies the model's ability to discriminate between the two classes: a higher AUC indicates better performance. For example, a model with an AUC close to 1 suggests it can effectively distinguish between defaulting and non-defaulting borrowers, while an AUC of 0.5 indicates no better performance than random guessing. By analyzing the trade-off between sensitivity (correctly identifying defaults) and specificity (correctly identifying non-defaults), the ROC curve helps determine an optimal threshold for classification, balancing the cost of misclassifying borrowers.
+
+```{r}
+#| label: fig-fmibamio
+#| fig-cap: "ROC curves: Full model in blue, age model in orange."
+
+# Calculate ROC curves
+ROC_logi_full <- roc(test$loan_st, pred_logi_full)
+ROC_logi_age <- roc(test$loan_st, pred_logi_age)
+
+# Draw the ROC curves on one plot
+plot(ROC_logi_full, col = "blue", lwd = 3)
+lines(ROC_logi_age, col = "orange", lwd = 3)
+legend("bottomright", 
+       legend = c("Full model AUC: 0.8213", 
+                  "Age model AUC: 0.5301"), 
+       col = c("blue", "orange"), 
+       lwd = 3)
+```
+
+As expected, in @fig-fmibamio the area under the curve (AUC) is higher for the blue line which corresponds to the `logi_full` model. We can calculate the exact values for both models:
+
+```{r AUC good and bad model}
+# Compute the AUCs:
+auc(ROC_logi_full)
+auc(ROC_logi_age)
+```
+
+Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule. 
+
+Sensitivity refers to the model's ability to correctly identify defaults, also known as true positives. Specificity, on the other hand, measures the model's ability to correctly identify non-default loans, also referred to as true negatives. In practical terms, a highly sensitive model minimizes the risk of missing actual defaults, ensuring that loans likely to fail are identified and rejected. However, an extreme focus on sensitivity can lead to over-rejection, where many creditworthy applicants are misclassified as high risk. This conservative approach reduces potential defaults but can severely limit revenue, harming the firm's profitability and growth.
+
+Conversely, a model with high specificity ensures that most creditworthy borrowers are approved, maximizing loan issuance and short-term revenue. Yet, an exclusive focus on specificity may allow a significant number of risky loans to go undetected, resulting in a higher rate of defaults. Over time, the accumulation of bad debts could undermine the firm's financial stability, potentially leading to insolvency. Thus, balancing sensitivity and specificity is essential: the former safeguards against default-related losses, while the latter promotes profitable lending. The optimal trade-off will depend on the firm's risk appetite, financial goals, and regulatory constraints.
+
+If a firm were to accept all loans, it would achieve 100% specificity by correctly identifying all non-default loans, but it would fail to identify defaults, leading to the maximum bad rate possible and significant financial losses. Conversely, if the firm were to reject all loans that might potentially default, it would achieve 100% sensitivity by correctly identifying all defaults. However, this would result in rejecting all loan applications, including creditworthy borrowers, and consequently, the firm would not issue any loans. While this would eliminate credit risk, it would also severely restrict the firm's revenue and growth potential. In both cases, while some risks may be mitigated, the firm would face substantial operational challenges: one approach would expose the firm to financial instability due to the maximum bad rate, while the other would stifle business growth by not issuing any loans. Both scenarios emphasize the importance of balancing risk mitigation with sustainable business growth.
+
+The @fig-fmibamio contains the full range of possible cutoff values. Let's evaluate sensitivity and specificity at two acceptance-rate targets that we have reviewed before: 80% and 65%. Here the acceptance rate is not the same thing as the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile.
+
+
+```{r}
+# Calculate sensitivity and specificity from a confusion matrix.
+classification_metrics <- function(actual, predicted) {
+  cm <- table(
+    Actual = factor(actual, levels = c("0", "1")),
+    Predicted = factor(predicted, levels = c(0, 1))
+  )
+  tn <- cm["0", "0"]
+  fp <- cm["0", "1"]
+  fn <- cm["1", "0"]
+  tp <- cm["1", "1"]
+  c(
+    sensitivity = as.numeric(tp / (tp + fn)),
+    specificity = as.numeric(tn / (tn + fp))
+  )
+}
+
+# Cutoffs implied by target acceptance rates.
+cutoff_full_80 <- unname(quantile(pred_logi_full, 0.80))
+cutoff_age_80 <- unname(quantile(pred_logi_age, 0.80))
+cutoff_full_65 <- unname(quantile(pred_logi_full, 0.65))
+cutoff_age_65 <- unname(quantile(pred_logi_age, 0.65))
+
+# Binary predictions: 1 = reject as predicted default, 0 = accept.
+pred_full_80 <- ifelse(pred_logi_full > cutoff_full_80, 1, 0)
+pred_age_80 <- ifelse(pred_logi_age > cutoff_age_80, 1, 0)
+pred_full_65 <- ifelse(pred_logi_full > cutoff_full_65, 1, 0)
+pred_age_65 <- ifelse(pred_logi_age > cutoff_age_65, 1, 0)
+
+metrics_full_80 <- classification_metrics(test$loan_st, pred_full_80)
+metrics_age_80 <- classification_metrics(test$loan_st, pred_age_80)
+metrics_full_65 <- classification_metrics(test$loan_st, pred_full_65)
+metrics_age_65 <- classification_metrics(test$loan_st, pred_age_65)
+
+# Combine the results.
+results_df <- data.frame(
+  Model = c("logi_full", "logi_age", "logi_full", "logi_age"),
+  Target_acceptance_rate = c(0.80, 0.80, 0.65, 0.65),
+  Actual_acceptance_rate = c(mean(pred_full_80 == 0),
+                             mean(pred_age_80 == 0),
+                             mean(pred_full_65 == 0),
+                             mean(pred_age_65 == 0)),
+  Cutoff = c(cutoff_full_80, cutoff_age_80,
+             cutoff_full_65, cutoff_age_65),
+  Sensitivity = c(metrics_full_80["sensitivity"],
+                  metrics_age_80["sensitivity"],
+                  metrics_full_65["sensitivity"],
+                  metrics_age_65["sensitivity"]),
+  Specificity = c(metrics_full_80["specificity"],
+                  metrics_age_80["specificity"],
+                  metrics_full_65["specificity"],
+                  metrics_age_65["specificity"])
+)
+
+print(results_df)
+
+```
+
+```{r}
+#| label: fig-fmibeitar
+#| fig-cap: "Full model in blue, evaluated in two acceptance rates: 65% in black, 80% in red."
+# Draw the ROCs on one plot with a title
+plot(ROC_logi_full, col = "blue", lwd = 3)
+abline(v = metrics_full_80["specificity"], col = "red", lty = 2, lwd = 2)
+abline(h = metrics_full_80["sensitivity"], col = "red", lty = 2, lwd = 2)
+abline(v = metrics_full_65["specificity"], col = "black", lty = 2, lwd = 2)
+abline(h = metrics_full_65["sensitivity"], col = "black", lty = 2, lwd = 2)
+legend("bottomright", 
+       legend = c("Acceptance rate of 80%", 
+                  "Acceptance rate of 65%"), 
+       col = c("red", "black"), 
+       lwd = 3, lty = 2)
+```
+
+Let's check if these sensitivity and specificity results are correct. 
+
+The sensitivity value is: $\text{Sensitivity} = \frac{\text{True positives}}{\text{True positives} + \text{False negatives}}$.
+
+The specificity value is: $\text{Specificity} = \frac{\text{True negatives}}{\text{True negatives} + \text{False positives}}$.
+
+
+For the case of an acceptance-rate target of 80%:
+
+```{r Confusion matrix pred_full_80a}
+cm_full_80 <- table(
+  Actual = factor(test$loan_st, levels = c("0", "1")),
+  Predicted = factor(pred_full_80, levels = c(0, 1))
+)
+tn_80 <- cm_full_80["0", "0"]
+fp_80 <- cm_full_80["0", "1"]
+fn_80 <- cm_full_80["1", "0"]
+tp_80 <- cm_full_80["1", "1"]
+sens_80 <- as.numeric(tp_80 / (tp_80 + fn_80))
+spec_80 <- as.numeric(tn_80 / (tn_80 + fp_80))
+
+# Show results in a confusion matrix.
+CrossTable(test$loan_st, pred_full_80, prop.r = FALSE,
+           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+
+For this rule, sensitivity is `r round(sens_80, 4)`, calculated as `r tp_80` / (`r tp_80` + `r fn_80`). Specificity is `r round(spec_80, 4)`, calculated as `r tn_80` / (`r tn_80` + `r fp_80`).
+
+For the case of an acceptance-rate target of 65%:
+
+```{r Confusion matrix pred_full_65a}
+cm_full_65 <- table(
+  Actual = factor(test$loan_st, levels = c("0", "1")),
+  Predicted = factor(pred_full_65, levels = c(0, 1))
+)
+tn_65 <- cm_full_65["0", "0"]
+fp_65 <- cm_full_65["0", "1"]
+fn_65 <- cm_full_65["1", "0"]
+tp_65 <- cm_full_65["1", "1"]
+sens_65 <- as.numeric(tp_65 / (tp_65 + fn_65))
+spec_65 <- as.numeric(tn_65 / (tn_65 + fp_65))
+
+# Show results in a confusion matrix.
+CrossTable(test$loan_st, pred_full_65, prop.r = FALSE,
+           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+
+For this rule, sensitivity is `r round(sens_65, 4)`, calculated as `r tp_65` / (`r tp_65` + `r fn_65`). Specificity is `r round(spec_65, 4)`, calculated as `r tn_65` / (`r tn_65` + `r fp_65`).
+
+In a credit risk model that predicts default and non-default cases, there is an inherent trade-off between sensitivity and specificity. Under the rule "reject if predicted probability of default is above the cutoff," lowering the cutoff rejects more applicants. This usually increases sensitivity because more actual defaulters are detected, but it also reduces specificity because more non-defaulting borrowers are misclassified as defaulters. Conversely, raising the cutoff accepts more applicants and improves specificity by reducing false positives, but it risks missing actual defaulters, thereby lowering sensitivity.
+
+A pure-random approval rule would look like this:
+
+```{r}
+#| label: fig-rrm
+#| fig-cap: "Random rule model."
+set.seed(2020)
+pred_rand_model <- runif(length(pred_logi_age))
+ROC_rand <- roc(test$loan_st, pred_rand_model)
+# Draw the ROCs on one plot
+plot(ROC_rand, col = "red")
+auc(ROC_rand)
+```
+
+In theory, this random evaluation process would lead to an AUC of $0.5 = (1 \times 1)/2$. In contrast, now imagine we have a perfect model:
+
+```{r}
+#| label: fig-pm
+#| fig-cap: "Perfect model."
+pred_perfect_model <- as.numeric(test$loan_st)
+ROC_perfect <- roc(test$loan_st, pred_perfect_model)
+plot(ROC_perfect)
+auc(ROC_perfect)
+```
+
+In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identify defaults (100% sensitivity) and at the same time the model correctly identify no-defaults (100% specificity).
+
+Edward Malthouse explains these concepts quite well:
+
+```{r}
+embed_url("https://youtu.be/HljSmQhLs8M")
+```
+
+```{r eval=FALSE, include=FALSE}
+log_1_remove_home <- glm(loan_st ~ grade + home + income
++ emp_cat + ir_cat, family = "binomial", data = train)
+
+pred_log_1_remove_home <- predict(log_1_remove_home, newdata = test, 
+                                type = "response")
+strategy_pred_log_1_remove_home <- 
+  bank(as.numeric(pred_log_1_remove_home))
+# Plot the strategy functions
+plot(bank_logi_full$accept_rate,
+     bank_logi_full$bad_rate, 
+     type = "l", xlab = "Acceptance rate", ylab = "Bad rate", 
+     lwd = 2, main = "logi_full")
+abline(v = 0.65, lty = 2)
+abline(h = bad_rate, lty = 2)
+lines(strategy_pred_log_1_remove_home$accept_rate, 
+     strategy_pred_log_1_remove_home$bad_rate,
+     type = "l", xlab = "Acceptance rate", 
+     ylab = "Bad rate", lwd = 2, main = "logi_multi", col = "red")
+abline(v = strategy_pred_log_1_remove_home[["accept_rate"]][8], lty = 2)
+abline(h = strategy_pred_log_1_remove_home[["bad_rate"]][8], lty = 2)
+
+```
+
+```{r eval=FALSE, include=FALSE}
+#library(glmulti)
+#cloglog <- glmulti(loan_st ~ ., family = "binomial", 
+ #                     data = train, level =2, 
+  #                 plotty = FALSE)
+
+#cloglog <- glm(loan_st~1+l_amnt+income+age+income:l_amnt+age:l_amnt+age:income+grade:age+emp_cat:income+emp_cat:age+ir_cat:l_amnt+ir_cat:income, family = "binomial", 
+ #                     data = train)
+#predictions_cloglog <- predict(cloglog, newdata = test, type = "response")
+#strategy_predictions_cloglog <-
+#bank(as.numeric(predictions_cloglog))
+
+# Plot the strategy functions
+#par(mfrow = c(1, 2))
+#plot(bank_logi_full$accept_rate,
+#bank_logi_full$bad_rate,
+#type = "l", xlab = "Acceptance rate", ylab = "Bad rate",
+##lwd = 2, main = "logi_full")
+#abline(v = 0.65, lty = 2)
+#abline(h = bad_rate, lty = 2)
+#plot(strategy_predictions_cloglog$accept_rate,
+#strategy_predictions_cloglog$bad_rate,
+##type = "l", xlab = "Acceptance rate",
+#ylab = "Bad rate", lwd = 2, main = "logi_age")
+#abline(v = strategy_predictions_cloglog[["accept_rate"]][8], lty = 2)
+#abline(h = strategy_predictions_cloglog[["bad_rate"]][8], lty = 2)
+
+#plot(bank_logi_full$accept_rate,
+####bank_logi_full$bad_rate,
+#type = "l", xlab = "Acceptance rate", ylab = "Bad rate",
+#lwd = 2, main = "logi_full",
+#xlim = c(0.65,1))
+#lines(strategy_predictions_cloglog$accept_rate, 
+#      strategy_predictions_cloglog$bad_rate, col = "red", lwd = 2)
+#abline(v=0.65)
+```

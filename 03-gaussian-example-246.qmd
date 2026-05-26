@@ -1,0 +1,103 @@
+## Introduction to example 24.6
+
+```{r gaussian-example-246-setup, include=FALSE}
+source("R/gaussian-common.R")
+```
+
+Here, we start analyzing @Hull example 24.6. We do not analyze the 10 firms yet as in the original example. Instead, we first make some sense about the data, the relevant analysis, the logic, and the model basics before dealing with the full features in example in @Hull 24.6.
+
+Recall that, <tt>`pnorm()`</tt> leads to a probability, whereas <tt>`qnorm()`</tt> leads to a value of $x$. According to @Hull, the cumulative probabilities of default of 1%, 3%, 6%, 10% and 15% are taken as given for the maturities of 1, 2, 3, 4 and 5 years respectively. To implement the model, we take this information to derive the corresponding threshold values $\bar{x}$:
+
+```{r}
+pd <- c(0.01, 0.03, 0.06, 0.1, 0.15) # Probabilities of default per year.
+x.y <- qnorm(pd) # Transform probabilities of default into x values.
+ans <- data.frame(1:5, pd, x.y) # Gather the results.
+colnames(ans) <- c("year", "pd", "x (values given in Hull)")
+kable(ans, caption = "Main parameters.")
+```
+
+Note that the example assumes that the probability of default increases as we consider a longer maturity (from 1 year to 5 years). Probabilities above are cumulative, so they go from year 0 to year 1, from year 0 to year 2 and so on. To calculate the probability of default during a specific year we need to calculate the differences. In particular:
+
+```{r}
+ans <- data.frame(diff(pd))
+colnames(ans) <- c("PD")
+rownames(ans) <- c("x.y1 to x.y2", "x.y2 to x.y3", 
+                   "x.y3 to x.y4", "x.y4 to x.y5")
+kable(ans, caption = "PD at specific years.")
+```
+
+This is how we can illustrate the case of a probability of default of 15% in 5 years. The green area represents the 15% of the whole area below the bell-shaped curve.
+
+```{r}
+#| label: fig-gddf
+#| fig-cap: "Gaussian density distribution function."
+plot(x, D, type = "l", col = 'black', lwd = 3, ylim = c(0, 0.4), xlab = "x",
+     ylab = "Standard normal density function: dnorm(x)")
+abline(h = 0, lty = 2)
+abline(v = x.y[5], lty = 2)
+polygon(c(x[x < x.y[5]], x.y[5]), 
+        c(D[x < x.y[5]], 0), col = "green")
+
+legend("topright", legend=c(
+"pd(5years)=15%
+
+The left green area
+represents 15% of the
+whole bell-shape.
+
+N^-1(0.15)=-1.036433
+N(-1.036433)=0.15"),
+bg = "white", pch = 19, cex = 0.8, bty = "n", col = "green")
+```
+
+A complementary view is the cumulative probability function. Let's illustrate the same case: a probability of default of 15% in 5 years. In this case, we do not need to calculate the area since the y-axis already represents the probability.
+
+
+```{r}
+#| label: fig-gpdf
+#| fig-cap: "Gaussian probability distribution function."
+plot(x, P, type = "l", col = 'black', lwd = 3, ylim = c(0, 1),
+     xlab = "x",
+     ylab = "Cumulative probability function: pnorm(x)")
+abline(h = 0, lty = 2)
+abline(h = 1, lty = 2)
+lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2), 
+      col = "green", lwd = 3)
+lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
+      col = "green", lwd = 3)
+points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
+legend("right", legend=c(
+"pd(5years)=15%
+
+N^-1(0.15)=-1.036433
+N(-1.036433)=0.15"),
+bg = "white", pch = 19, cex = 1, bty = "n", col = "green")
+```
+
+A closer view to the figure above to see the 3-year and 5-year cases:
+
+```{r}
+#| label: fig-gpdfzv
+#| fig-cap: "Gaussian probability distribution function: Zoom version."
+plot(x, P, type = "l", col = 'black', lwd = 5, ylim = c(0, 0.22), 
+     xlim = c(-4, 0), ylab = "Cumulative probability function: pnorm(x)",
+     xlab = "x")
+abline(h = 0, lty = 2)
+abline(h = 1, lty = 2)
+lines(seq(-5, x.y[3], length.out = 2), rep(pnorm(x.y[3]), 2), 
+      col = "purple", lwd = 3, lty = 2)
+lines(rep(x.y[3], 2), seq(0, pnorm(x.y[3]), length.out = 2), 
+      col = "purple", lwd = 3, lty = 2)
+lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2), 
+      col = "green", lwd = 3, lty = 2)
+lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
+      col = "green", lwd = 3, lty = 2)
+points(x.y[3], 0.06, pch = 19, col = "purple", cex = 2)
+points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
+legend("topleft", legend=c("pd(5years)=15%: N(-1.036433)=0.15",
+                           "pd(3years)=6%: N(-1.554774)=0.06"),
+pch = 19, col = c("green", "purple"), bg = "white", cex = 1, bty = "n")
+```
+
+Nice.
+

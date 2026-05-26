@@ -1,0 +1,70 @@
+## Minimize a function in R
+
+```{r merton-minimize-setup, include=FALSE}
+source("R/merton-packages.R")
+```
+
+The estimation of the credit risk Merton's model requires a minimization of a function. In this section, we show a simple minimization example. Here are some useful online resources for further references.
+
+* [FRM: How d2 in Black-Scholes becomes PD in Merton model.](https://youtu.be/lV0ytJYbVzc)
+* [Normal Probability Distribution Graph. Interactive.](https://www.intmath.com/counting-probability/normal-distribution-graph-interactive.php)
+* [How to use optim in R.](https://www.r-bloggers.com/how-to-use-optim-in-r/)
+
+The objective function to be minimized is $f(a,b)=\sum(a + bx_i-y_i)^2$. We have six values for $x$ and $y$, and we are expected to minimize the function $f$ by finding the parameter values $a$ and $b$. The $x_i$ and $y_i$ data looks like this:
+
+```{r}
+# Data.
+dat <- data.frame(x = c(1, 2, 3, 4, 5, 6), y = c(1, 3, 5, 6, 8, 12))
+kable(dat, caption = "Observations.", row.names = TRUE) # The table.
+```
+
+Graphically:
+
+```{r}
+#| label: fig-od
+#| fig-cap: "Original data."
+# A scatter plot.
+plot(y ~ x, data = dat, pch = 19, cex = 2)
+```
+
+Let's implement the $f(a,b)=\sum(a + bx_i-y_i)^2$ minimization.
+
+```{r}
+# Function that calculates the residual sum of squares.
+min.RSS <- function(data, par) {
+  with(data, sum((par[1] + par[2] * x - y)^2)) }
+# Function minimization.
+result <- optim(par = c(0, 1), min.RSS, data = dat)
+a <- result$par[1]
+b <- result$par[2]
+f <- sum((a + b * dat$x - dat$y)^2)
+# Minimization output.
+ans <- data.frame(a, b, f)
+kable(ans, caption = "Minimization results f(a,b).")
+```
+
+The minimization result is represented by a line, and the line is characterized by an intercept equal to $-1.266846$ and a slope equal to $2.02862$. 
+
+We can plot it and verify that this is indeed the right answer.
+
+```{r}
+#| label: fig-ltmtrsos
+#| fig-cap: "Line that minimize the residual sum of squares."
+# View the results.
+plot(y ~ x, data = dat, pch = 19, ylim = c(-2, 12), xlim = c(0, 6), cex = 2)
+abline(a, b, col = "red", lwd = 3)
+abline(h = 0, lty = 2)
+abline(v = 0, lty = 2)
+```
+
+The function that we minimize here is basically the OLS criterion. This is why the regression model leads to the same results.
+
+```{r}
+# The previous example is equivalent as a linear regression model.
+reg <- lm(y ~ x, data = dat)
+# See the results.
+summary(reg)
+```
+
+The function that we minimize in the estimation of the credit risk Merton model is more elaborated, but we follow the same principle as above.
+

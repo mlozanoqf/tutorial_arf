@@ -1,0 +1,171 @@
+## GoT: capital structure
+
+```{r merton-pd-setup, include=FALSE}
+source("R/merton-pd-function.R")
+```
+
+The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. Surprisingly, the firm data corresponds exactly as the data in the example 24.3 ([@Hull]). She is planning to ask the Iron Bank of Braavos for a loan using the peaceful civilized way (without dragons). However, she would like to reduce the probability of default of the firm first, in that way she might negotiate better credit conditions. Daenerys has some understanding about very basic finance because she knows that she could either reduce the debt, or increase the capital in order to reduce the probability of default. Doing both alternatives at the same time is clearly more expensive so she is not very keen about it.
+
+What is the best strategy to reduce the probability of default? Reduce the debt by 2 or increase the capital by 2?
+
+```{r}
+D.seq <- seq(from = 0, to = 13, by = 0.1)
+# Evaluate pd function: E0 changes from 1 to 5; debt goes from 0 to 13.
+E1 <- mapply(pd, 1, se, rf, TT, D.seq)
+E2 <- mapply(pd, 2, se, rf, TT, D.seq)
+E3 <- mapply(pd, 3, se, rf, TT, D.seq)
+E4 <- mapply(pd, 4, se, rf, TT, D.seq)
+E5 <- mapply(pd, 5, se, rf, TT, D.seq)
+```
+
+Plot the results.
+
+```{r}
+#| label: fig-gppodacs
+#| fig-cap: "GoT problem. Probability of default and capital structure."
+# We use these vectors for colors and legends in the following plots.
+colors <- c("green", "purple", "black", "blue", "red")
+leg <- c("E0=1", "E0=2", "E0=3 (initial value)", "E0=4", "E0=5")
+# Plot.
+plot(D.seq, E1, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=10",
+     ylab = "Probability of default. Initially PD=12.69%")
+lines(D.seq, E2, col = "purple", lwd = 3)
+lines(D.seq, E3, col = "black", lwd = 3)
+lines(D.seq, E4, col = "blue", lwd = 3)
+lines(D.seq, E5, col = "red", lwd = 3)
+abline(v = D, lty = 2)
+abline(h = pd1, lty = 2)
+legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
+       bg = "white")
+points(D, pd1, pch = 19, cex = 2)
+```
+
+Let's illustrate the alternatives as clear as possible.
+
+```{r}
+#| label: fig-gspodacs
+#| fig-cap: "GoT solution. Probability of default and capital structure."
+plot(D.seq, E1, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=10",
+     ylab = "Probability of default. Initially PD=12.69%")
+lines(D.seq, E2, col = "purple", lwd = 3)
+lines(D.seq, E3, col = "black", lwd = 3)
+lines(D.seq, E4, col = "blue", lwd = 3)
+lines(D.seq, E5, col = "red", lwd = 3)
+abline(v = D, lty = 2)
+abline(v = 8, lty = 2)
+abline(h = pd1, lty = 2)
+abline(h = pd(E0, se, rf, TT, 8), lty = 2)
+abline(h = pd(5, se, rf, TT, D), lty = 2)
+legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
+       bg = "white")
+points(D, pd1, pch = 19, cex = 2)
+points(D, pd(5, se, rf, TT, D), pch = 19, cex = 2, col = "red")
+points(8, pd(3, se, rf, TT, 8), pch = 19, cex = 2, col = "yellow")
+```
+
+Consider a different initial situation. Now, $E_0=2$ and $D=2$ and the rest remains the same. In this case, the probability of default is now 7.13%. What is the best strategy to reduce the probability of default? Reduce the debt by 1 or increase the capital by 1?
+
+```{r}
+#| label: fig-gp2podacs
+#| fig-cap: "GoT problem 2. Probability of default and capital structure."
+leg2 <- c("E0=1", "E0=2 (initial value)", "E0=3", "E0=4", "E0=5")
+
+plot(D.seq, E1, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=2",
+     ylab = "Probability of default. Initially PD=7.13%", 
+     xlim = c(0, 2.5), ylim = c(0, 0.08))
+lines(D.seq, E2, col = "purple", lwd = 3)
+lines(D.seq, E3, col = "black", lwd = 3)
+lines(D.seq, E4, col = "blue", lwd = 3)
+lines(D.seq, E5, col = "red", lwd = 3)
+abline(v = 2, lty = 2)
+abline(h = pd(2, se, rf, TT, 2), lty = 2)
+legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
+       bg = "white", cex = 0.6)
+points(2, pd(2, se, rf, TT, 2), pch = 19, cex = 2, col = "purple")
+```
+
+The solution can be illustrated as follows:
+
+```{r}
+#| label: fig-gs2podacs
+#| fig-cap: "GoT solution 2. Probability of default and capital structure."
+plot(D.seq, E1, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=2",
+     ylab = "Probability of default. Initially PD=7.13%", 
+     xlim = c(0, 2.5), ylim = c(0, 0.08))
+lines(D.seq, E2, col = "purple", lwd = 3)
+lines(D.seq, E3, col = "black", lwd = 3)
+lines(D.seq, E4, col = "blue", lwd = 3)
+lines(D.seq, E5, col = "red", lwd = 3)
+abline(v = 2, lty = 2)
+abline(v = 1, lty = 2)
+abline(h = pd(2, se, rf, TT, 2), lty = 2)
+abline(h = pd(2, se, rf, TT, 1), lty = 2)
+abline(h = pd(E0, se, rf, TT, 2), lty = 2)
+legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
+       bg = "white", cex = 0.6)
+points(2, pd(2, se, rf, TT, 2), pch = 19, cex = 2, col = "purple")
+points(1, pd(2, se, rf, TT, 1), pch = 19, cex = 2, col = "yellow")
+points(2, pd(E0, se, rf, TT, 2), pch = 19, cex = 2)
+```
+
+Interesting.
+
+Consider a third problem. In a parallel universe, Daenerys Targaryen's firm has some liquidity short-term troubles. She needs either more cash now or some more time to pay her current debt. She would like to know which alternative leads to the lowest increase of the probability of default. Add $2 more to her current debt, or ask for a half year more time to pay her current debt? 
+
+```{r}
+T1 <- mapply(pd, E0, se, rf, 0.5, D.seq)
+T2 <- mapply(pd, E0, se, rf, 1, D.seq)
+T3 <- mapply(pd, E0, se, rf, 1.5, D.seq)
+T4 <- mapply(pd, E0, se, rf, 2, D.seq)
+T5 <- mapply(pd, E0, se, rf, 2.5, D.seq)
+```
+
+```{r}
+#| label: fig-gp3mdolm
+#| fig-cap: "GoT problem 3. More debt or longer maturity?"
+leg3 <- c("T=2.5", "T=2", "T=1.5", "T=1", "T=0.5")
+
+plot(D.seq, T5, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=6",
+     ylab = "Probability of default. Initially PD=20.33%")
+lines(D.seq, T4, col = "purple", lwd = 3)
+lines(D.seq, T3, col = "black", lwd = 3)
+lines(D.seq, T2, col = "blue", lwd = 3)
+lines(D.seq, T1, col = "red", lwd = 3)
+abline(v = 6, lty = 2)
+abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
+legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
+       bg = "white")
+points(6, pd(E0, se, rf, 1.5, 6), pch = 19, cex = 2)
+```
+
+Let's visualize the result.
+
+```{r}
+#| label: fig-ga3mdolm
+#| fig-cap: "GoT answer 3. More debt or longer maturity?"
+plot(D.seq, T5, type = "l", col = "green", lwd = 3,
+     xlab = "Debt value. Initially, D=6",
+     ylab = "Probability of default. Initially PD=20.33%")
+lines(D.seq, T4, col = "purple", lwd = 3)
+lines(D.seq, T3, col = "black", lwd = 3)
+lines(D.seq, T2, col = "blue", lwd = 3)
+lines(D.seq, T1, col = "red", lwd = 3)
+abline(v = 6, lty = 2)
+abline(v = 8, lty = 2)
+abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
+abline(h = pd(E0, se, rf, 2, 6), lty = 2)
+abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
+abline(h = pd(E0, se, rf, 1.5, 8), lty = 2)
+legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
+       bg = "white")
+points(6, pd(E0, se, rf, 1.5, 6), pch = 19, cex = 2)
+points(8, pd(E0, se, rf, 1.5, 8), pch = 19, cex = 2, col = "yellow")
+points(6, pd(E0, se, rf, 2, 6), pch = 19, cex = 2, col = "purple")
+```
+
+Nice.

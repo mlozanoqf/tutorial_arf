@@ -1,0 +1,203 @@
+## Ten firms
+
+```{r gaussian-ten-firms-setup, include=FALSE}
+source("R/gaussian-common.R")
+```
+
+The original @Hull example proposes a 10 firm case and here we implement this example following a simulation approach. First, we need a $10\times10$ correlation matrix to produce the new $x$ values using a random multi-variate distribution algorithm. According to @Hull example the copula default correlations between each pair of companies is 0.2. The code below has the option to vary the default correlation given a uniform random distribution.
+
+The new $10\times10$ correlation matrix is then:
+
+```{r}
+# Create the correlation matrix.
+m <- 10 # number of firms.
+n <- 1000000 # number of simulations per firm.
+x <- matrix(rep(0.2, m * m), m, m) 
+ind <- lower.tri(x) 
+x[ind] <- t(x)[ind] 
+diag(x) = 1
+kable(x, caption = "Correlation matrix 0.2.")
+```
+Now, we can simulate the multivariate normal distribution. The variable <tt>`X10`</tt> length is 1,000,000 for each firm. We choose a higher number of simulations because otherwise the most restrictive constraints would not lead to any observations.
+
+```{r}
+# Create the simulated cases.
+set.seed(130575) # Reproducibility.
+X10 <- mvrnorm(n, mu = rep(0, m), Sigma = x)
+X10 <- data.frame(X10) # 10,000,000 observations.
+colnames(X10) <- c("f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10")
+kable(head(X10), caption = "10 firms' performance, 1,000,000 simulations.",
+      digits = 3)
+```
+
+How do we extract those cases in which all 10 firms will default in 5 years (at the same time)? Here are the first 6 of those cases. Note that in all cases the <tt>`X10`</tt> values are lower than $-1.036433$.
+
+```{r}
+# Given that we have 10 firms, it is easier to use filter_all function.
+# Although probably this could be simplified even further.
+y5.all.2 <- filter_all(X10, all_vars(. < x.y[5]))
+y4.all.2 <- filter_all(X10, all_vars(. < x.y[4])) 
+y3.all.2 <- filter_all(X10, all_vars(. < x.y[3])) 
+y2.all.2 <- filter_all(X10, all_vars(. < x.y[2])) 
+y1.all.2 <- filter_all(X10, all_vars(. < x.y[1])) 
+```
+
+Let's analyze the case of 5 years.
+
+```{r}
+kable(head(y5.all.2), 
+      caption = "Cases in which all 10 firms default in five years.", 
+      digits = 3)
+```
+
+```{r}
+kable((head(y5.all.2) < x.y[5]), caption = "Check if all of them default.")
+```
+
+How many cases are there?
+
+```{r}
+nrow(y5.all.2)
+```
+Which are those 72 cases?
+
+```{r}
+# Here, I compare only firm 1 as if firm 1 defaults, then the rest default.
+kable(matrix(which(X10[,1] %in% y5.all.2[,1]), 6, 9), 
+      caption = "Which of the 1,000,000 cases represent a default of all 
+      firms in five years?")
+```
+
+In total, we only have 72 cases. This is, the 10 firms will default at the same time in 5 years in 72 out of 1,000,000 total cases. For the rest of the years, the cases are less frequent, in fact we have zero cases for year 1, 2 and 3.
+
+How do we extract those cases in which at least one of the 10 firms will default? 
+
+```{r}
+y5.any.2 <- filter_all(X10, any_vars(. < x.y[5]))
+y4.any.2 <- filter_all(X10, any_vars(. < x.y[4]))
+y3.any.2 <- filter_all(X10, any_vars(. < x.y[3]))
+y2.any.2 <- filter_all(X10, any_vars(. < x.y[2]))
+y1.any.2 <- filter_all(X10, any_vars(. < x.y[1]))
+```
+
+Here are the first 6 cases for the 5-year default.
+
+```{r}
+kable(head(y5.any.2), caption = "At least one firm default in five years.",
+      digits = 3)
+```
+
+```{r}
+kable((head(y5.any.2) < x.y[5]), caption = "Check which one(s) default.")
+```
+
+How many cases are these?
+
+```{r}
+nrow(y5.any.2)
+```
+
+In total, we have 682,148 cases. This is, at least one of 10 firms will default in 5 years in 682,148 of 1,000,000 cases. 
+
+And how to convert them into probabilities?
+
+```{r}
+atleastone02 <- t(data.frame(nrow(y1.any.2), nrow(y2.any.2),
+                nrow(y3.any.2), nrow(y4.any.2), nrow(y5.any.2)))
+all02 <- t(data.frame(nrow(y1.all.2), nrow(y2.all.2),
+                nrow(y3.all.2), nrow(y4.all.2), nrow(y5.all.2)))
+res02 <- data.frame(all02 / n, atleastone02 / n)
+rownames(res02) <- n.year
+colnames(res02) <- c("All firms", "At least one")
+kable(res02, caption = "Probabilities of default (10 firms, corr=0.2).")
+```
+
+Let's see the difference when we assume a different correlation matrix. This case, the correlation vary randomly between 0.45 and 0.65.
+
+```{r}
+m <- 10 # number of firms
+n <- 1000000 # number of simulations
+set.seed(130575)
+x <- matrix(runif(m * m, 0.45, 0.65), m, m) 
+ind <- lower.tri(x) 
+x[ind] <- t(x)[ind] 
+diag(x) = 1
+kable(x, caption = "Correlation between 0.45 and 0.65.", digits = 3)
+```
+
+The resulting values of <tt>`Xr`</tt> are:
+
+```{r}
+set.seed(130575)
+Xr <- mvrnorm(n, mu = rep(0, m), Sigma = x)
+Xr <- data.frame(Xr)
+kable(head(Xr), caption = "Firms' performance.", digits = 3)
+```
+
+Extract the cases in which all ten firms default at the same time in 5 years and the cases in which any firm default at the same time in 5 years.
+
+```{r}
+Xr <- as_tibble(Xr)
+# All firms.
+Xr.y1.all <- filter_all(Xr, all_vars(. < x.y[1])) 
+Xr.y2.all <- filter_all(Xr, all_vars(. < x.y[2])) 
+Xr.y3.all <- filter_all(Xr, all_vars(. < x.y[3])) 
+Xr.y4.all <- filter_all(Xr, all_vars(. < x.y[4]))
+Xr.y5.all <- filter_all(Xr, all_vars(. < x.y[5])) 
+# At least one firm.
+Xr.y1.any <- filter_all(Xr, any_vars(. < x.y[1]))
+Xr.y2.any <- filter_all(Xr, any_vars(. < x.y[2]))
+Xr.y3.any <- filter_all(Xr, any_vars(. < x.y[3]))
+Xr.y4.any <- filter_all(Xr, any_vars(. < x.y[4]))
+Xr.y5.any <- filter_all(Xr, any_vars(. < x.y[5]))
+```
+
+All firms default in 5,935 cases out of 1,000,000.
+
+```{r}
+nrow(Xr.y5.all)
+```
+Let's see the first 6 cases:
+
+```{r}
+kable(head(Xr.y5.all), 
+      caption = "Cases in which all 10 firms default in five years.", 
+      digits = 3)
+```
+
+Verify that those cases default.
+
+```{r}
+kable((head(Xr.y5.all) < x.y[5]), caption = "Check if all of them default.")
+```
+
+At least one firm default in 497,987 out of 1,000,000.
+
+```{r}
+nrow(Xr.y5.any)
+```
+
+```{r}
+kable(head(Xr.y5.any), caption = "At least one firm default in five years.",
+      digits = 3)
+```
+
+```{r}
+kable((head(Xr.y5.any) < x.y[5]), caption = "Check which one(s) default.")
+```
+
+And the corresponding probabilities:
+
+```{r}
+allR <- t(data.frame(nrow(Xr.y1.all), nrow(Xr.y2.all),
+        nrow(Xr.y3.all), nrow(Xr.y4.all), nrow(Xr.y5.all)))
+atleastoneR <- t(data.frame(nrow(Xr.y1.any), nrow(Xr.y2.any),
+        nrow(Xr.y3.any), nrow(Xr.y4.any), nrow(Xr.y5.any)))
+resR <- data.frame(allR / n, atleastoneR / n)
+ans <- data.frame(res02, resR)
+rownames(ans) <- n.year
+colnames(ans) <- c("All (corr=0.2)", "At least one (corr=0.2)",
+                    "All (corr=rand)", "At least one (corr=rand)")
+kable(ans, caption = "Probability of default.", 
+      row.names = TRUE)
+```

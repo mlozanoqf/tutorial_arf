@@ -1,0 +1,167 @@
+```{r include=FALSE}
+source("R/logistic-packages.R")
+```
+
+## Explore the database
+
+Let's load the data called <tt>`loan_data_ARF.rds`</tt> and then understand its structure before conducting any further analysis. This database is available [here](https://github.com/mlozanoqf/tutorial_arf/blob/main/loan_data_ARF.rds).
+
+```{r Create database, eval=FALSE, include=FALSE}
+dat <- readRDS("loan_data_ch1.rds")
+# Add sex variable.
+# Sex = 1 female; sex = 0 male.
+set.seed(1)
+sex_1 <- rbinom(n = nrow(dat[dat$loan_st == 1, ]), 
+                size = 1, prob = 0.3) # Let's make females default less.
+sex_0 <- rbinom(n = nrow(dat[dat$loan_st == 0, ]), 
+                size = 1, prob = 0.55) # Let's make females no default more.
+sex <- ifelse(dat$loan_st == 1, sex_1, sex_0)
+dat$sex <- sex
+dat$sex <- as.factor(dat$sex)
+
+# Add region variable.
+set.seed(1)
+row_def <- nrow(dat[dat$loan_st == 1, ])
+row_nodef <- nrow(dat[dat$loan_st == 0, ])
+
+def_region_index <- sample(c("N", "E", "W", "S"), size = row_def, 
+                           replace  = TRUE, prob = c(0.1, 0.2, 0.3, 0.4))
+nodef_region_index <- sample(c("N", "E", "W", "S"), size = row_nodef, 
+                           replace  = TRUE, prob = c(0.4, 0.3, 0.2, 0.1))
+
+region <- ifelse(dat$loan_st == 1, 
+                 def_region_index, nodef_region_index)
+dat$region <- region
+dat$region <- as.factor(dat$region)
+
+# Imputation.
+index_NA <- which(is.na(dat$emp_length))
+dat$emp_length[index_NA] <- median(dat$emp_length, na.rm = TRUE)
+
+index_NA <- which(is.na(dat$int_rate))
+dat$int_rate[index_NA] <- median(dat$int_rate, na.rm = TRUE)
+
+# New database
+saveRDS(dat, "loan_data_ARF.rds")
+```
+
+```{r Load the modified database}
+dat <- readRDS("loan_data_ARF.rds")
+str(dat)
+```
+
+
+This dataset could represent a typical collection of data from a financial institution, such as a bank or a company that uses credit channels to sell its products or services. It contains 29,092 observations across 10 variables. Each observation corresponds to the personal and loan characteristics of an individual loan. 
+
+A key variable, our dependent variable, is `loan_st`, which indicates loan status. A value of 0 represents no default, while a value of 1 represents default. A default occurs when a borrower fails to make timely payments, misses payments, or ceases payments on the interest or principal owed. The definition of default can vary depending on the goals and interests of the analysis. For the purposes of this study, we classify loans simply as either default or no default. 
+
+The variable `loan_st` is dichotomous, or categorical. Our primary interest lies in predicting whether a new loan application will result in default or not.
+
+Clearly, `loan_data_ARF.rds` represents past information, as we know with certainty whether an individual defaulted (1) or not (0). Historical data is valuable for understanding how likely an individual is to default based on their personal and loan characteristics. It is also essential for training quantitative models to predict outcomes for new applicants and for evaluating the performance of our classifications.
+
+A variable name is considered too long when a shorter name can convey the same purpose just as effectively. Let's rename some of them.
+
+```{r}
+old_names <- colnames(dat)
+colnames(dat) <- c("loan_st", "l_amnt", "int", "grade", "emp_len", 
+                   "home", "income", "age", "sex", "region")
+data.frame(old_names, "new_names" = colnames(dat))
+```
+
+New variable names have now been assigned. 
+
+We can take a look at the information in different ways. For example, look at the first 10 rows out of 29,092.
+
+```{r First 10 rows of loan data}
+head(dat, 10)
+```
+
+Note that <tt>`sex`</tt> is 1 for female and 0 for male. Now, instead of looking the details of the first 10 rows, we can summarize with respect to <tt>`home`</tt> with the <tt>`CrossTable()`</tt> function.
+
+```{r CrossTable as a way to summarize data}
+CrossTable(dat$home)
+```
+
+We can also use <tt>`CrossTable()`</tt> to summarize two variables. In particular, instead of counting for home ownership we can add a second dimension like <tt>`loan_st`</tt>. This allows us to create more informative tables.
+
+```{r CrossTable using two dimensions}
+CrossTable(dat$home, dat$loan_st, prop.r = TRUE,
+           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+
+This table reveals defaults by home ownership. We can use histograms to see one variable distribution. In this case we have the interest rate distribution.
+
+```{r}
+#| label: fig-irh
+#| fig-cap: "Interest rate histogram."
+ggplot(dat, aes(x = int)) + 
+  geom_histogram(aes(y=..density..), binwidth = 0.5, colour = "black", 
+                 fill = "white") +
+  labs(y = "Density", x = "Interest rate") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+The following is a dotplot figure for the annual income.
+
+```{r}
+#| label: fig-aib
+#| fig-cap: "Annual income dotplot."
+ggplot(dat, aes(income)) + 
+  geom_dotplot(binwidth = 100000, fill = "blue") +
+  labs(y = "Density",
+       x = "Annual income") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (6,000,000). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these are valid observations or errors in the original dataset.
+
+```{r Extract the row of the high income individuals}
+high_income <- dat[(dat$income > 1000000), ]
+high_income
+```
+
+One individual (ID 19486) is not only extremely wealthy but also 144 years old. As a result, I have decided to remove these nine observations. Data cleaning is a common task when working with large datasets, and it is acceptable as long as the integrity of the data remains intact.
+
+```{r}
+high_income_index <- data.frame(value = as.integer(rownames(high_income)))
+dat <- dat[-high_income_index$value,]
+```
+
+Remember, the original dataset contains 29,092 rows. After removing 9 observations, we are left with 29,083 rows. Let's take a look at the result.
+
+```{r}
+#| label: fig-aiwev
+#| fig-cap: "Annual income without extreme values."
+ggplot(dat, aes(income)) + 
+  geom_dotplot(binwidth = 10000, fill = "blue") +
+  labs(y = "Density", x = "Annual income") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+Somewhat better now.
+
+We could also explore some gender issues.
+
+```{r Gender issues}
+summary_table <- dat |>
+  group_by(sex) |>
+  summarize(
+    Mean = mean(income),
+    Median = median(income),
+    Min = min(income),
+    Max = max(income),
+    Count = n()
+  ) |>
+  mutate(
+    Gender = case_when(
+      sex == 0 ~ "Male",
+      sex == 1 ~ "Female"
+    )
+ )
+  
+summary_table
+```
+
+The table shows that females tend to have slightly higher average and median incomes compared to males. Additionally, the income distribution for females appears more variable, with a wider range of incomes. While the sample sizes for both groups are similar, females are slightly more represented. Overall, the data suggests a modest income advantage for females and greater variability in their earnings.
+
+The better we understand the data, the better positioned we are to analyze it, gain deeper insights into the problem, and interpret the solutions more effectively. However, there is a risk of falling into the trap of overexploration, losing sight of the main problem and failing to address the objectives. Data cleaning, for instance, can be an ongoing task. Removing outliers with excessively high incomes is just one example of how data cleaning can be approached. For now, we pause the exploration and cleaning process and move on to the next section, where we estimate models that will help us achieve the outlined objectives.
+

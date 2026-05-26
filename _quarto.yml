@@ -4,7 +4,7 @@ project:
 
 book:
   title: "Credit Risk with R"
-  subtitle: "Tutorial"
+  subtitle: "Book"
   author: "Dr. Martin Lozano"
   page-navigation: true
   search: true
@@ -19,19 +19,11 @@ book:
   chapters:
     - text: "Credit Risk with R"
       href: index.qmd
-    - part: "Credit Scoring and Data"
-      chapters:
-        - 01-logistic.qmd
-    - part: "Structural Models"
-      chapters:
-        - 02-merton.qmd
-    - part: "Portfolio Models"
-      chapters:
-        - 03-gaussian-copula.qmd
-        - 04-cvar.qmd
-    - part: "References and Support"
-      chapters:
-        - references.qmd
+    - 01-logistic.qmd
+    - 02-merton.qmd
+    - 03-gaussian-copula.qmd
+    - 04-cvar.qmd
+    - references.qmd
 
 bibliography: references.bib
 link-citations: true
@@ -55,17 +47,22 @@ format:
     smooth-scroll: true
     code-fold: true
     code-copy: true
-    code-tools: false
+    code-tools:
+      toggle: true
+      source: false
     code-block-bg: true
     code-block-border-left: "#31BAE9"
     code-line-numbers: true
-    number-sections: false
+    number-sections: true
+    number-depth: 3
     page-layout: full
     include-after-body:
       - analytics_arf.html
       - back-to-top.html
       - progressbar.html
+      - sidebar-toggle.html
       - local-navigation.html
       - page-sections.html
       - sidebar-accordion.html
+      - sidebar-chapter-sections.html
     css: styles.css

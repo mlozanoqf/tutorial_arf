@@ -1,0 +1,215 @@
+<script>
+function initSidebarChapterSections() {
+  var sidebar = document.querySelector("#quarto-sidebar");
+
+  if (!sidebar) {
+    return;
+  }
+
+  var chapters = [
+    {
+      page: "01-logistic.html",
+      sections: [
+        { id: "loan-analysis", text: "1.1 Loan analysis" },
+        { id: "explore-the-database", text: "1.2 Explore the database" },
+        { id: "logistic-models", text: "1.3 Logistic models" },
+        { id: "prediction-and-model-evaluation", text: "1.4 Prediction and model evaluation" },
+        { id: "the-bank-strategy", text: "1.5 The bank strategy" }
+      ]
+    },
+    {
+      page: "02-merton.html",
+      sections: [
+        { id: "minimize-a-function-in-r", text: "2.1 Minimize a function in R" },
+        { id: "the-estimation", text: "2.2 The estimation" },
+        { id: "inside-view-of-the-mertons-model", text: "2.3 Inside view of the Merton's model" },
+        { id: "the-probability-of-default-as-a-function-of-some-parameters", text: "2.4 The probability of default as a function of some parameters" },
+        { id: "got-capital-structure", text: "2.5 GoT: capital structure" }
+      ]
+    },
+    {
+      page: "03-gaussian-copula.html",
+      sections: [
+        { id: "the-basics", text: "3.1 The basics" },
+        { id: "introduction-to-example-24.6", text: "3.2 Introduction to example 24.6" },
+        { id: "one-firm", text: "3.3 One firm" },
+        { id: "two-firms", text: "3.4 Two firms" },
+        { id: "ten-firms", text: "3.5 Ten firms" }
+      ]
+    }
+  ];
+
+  function pageNameFromUrl(value) {
+    var url = new URL(value, window.location.href);
+    var pageName = url.pathname.split("/").pop();
+
+    return pageName || "index.html";
+  }
+
+  function hashToId(hash) {
+    var id = hash.replace(/^#/, "");
+
+    try {
+      return decodeURIComponent(id);
+    } catch (error) {
+      return id;
+    }
+  }
+
+  function localNavOffset() {
+    var localNav = document.querySelector(".page-local-nav");
+
+    if (!localNav) {
+      return 0;
+    }
+
+    return Math.ceil(localNav.getBoundingClientRect().height + 16);
+  }
+
+  function scrollToSection(id, smooth) {
+    var target = document.getElementById(id);
+
+    if (!target) {
+      return false;
+    }
+
+    var top = target.getBoundingClientRect().top + window.pageYOffset - localNavOffset();
+    window.scrollTo({
+      top: Math.max(0, top),
+      behavior: smooth ? "smooth" : "auto"
+    });
+
+    return true;
+  }
+
+  function setOpen(list, toggle, isOpen) {
+    list.hidden = !isOpen;
+    list.classList.toggle("book-sidebar-subsections-open", isOpen);
+    toggle.classList.toggle("book-sidebar-subsection-toggle-open", isOpen);
+    toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+
+  function currentSectionId(chapter) {
+    var current = "";
+    var offset = window.pageYOffset + localNavOffset() + 18;
+
+    chapter.sections.forEach(function (section) {
+      var target = document.getElementById(section.id);
+
+      if (target && target.offsetTop <= offset) {
+        current = section.id;
+      }
+    });
+
+    return current;
+  }
+
+  var currentPage = pageNameFromUrl(window.location.href);
+  var currentChapter = chapters.find(function (chapter) {
+    return chapter.page === currentPage;
+  });
+
+  chapters.forEach(function (chapter) {
+    var chapterLink = Array.prototype.slice.call(sidebar.querySelectorAll("a.sidebar-link[href]")).find(function (link) {
+      return pageNameFromUrl(link.getAttribute("href")) === chapter.page;
+    });
+
+    if (!chapterLink || chapterLink.dataset.bookSidebarSectionsReady === "true") {
+      return;
+    }
+
+    var item = chapterLink.closest("li.sidebar-item");
+    var container = chapterLink.closest(".sidebar-item-container");
+
+    if (!item || !container) {
+      return;
+    }
+
+    chapterLink.dataset.bookSidebarSectionsReady = "true";
+    item.classList.add("book-sidebar-chapter-item", "book-sidebar-chapter-has-sections");
+
+    var listId = "book-sidebar-subsections-" + chapter.page.replace(/[^a-z0-9]/gi, "-");
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "book-sidebar-subsection-toggle";
+    toggle.setAttribute("aria-controls", listId);
+    toggle.setAttribute("aria-label", "Toggle chapter sections");
+    toggle.innerHTML = '<i class="bi bi-chevron-right" aria-hidden="true"></i>';
+
+    var list = document.createElement("ul");
+    list.id = listId;
+    list.className = "book-sidebar-subsections";
+
+    chapter.sections.forEach(function (section) {
+      var listItem = document.createElement("li");
+      var link = document.createElement("a");
+      link.className = "sidebar-link book-sidebar-subsection-link";
+      link.href = "./" + chapter.page + "#" + section.id;
+      link.textContent = section.text;
+
+      link.addEventListener("click", function (event) {
+        if (pageNameFromUrl(window.location.href) !== chapter.page) {
+          return;
+        }
+
+        event.preventDefault();
+        history.pushState(null, "", "#" + section.id);
+        scrollToSection(section.id, true);
+        syncActiveSubsection();
+      });
+
+      listItem.appendChild(link);
+      list.appendChild(listItem);
+    });
+
+    toggle.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(list, toggle, list.hidden);
+    });
+
+    container.appendChild(toggle);
+    item.appendChild(list);
+    setOpen(list, toggle, chapter.page === currentPage);
+  });
+
+  function syncActiveSubsection() {
+    var activeId = "";
+
+    if (currentChapter) {
+      activeId = window.location.hash ? hashToId(window.location.hash) : currentSectionId(currentChapter);
+    }
+
+    sidebar.querySelectorAll(".book-sidebar-subsection-link").forEach(function (link) {
+      var url = new URL(link.getAttribute("href"), window.location.href);
+      var linkPage = pageNameFromUrl(url.href);
+      var linkId = hashToId(url.hash || "");
+      var isActive = currentChapter && linkPage === currentPage && linkId === activeId;
+
+      link.classList.toggle("book-subsection-active", isActive);
+    });
+  }
+
+  var scrollFrame = null;
+
+  window.addEventListener("scroll", function () {
+    if (scrollFrame) {
+      return;
+    }
+
+    scrollFrame = window.requestAnimationFrame(function () {
+      scrollFrame = null;
+      syncActiveSubsection();
+    });
+  }, { passive: true });
+
+  window.addEventListener("hashchange", syncActiveSubsection);
+  syncActiveSubsection();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initSidebarChapterSections);
+} else {
+  initSidebarChapterSections();
+}
+</script>

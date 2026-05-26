@@ -1,0 +1,110 @@
+## The basics
+
+```{r gaussian-package-setup, include=FALSE}
+source("R/gaussian-packages.R")
+```
+
+In a finance-context, the variable $x$ represents a firm's future (unknown) performance measure that goes from $-4$ to $4$ in the horizontal axis. Strictly speaking, more extreme values of $x$ like $-\infty$ and $+\infty$ are theoretically possible but are very rare and happen quite infrequently at least in real-life situations. At the moment, we do not care too much about what kind of performance measure this is, it could be liquidity for example, solvency, or any other that it is normalized to have values between $-4$ and $4$. In a statistics-context, we can think that $x$ is equivalent to the so-called $z$-score in the context of the standardized normal distribution function.
+
+```{r}
+#| label: fig-sndf
+#| fig-cap: "Standard normal distribution function."
+# The standard normal distribution function is: y = f(x).
+x <- seq(-4, 4, 0.001) # First define x.
+y <- 1 / sqrt(2 * pi) * exp(-x ^ 2 / 2) # Define y as a function of x.
+# Now plot.
+plot(x, y, type = "l", lwd = 3, col = "blue" ,
+     ylab = "Standard normal density function: dnorm(x)")
+abline(h = 0, lty = 2)
+```
+
+The copula model, including the Gaussian, considers that the future firm performance measure $x$ in the horizontal axis is related with the firm's probability of default (from 0 to 1, or 0% to 100%) represented by the value of the cumulative density function <tt>`pnorm()`</tt> of the normal distribution. 
+
+Assume the firm will default in six months as long as the firm performance $x$ in six months is lower than a given threshold: $\bar{x}=-2.5$. The threshold $\bar{x}=-2.5$ in the Gaussian copula model is equivalent to the $-d_2$ in the Merton model. Then, the six months firm's probability of default in math notation is $N(-2.5)$, or <tt>`pnorm(-2.5)=0.006209665`</tt> in R code, which is very low as it is close to 0. It is the red area below, which is 0.62% of the 100% possible area under the curve.
+
+```{r}
+# Useful to construct next plots.
+D <- dnorm(x) 
+P <- pnorm(x)
+```
+
+```{r}
+#| label: fig-smpod
+#| fig-cap: "Six months probability of default."
+plot(x, D, type = "l", lwd = 3, col = "blue" , 
+     ylab = "Standard normal density function: dnorm(x)")
+abline(h = 0, lty = 2)
+abline(v = -2.5, lty = 2)
+polygon(c(x[x < -2.5], -2.5), c(D[x < -2.5], 0), col = "red")
+```
+
+Now assume the firm will default in one year as long as the firm performance $x$ in one year is lower than a higher given threshold: $\bar{x}=-2$. Then, the one year probability of default is $N(-2)$ or <tt>`pnorm(-2)=0.02275013`</tt> which is still low but higher than the six months probability of default. Note that the new red area is 2.27%.
+
+```{r}
+#| label: fig-oypod
+#| fig-cap: "One year probability of default."
+plot(x, D, type = "l", lwd = 3, col = "blue" , 
+     ylab = "Standard normal density function: dnorm(x)")
+abline(h = 0, lty = 2)
+abline(v = -2, lty = 2)
+polygon(c(x[x < -2], -2), c(D[x < -2], 0), col = "red")
+```
+
+At the moment, we have not discussed how to estimate the threshold values $\bar{x}$. However, we can say that the Gaussian copula model assumes that the probability of default increases as time passes. As if the firm will eventually default in the future. The six month probability of default 0.62% is low because it is not very likely that the future firm performance lies below -2.5 in six months. The one year probability of default 2.27% is a bit higher because it is more likely that the future firm performance lies below -2 in one year.
+
+Then, the <tt>`pnorm()`</tt> R function allows us to transform threshold values $\bar{x}$ into a probabilities of default. Transform probabilities into $\bar{x}$ is also possible as the function <tt>`qnorm()`</tt> is the inverse of <tt>`pnorm()`</tt>. 
+
+From $\bar{x}$ to probabilities:
+
+```{r}
+pnorm(-2.5)
+pnorm(-2)
+```
+From probabilities to $\bar{x}$:
+
+```{r}
+qnorm(0.006209665)
+qnorm(0.02275013)
+```
+Nice.
+
+The function <tt>`dnorm()`</tt> is relevant when we implement a graphical approach because it represents how frequent (or how likely) these values are given the standard normal distribution, so in both extreme values of $x$ the value of <tt>`dnorm()`</tt> is low. Here, extreme values of $x$ can be represented by $-4$ and $4$. This function delivers the height of the standard normal distribution, <tt>`dnorm(4)=0.0001338302`</tt>, and <tt>`dnorm(-4)=0.0001338302`</tt>. Given that the standard normal function is symmetrical, we have that in general: <tt>`dnorm(-x)=dnorm(x)`</tt>. The letter $d$ in <tt>`dnorm()`</tt> stands for density and it is maximum at $x=0$. When plotting the density values we get the bell-shaped normal curve. 
+
+See how these <tt>`pnorm()`</tt>, <tt>`qnorm()`</tt>, <tt>`dnorm()`</tt> R functions work and relate:
+
+```{r}
+# Here, x has 11 values only.
+x.summary <- c(-Inf, -4:4, Inf) # vector of x values to evaluate functions.
+ans <- data.frame(x.summary, dnorm(x.summary), 
+                  pnorm(x.summary), qnorm(pnorm(x.summary)))
+colnames(ans) <- c("x", "dnorm(x)=height", "pnorm(x)=pd", "qnorm(pd)=x")
+kable(ans, caption = "Review of standard normal distribution functions.", 
+      digits = 5)
+```
+
+You can type for example <tt>`?dnorm`</tt> in the RStudio console to see more details about this (and other) functions.
+
+Note that the only distribution function that we are currently analyzing is the standard normal (Gaussian) distribution function. A standard normal distribution function is the one that has mean 0 and variance 1. There are other copula models that assume other kinds of distributions. These other kinds of copulas are useful when we are interested in modeling cases in which extreme values are more likely to happen compared with the standard normal distribution. Understanding Gaussian copulas allows you to understand other more elaborated copulas.
+
+Instead of a density function, we can plot the cumulative probability distribution. Now, we do not need the $N(\cdot)$ function to compute the probability as the vertical axis already represents the probability of default.
+
+```{r}
+#| label: fig-thtxthtpod
+#| fig-cap: "The higher the x, the higher the probability of default."
+plot(x, P, type = "l", lwd = 3,
+     ylab = "Cumulative probability function: pnorm(x)", xlab = "x")
+abline(h = 0.5, lty = 2)
+abline(v = 0, lty = 2)
+```
+Both in the same plot.
+
+```{r}
+#| label: fig-cdapf
+#| fig-cap: "Cumulative density and probability functions."
+plot(x, P, type = "l", lwd = 3,
+     ylab = "pnorm(x) and dnorm(x)", xlab = "x")
+lines(x, D, type = "l", lwd = 3, col = "blue")
+abline(h = 0.5, lty = 2)
+abline(v = 0, lty = 2)
+```
+

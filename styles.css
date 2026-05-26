@@ -1,31 +1,31 @@
 body.quarto-light {
-  --tutorial-link: #0b5cad;
-  --tutorial-link-hover: #073b6d;
-  --tutorial-active-link: #b84300;
-  --tutorial-backtop-bg: rgba(255, 255, 255, 0.62);
-  --tutorial-backtop-hover: rgba(255, 243, 234, 0.92);
-  --tutorial-rule: #d8dee9;
-  --tutorial-surface: #ffffff;
-  --tutorial-soft-surface: #f7f9fb;
-  --tutorial-card-border: #cfd8e3;
-  --tutorial-muted: #536070;
-  --tutorial-accent: #b84300;
-  --tutorial-accent-soft: #fff3ea;
+  --book-link: #0b5cad;
+  --book-link-hover: #073b6d;
+  --book-active-link: #b84300;
+  --book-backtop-bg: rgba(255, 255, 255, 0.62);
+  --book-backtop-hover: rgba(255, 243, 234, 0.92);
+  --book-rule: #d8dee9;
+  --book-surface: #ffffff;
+  --book-soft-surface: #f7f9fb;
+  --book-card-border: #cfd8e3;
+  --book-muted: #536070;
+  --book-accent: #b84300;
+  --book-accent-soft: #fff3ea;
 }
 
 body.quarto-dark {
-  --tutorial-link: #8ecaff;
-  --tutorial-link-hover: #c6e6ff;
-  --tutorial-active-link: #ffb86b;
-  --tutorial-backtop-bg: rgba(31, 37, 43, 0.66);
-  --tutorial-backtop-hover: rgba(51, 37, 26, 0.9);
-  --tutorial-rule: #45515f;
-  --tutorial-surface: #1f252b;
-  --tutorial-soft-surface: #151a20;
-  --tutorial-card-border: #445160;
-  --tutorial-muted: #bac6d4;
-  --tutorial-accent: #ffb86b;
-  --tutorial-accent-soft: #33251a;
+  --book-link: #8ecaff;
+  --book-link-hover: #c6e6ff;
+  --book-active-link: #ffb86b;
+  --book-backtop-bg: rgba(31, 37, 43, 0.66);
+  --book-backtop-hover: rgba(51, 37, 26, 0.9);
+  --book-rule: #45515f;
+  --book-surface: #1f252b;
+  --book-soft-surface: #151a20;
+  --book-card-border: #445160;
+  --book-muted: #bac6d4;
+  --book-accent: #ffb86b;
+  --book-accent-soft: #33251a;
 }
 
 html {
@@ -33,14 +33,14 @@ html {
 }
 
 a {
-  color: var(--tutorial-link);
+  color: var(--book-link);
   text-decoration: none;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
 a:hover,
 a:focus {
-  color: var(--tutorial-link-hover);
+  color: var(--book-link-hover);
   text-decoration: underline;
 }
 
@@ -48,12 +48,12 @@ a:focus {
 #TOC .toc-entry a.active,
 .sidebar .sidebar-item-container .active,
 .nav-link.active {
-  color: var(--tutorial-active-link) !important;
+  color: var(--book-active-link) !important;
   font-weight: 700;
 }
 
 hr {
-  border-color: var(--tutorial-rule) !important;
+  border-color: var(--book-rule) !important;
 }
 
 main [id] {
@@ -72,7 +72,6 @@ table {
   margin-block-end: 0.75rem;
 }
 
-body:has(.home-panel) #title-block-header,
 body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
   display: none;
 }
@@ -81,9 +80,122 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
   margin-block-end: 0.5rem;
 }
 
+.book-edition-code {
+  background: var(--book-soft-surface);
+  border: 1px solid var(--book-card-border);
+  border-radius: 4px;
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95em;
+  padding: 0.05rem 0.25rem;
+}
+
 #quarto-header .container-fluid {
   align-items: center;
   gap: 0.4rem;
+}
+
+#quarto-header.headroom,
+#quarto-header.headroom--pinned,
+#quarto-header.headroom--unpinned {
+  transform: none !important;
+}
+
+#quarto-header .book-native-sidebar-toggle {
+  display: none !important;
+}
+
+.book-menu-toggle {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--book-link);
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  height: 1.75rem;
+  justify-content: center;
+  opacity: 1 !important;
+  padding: 0;
+  visibility: visible !important;
+  width: 1.75rem;
+  z-index: 2050;
+}
+
+.book-menu-toggle .bi::before {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.book-menu-toggle-text {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.book-menu-toggle:hover,
+.book-menu-toggle:focus {
+  background: var(--book-accent-soft);
+  color: var(--book-link-hover);
+}
+
+.book-menu-toggle:focus-visible {
+  outline: 3px solid var(--book-active-link);
+  outline-offset: 2px;
+}
+
+.book-menu-floating-toggle {
+  background: var(--book-surface);
+  border: 1px solid var(--book-card-border);
+  box-shadow: 0 0.2rem 0.55rem rgba(0, 0, 0, 0.12);
+  left: 0.55rem;
+  position: fixed !important;
+  top: 0.55rem;
+}
+
+#quarto-sidebar .sidebar-tools-main {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+#quarto-sidebar .book-menu-toggle {
+  box-shadow: none;
+}
+
+body.book-sidebar-hidden #quarto-sidebar,
+body.book-sidebar-hidden #quarto-sidebar-glass {
+  display: none !important;
+}
+
+body.book-sidebar-hidden #quarto-content {
+  margin-left: 0 !important;
+}
+
+@media (min-width: 992px) {
+  body.book-sidebar-hidden.docked .page-columns,
+  body.book-sidebar-hidden.docked.fullcontent .page-columns,
+  body.book-sidebar-hidden.docked.slimcontent .page-columns,
+  body.book-sidebar-hidden.docked.listing .page-columns {
+    grid-template-columns:
+      [screen-start] 1.5em
+      [screen-start-inset page-start page-start-inset body-start-outset] 5fr
+      [body-start] 1.5em
+      [body-content-start] minmax(500px, calc(1000px - 3em))
+      [body-content-end] 1.5em
+      [body-end body-end-outset] minmax(50px, 100px)
+      [page-end-inset] 50px
+      [page-end] 5fr
+      [screen-end-inset] 1.5em
+      [screen-end];
+  }
 }
 
 #quarto-header .quarto-page-breadcrumbs {
@@ -110,6 +222,83 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
   font-weight: 700;
 }
 
+#quarto-sidebar li.book-sidebar-chapter-has-sections > .sidebar-item-container {
+  align-items: center;
+  display: flex;
+  gap: 0.2rem;
+}
+
+#quarto-sidebar li.book-sidebar-chapter-has-sections > .sidebar-item-container > .sidebar-link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.book-sidebar-subsection-toggle {
+  align-items: center;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--book-muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 1.4rem;
+  justify-content: center;
+  padding: 0;
+  width: 1.4rem;
+}
+
+.book-sidebar-subsection-toggle:hover,
+.book-sidebar-subsection-toggle:focus {
+  background: var(--book-accent-soft);
+  color: var(--book-link-hover);
+}
+
+.book-sidebar-subsection-toggle:focus-visible {
+  outline: 2px solid var(--book-active-link);
+  outline-offset: 2px;
+}
+
+.book-sidebar-subsection-toggle .bi {
+  transition: transform 0.16s ease;
+}
+
+.book-sidebar-subsection-toggle-open .bi {
+  transform: rotate(90deg);
+}
+
+.book-sidebar-subsections {
+  border-left: 1px solid var(--book-rule);
+  list-style: none;
+  margin: 0.05rem 0 0.45rem 1.15rem;
+  padding: 0.05rem 0 0.05rem 0.65rem;
+}
+
+.book-sidebar-subsections[hidden] {
+  display: none !important;
+}
+
+#quarto-sidebar .book-sidebar-subsection-link.sidebar-link {
+  color: var(--book-muted);
+  display: block;
+  font-size: 0.86rem;
+  line-height: 1.25;
+  overflow: hidden;
+  padding: 0.22rem 0.25rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#quarto-sidebar .book-sidebar-subsection-link.sidebar-link:hover,
+#quarto-sidebar .book-sidebar-subsection-link.sidebar-link:focus {
+  color: var(--book-link-hover);
+}
+
+#quarto-sidebar .book-sidebar-subsection-link.book-subsection-active {
+  color: var(--book-active-link) !important;
+  font-weight: 700;
+}
+
 #title-block-header .quarto-title-breadcrumbs {
   display: inline-flex !important;
   max-width: calc(100% - 8rem);
@@ -133,8 +322,8 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 
 .page-local-nav {
   align-items: center;
-  background: var(--tutorial-surface);
-  border-bottom: 1px solid var(--tutorial-rule);
+  background: var(--book-surface);
+  border-bottom: 1px solid var(--book-rule);
   display: flex;
   gap: 0.5rem;
   margin: -0.1rem 0 0.9rem;
@@ -168,10 +357,10 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 }
 
 .page-section-toggle {
-  background: var(--tutorial-surface);
-  border: 1px solid var(--tutorial-card-border);
+  background: var(--book-surface);
+  border: 1px solid var(--book-card-border);
   border-radius: 6px;
-  color: var(--tutorial-link);
+  color: var(--book-link);
   font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.2;
@@ -180,8 +369,8 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 
 .page-section-toggle:hover,
 .page-section-toggle:focus {
-  background: var(--tutorial-accent-soft);
-  color: var(--tutorial-link-hover);
+  background: var(--book-accent-soft);
+  color: var(--book-link-hover);
 }
 
 .page-section-list {
@@ -202,7 +391,7 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 
 .homepage-contact {
   align-items: center;
-  border-bottom: 1px solid var(--tutorial-rule);
+  border-bottom: 1px solid var(--book-rule);
   display: flex;
   gap: 1rem;
   justify-content: space-between;
@@ -224,7 +413,7 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 
 .social-links a {
   align-items: center;
-  border: 1px solid var(--tutorial-card-border);
+  border: 1px solid var(--book-card-border);
   border-radius: 6px;
   display: inline-flex;
   height: 2.5rem;
@@ -234,12 +423,12 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
 
 .social-links a:hover,
 .social-links a:focus {
-  background: var(--tutorial-accent-soft);
+  background: var(--book-accent-soft);
   text-decoration: none;
 }
 
 .social-links .social-icon {
-  color: var(--tutorial-link);
+  color: var(--book-link);
   display: block;
   font-size: 1.35rem;
   line-height: 1;
@@ -292,9 +481,9 @@ body.quarto-dark .social-links .social-icon-ssrn {
   color: #8ecaff;
 }
 
-.home-last-modified {
+.home-publication-meta {
   align-items: baseline;
-  color: var(--tutorial-muted);
+  color: var(--book-muted);
   display: flex;
   flex-wrap: wrap;
   font-size: 0.92rem;
@@ -302,18 +491,28 @@ body.quarto-dark .social-links .social-icon-ssrn {
   margin: -0.35rem 0 1rem;
 }
 
-.home-last-modified-label {
+.home-publication-meta-item {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.home-publication-meta-label {
   font-weight: 700;
 }
 
-.home-last-modified .date-modified {
+.home-publication-meta-separator {
+  color: var(--book-muted);
+}
+
+.home-publication-meta .date-first-publication {
   margin: 0;
 }
 
 .home-panel {
-  background: var(--tutorial-soft-surface);
-  border: 1px solid var(--tutorial-card-border);
-  border-left: 5px solid var(--tutorial-accent);
+  background: var(--book-soft-surface);
+  border: 1px solid var(--book-card-border);
+  border-left: 5px solid var(--book-accent);
   border-radius: 6px;
   margin: 0.75rem 0 1.5rem;
   padding: 1rem 1.1rem;
@@ -332,22 +531,22 @@ body.quarto-dark .social-links .social-icon-ssrn {
 }
 
 .home-section {
-  background: var(--tutorial-surface);
-  border: 1px solid var(--tutorial-card-border);
+  background: var(--book-surface);
+  border: 1px solid var(--book-card-border);
   border-radius: 6px;
   padding: 1rem;
 }
 
 .footer .nav-footer {
   align-items: center;
-  border-top: 1px solid var(--tutorial-rule);
+  border-top: 1px solid var(--book-rule);
   gap: 1rem;
   padding-top: 1rem;
 }
 
 .footer .nav-footer-left,
 .footer .nav-footer-right {
-  color: var(--tutorial-muted);
+  color: var(--book-muted);
   flex: 0 0 auto;
   font-size: 0.92rem;
   line-height: 1.45;
@@ -366,19 +565,19 @@ body.quarto-dark .social-links .social-icon-ssrn {
 }
 
 .footer .nav-footer-right a {
-  color: var(--tutorial-link);
+  color: var(--book-link);
   white-space: nowrap;
 }
 
 #btn-back-to-top {
   align-items: center;
   appearance: none;
-  background: var(--tutorial-backtop-bg);
-  border: 1px solid var(--tutorial-card-border);
+  background: var(--book-backtop-bg);
+  border: 1px solid var(--book-card-border);
   border-radius: 50%;
   bottom: 1.25rem;
   box-shadow: 0 0.35rem 0.9rem rgba(0, 0, 0, 0.12);
-  color: var(--tutorial-active-link);
+  color: var(--book-active-link);
   cursor: pointer;
   display: inline-flex;
   height: 2.75rem;
@@ -415,12 +614,12 @@ body.quarto-dark .social-links .social-icon-ssrn {
 
 #btn-back-to-top:hover,
 #btn-back-to-top:focus {
-  background: var(--tutorial-backtop-hover);
-  color: var(--tutorial-link-hover);
+  background: var(--book-backtop-hover);
+  color: var(--book-link-hover);
 }
 
 #btn-back-to-top:focus-visible {
-  outline: 3px solid var(--tutorial-active-link);
+  outline: 3px solid var(--book-active-link);
   outline-offset: 3px;
 }
 

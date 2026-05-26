@@ -1,0 +1,446 @@
+```{r include=FALSE}
+source("R/logistic-models.R")
+```
+
+## Prediction and model evaluation
+
+Let's evaluate the predictive performance of our three models: `logi_age`, `logi_int`, and `logi_multi`, introduced in the previous section. We begin by selecting a single observation from the test set and asking each model to predict the `loan_st` (loan status) for this individual. Specifically, we take the age of the first person in the test set, use it as input for the `logi_age` model, and then compare the model's predicted loan_st with the actual outcome recorded in the test set. Since the test set contains the true loan status for this individual, we can directly assess how well the model performed. Each model is expected to generate a potentially different prediction for the `loan_st`. A good model should produce a prediction that matches the actual outcome for this observation, indicating its reliability in capturing the underlying patterns in the data.
+
+Let's call the first individual John Doe for practical purposes.
+
+```{r One applicant}
+# Define one single observation in test_set.
+John_Doe <- as.data.frame(test[1, ])
+John_Doe
+```
+
+We know in advance that the `loan_st` for this observation, taken from the test set, is 0. However, the models cannot know this because the test set was not used to estimate the logistic models. Instead, the models were trained using the training set. A good credit risk model should predict no default for this new applicant called John Doe.
+
+The values of `loan_st` in the test set are either 0 or 1. However, the logistic models predict the `loan_st` as probability estimates within the range of 0 to 1, as illustrated in @fig-scolcam. This means we would expect the estimated `loan_st` for John Doe to be close to 0. *But how close?* We will address this issue later.
+
+This code predicts the loan status for John Doe using three logistic regression models. Each prediction represents the probability that John Doe defaults on a loan, based on the respective model.
+
+```{r Predictions of one single applicant in the test set}
+# List of models
+models <- list("logi_age" = logi_age, "logi_int" = logi_int, "logi_multi" = logi_multi)
+
+# Predict the loan status for John Doe using all models
+pred_John <- sapply(models, predict, newdata = John_Doe, type = "response")
+
+# Convert to a table with appropriate column name
+pred_John <- as.data.frame(pred_John)
+colnames(pred_John) <- "Loan status predictions for John Doe."
+
+# Display the predictions
+pred_John
+```
+
+These values are low, as they are close to 0. We could interpret this as some ability of the models to correctly predict that John Doe will not default. However, we have already illustrated that at least the age model is highly problematic. Additionally, several questions remain unanswered and require further analysis. For example, *how can we determine if the prediction is low enough to classify it as a non-default?* We may need a cutoff value to make this decision. We will explore this issue later.
+
+Another important consideration is: *What about the rest of the cases in the test set?* The test set contains 9,695 observations, yet the example above only evaluates the first one. Our interest lies in assessing the entire test set, not just John Doe. Fortunately, this issue is easy to resolve by modifying the `newdata` parameter in the `predict()` function. Specifically, instead of using `newdata = John_Doe`, which refers to a single observation, we can replace it with `newdata = test`, encompassing all 9,695 observations in the test set.
+
+<!-- ```{r Predictions of the entire test set} -->
+<!-- # List of models -->
+<!-- models <- list("logi_age" = logi_age, "logi_int" = logi_int, "logi_multi" = logi_multi) -->
+
+<!-- # Predict loan status and calculate range and AIC for each model -->
+<!-- pred_range <- sapply(models, function(model) { -->
+<!--   c(range(predict(model, newdata = test, type = "response")), AIC(model)) -->
+<!-- }) -->
+
+<!-- # Convert to a data frame and label the columns -->
+<!-- pred_range <- as.data.frame(t(pred_range)) -->
+<!-- colnames(pred_range) <- c("min(loan_st)", "max(loan_st)", "AIC") -->
+
+<!-- # Display the result -->
+<!-- pred_range -->
+<!-- ``` -->
+
+
+```{r Predictions of the entire test set}
+# Predict the loan status with the three models.
+pred_logi_age <- predict(logi_age, newdata = test, type = "response")
+pred_logi_int <- predict(logi_int, newdata = test, type = "response")
+pred_logi_multi <- predict(logi_multi, newdata = test,
+                           type = "response")
+
+pred_range <- rbind("logi_age" = range(pred_logi_age),
+                     "logi_int" = range(pred_logi_int),
+                     "logi_multi" = range(pred_logi_multi))
+aic <- rbind(logi_age$aic, logi_int$aic, logi_multi$aic)
+pred_range <- cbind(pred_range, aic)
+colnames(pred_range) <- c("min(loan_st)", "max(loan_st)", "AIC")
+pred_range
+```
+
+Now, instead of predicting for a single applicant, we have made predictions for all 9,695 applicants in the test set. The first column shows the lower predicted `loan_st` for each model, and the logistic models produce values in the range of 0 to 1. In this case, the predicted ranges are quite narrow.
+
+Narrow ranges (i.e., the small difference between the highest and lowest predicted `loan_st` values) could be problematic because the model might struggle to discriminate between defaults (predictions closer to 1) and non-defaults (predictions closer to 0) as suggested in @fig-scolcam. The higher the AIC, the worse the in-sample model, and the lower the AIC, the better the model. However, the prediction range is not a performance metric by itself: it only tells us how spread out the predicted probabilities are. At this stage, the range is useful as an early diagnostic, while AIC provides an in-sample comparison. We still need confusion matrices, bad rates, and ROC/AUC to evaluate predictive performance on the test set.
+
+Let's explore all the predicted <tt>`loan_st`</tt> values for the <tt>`logi_age`</tt>. First let's see all of them.
+
+```{r}
+#| label: fig-amp
+#| fig-cap: "Age model predictions."
+# Convert the predictions to a data frame
+pred_data <- data.frame(
+  Observation = seq_along(pred_logi_age),  # Sequence for observation index
+  Predicted_Probabilities = pred_logi_age
+)
+
+# Create the plot
+ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
+  geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
+  labs(x = "Observation (test set)", 
+       y = "Default prediction") +
+  theme_minimal()
+```
+Now its distribution.
+
+```{r}
+#| label: fig-amph
+#| fig-cap: "Age model prediction histogram."
+ggplot(data.frame(pred_logi_age), aes(x = pred_logi_age)) + 
+  geom_density(fill = "red") +
+  labs(y = "Density", x = "Default prediction") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+The <tt>`logi_age`</tt> fails to predict values ranging from 0 to 1. In fact, these values are quite concentrated in a very small range of values. As a consequence, this model fails to differentiate between default and no default predictions.
+
+Let's visualize the predictions of the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>. We first collect all predictions in a single data frame just for convenience.
+
+```{r}
+pred_logi <- data.frame(cbind(pred_logi_age, pred_logi_int,
+                                  pred_logi_multi))
+pred_logi <- gather(pred_logi, key = "model",  value = "pred")
+```
+
+Now we plot the <tt>`logi_int`</tt> and <tt>`logi_multi`</tt>.
+
+```{r}
+#| label: fig-irammph
+#| fig-cap: "Interest rate and multi models predictions histograms."
+ggplot(pred_logi[pred_logi$model != "pred_logi_age",], 
+       aes(x = pred, fill = model)) + 
+  geom_density(alpha = 0.4) +
+  labs(y = "Density", x = "Default prediction") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+Let's add the <tt>`age`</tt> model as well.
+
+```{r}
+#| label: fig-aairaammpb
+#| fig-cap: "Age, Interest rate and multi models predictions boxplot."
+ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
+  geom_boxplot() +
+  labs(y = "Model", x = "Default prediction") +
+  theme(legend.position = "none", legend.title = element_blank())
+```
+
+Presumably, a model which considers all available predictors could be better for predicting the <tt>`loan_st`</tt>.
+
+```{r logi_full estimation and prediction}
+# Logistic regression model using all available predictors in the data set.
+logi_full <- glm(loan_st ~ age + int + grade + log(l_amnt) + 
+                   log(income) + emp_len + home + sex +
+                   region, family = "binomial", data = train)
+# Loan status predictions for all test set elements.
+pred_logi_full <- predict(logi_full, newdata = test, type = "response")
+# Look at the predictions range.
+range(pred_logi_full)
+```
+
+Now, the <tt>`pred_logi_full`</tt> prediction range is wider. This means some applicants receive substantially higher predicted default probabilities than others, which can help the model separate likely defaults from likely non-defaults. Still, a wider range does not prove that the model is better; it is only a useful sign that must be evaluated with classification and ranking metrics. Let's see a prediction comparison with respect to the rest of the models.
+
+```{r}
+pred_range <- rbind("logi_age" = range(pred_logi_age), 
+                     "logi_int" = range(pred_logi_int),
+                     "logi_multi" = range(pred_logi_multi),
+                     "logi_full" = range(pred_logi_full))
+aic <- rbind(logi_age$aic, logi_int$aic, logi_multi$aic, logi_full$aic)
+pred_range <- cbind(pred_range, aic)
+colnames(pred_range) <- c("min(loan_st)", "max(loan_st)", "AIC")
+pred_range
+```
+
+```{r}
+pred_logi <- data.frame(cbind(pred_logi_age, pred_logi_int,
+                                  pred_logi_multi, pred_logi_full))
+pred_logi <- gather(pred_logi, key = "model",  value = "pred")
+```
+
+A graphical comparison of the new <tt>`pred_logi_full`</tt> and <tt>`pred_logi_multi`</tt>.
+
+```{r}
+#| label: fig-mafmph
+#| fig-cap: "Multi and full models predictions histograms."
+ggplot(pred_logi[pred_logi$model != "pred_logi_age" &
+                  pred_logi$model != "pred_logi_int" ,], 
+       aes(x = pred, fill = model)) + 
+  geom_density(alpha = 0.4) +
+  labs(y = "Density", x = "Default prediction") +
+  theme(legend.position = "bottom", legend.title = element_blank())
+```
+
+And all of them together.
+
+```{r}
+#| label: fig-airmafmpb
+#| fig-cap: "Age, Interest rate, multi and full models predictions boxplot."
+ggplot(pred_logi, aes(x = pred, y = model, fill = model)) + 
+  geom_boxplot() +
+  labs(y = "Model", x = "Default prediction") +
+  theme(legend.position = "none", legend.title = element_blank())
+```
+
+The <tt>`logi_full`</tt> model predictions look more useful than the other models because they produce greater separation across applicants. The next step is to evaluate whether this separation leads to better credit decisions.
+
+Another question is: *How can we know whether these model predictions correspond to a default or no default?* The loan status predictions go from 0 to 0.854 for the case of the <tt>`logi_full`</tt> model. At the end, these loan status estimations need to be interpreted or classified as a default or no default because we are interested on that. *Are they close enough to 0 to consider a no default?* This issue is addressed by setting up a cutoff rate so we can split all estimated loan status into 0 or 1.
+
+Let us arbitrarily set a cutoff of 0.15 for now. This implies that any estimated loan status below 0.15 will be classified as 0 (no default), while any estimated loan status above 0.15 will be classified as 1 (default). This classification rule can guide financial firms in deciding whether to approve or reject new loan applications. Applications with an estimated loan status above 0.15 will be rejected, whereas those with an estimated loan status below 0.15 will be approved. Thus, the loan approval or rejection decision is now based on the model's estimation.
+
+Choosing a cutoff value as a classification and acceptance rule can be controversial, as managers may prefer to allocate more loans rather than fewer. In other words, managers may prefer more sales at the cost of a higher credit risk. Specifically, the higher the cutoff, the greater the number of loans allocated, since the allocation rule selects those applicants whose predicted loan status is below the cutoff.
+
+An alternative that balances credit risk with managerial interests is to implement multiple cutoff ranges instead of relying on a single cutoff value, such as 0.15. For instance, a financial firm could accept loan applications with an estimated loan status between 0.15 and 0.25 but charge a higher interest rate to offset the increased credit risk. Alternatively, a different perspective might involve incorporating social criteria to support individuals typically excluded by the financial industry due to their economic circumstances. In such cases, the focus could shift toward identifying applicants with lower estimated loan statuses.
+
+For now, our cutoff and allocation rule assume that any estimated loan status below 0.15 will be classified as 0 (no default), while any estimated loan status above 0.15 will be classified as 1 (default).
+
+Graphically, it looks like this:
+
+```{r}
+#| label: fig-fmpaco
+#| fig-cap: "Full model predictions and cutoff of 0.15."
+# Convert the predictions to a data frame
+pred_data <- data.frame(
+  Observation = seq_along(pred_logi_full),  # Sequence for observation index
+  Predicted_Probabilities = pred_logi_full
+)
+
+# Create the plot
+ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
+  geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
+  geom_hline(yintercept = 0.15, color = "red", size = 1) +  # Horizontal line
+  labs(x = "Observation (test set)", 
+       y = "Default prediction") +
+  theme_minimal()
+
+```
+Alternatively, we can illustrate the distribution.
+
+```{r}
+#| label: fig-fmphaco
+#| fig-cap: "Full model predictions histogram and cutoff of 0.15."
+ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
+       aes(x = pred, fill = model)) + 
+  geom_density(alpha = 0.4) +
+  geom_vline(xintercept = 0.15, linetype = "longdash") +
+  labs(y = "Density", x = "Default prediction") +
+  theme(legend.position = "none", legend.title = element_blank())
+```
+
+Here, predicted <tt>`loan_st`</tt> values at the left of the dashed line represent no default predictions and values at the right of the dashed line represent default predictions. Let's set up the rule to convert the estimated loan status into a binary (0 or 1) variable. 
+
+See how this transformation takes place:
+
+```{r Specifying a cutoff of 15}
+# Make a binary predictions-vector using a cutoff of 15%
+pred_cutoff_15 <- ifelse(pred_logi_full > 0.15, 1, 0)
+head(cbind(pred_logi_full, 
+           "pred_logi_full_rounded" = round(pred_logi_full, 4), 
+           pred_cutoff_15))
+```
+
+These are only the first 6 rows in the test set. We can see that the rule works as expected because every estimated loan status below 0.15 is now considered as 0 (no-default), and every estimated loan status above 0.15 is considered as 1 (default). The table above shows how we can create this binary variable given the logistic model prediction.
+
+Note that the rows numbers in the table above are 1, 2, 18, 26, 27 and 28. These are not 1, 2, 3, 4, 5 and 6 because the <tt>`test`</tt> rows were selected randomly out of the <tt>`dat`</tt>. So, the row numbers in the table above correspond to the original place in <tt>`dat`</tt>.
+
+Is <tt>`logi_full`</tt> a good model after all? We can add a new column to the previous table. This new variable represents what really happened with the loan. Then, the first column is the logistic model prediction, the second column the transformed binary variable given a cutoff of 0.15, and the third column is what actually happened (default or no-default). Let's take a sample of 10 observations to conduct the comparison easily. Note that the model correctly predicts a no default in most cases. Rows 308 and 329 predict a default incorrectly and row 323 predict a default correctly.
+
+```{r}
+# Let's take from rows 101 to 110.
+(cbind(pred_logi_full, pred_cutoff_15, 
+           as.data.frame.numeric(test$loan_st)))[101:110,]
+```
+
+There is an easy way to evaluate the rest of the cases in the test set using a simple table called confusion matrix.
+
+```{r Confusion matrix at cutoff of 15}
+table(Actual = test$loan_st, Predicted = pred_cutoff_15)
+```
+The `logi_full` model correctly predicts 6,554 no-defaults and 752 defaults. However, it also misclassifies 2,081 no-defaults as defaults and 308 defaults as no-defaults. In credit terms, the 2,081 cases are good applicants that would be incorrectly rejected, while the 308 cases are bad applicants that would be incorrectly accepted. *How good are these results?* Which of these four values is most important? These are questions we will address later. For now, it is important to note that different models and cutoff rates yield different confusion matrix results. Note that the sum of these four values equals 9,695, which corresponds to the total number of observations in the test set.
+
+You may want to see relative and not absolute values. Let's try the <tt>`CrossTable()`</tt> function instead.
+
+```{r Confusion matrix at cutoff of 15 with CrossTable}
+CrossTable(test$loan_st, pred_cutoff_15, 
+           prop.r = FALSE, prop.c = FALSE, prop.t = TRUE, 
+           prop.chisq = FALSE,
+          dnn = c("Actual", "Predicted"))
+```
+
+Here, 67.6% of all cases were correctly predicted as non-default (true negatives) while 21.5% were incorrectly predicted as default (false positives), together making up 89.1% of cases and showing non-default is the majority class; meanwhile, 7.8% of all cases were correctly predicted as default (true positives) and 3.2% were incorrectly predicted as non-default (false negatives), comprising 10.9% of cases and indicating default is the minority class, which suggests the model has better prediction accuracy for non-default (67.6% correct) compared to default (7.8% correct), though this should be considered in the context of the imbalanced class distribution.
+
+Instead of arbitrarily considering a cutoff of 0.15, we can follow a different approach. Now consider that we are interested in taking the 20% highest estimates (closer to 1) of <tt>`pred_logi_full`</tt> as default. Equivalently, this is to take the lowest 80% <tt>`pred_logi_full`</tt> estimates (closer to 0) as no-default. Let's calculate the new cutoff that meets this new criterion.
+
+```{r Now 20 highest are default}
+# Cutoff definition.
+cutoff <- quantile(pred_logi_full, 0.8)
+cutoff
+```
+
+This new approach (taking the 20% highest estimates of <tt>`pred_logi_full`</tt> as default) represents a cutoff of 0.1994621. Graphically:
+
+```{r}
+#| label: fig-fmphncoo0
+#| fig-cap: "Full model prediction histogram new cutoff of 0.1994621."
+ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
+       aes(x = pred, fill = model)) + 
+  geom_density(alpha = 0.4) +
+  geom_vline(xintercept = cutoff, linetype = "longdash") +
+  labs(y = "Density", x = "Default prediction") +
+  theme(legend.position = "none", legend.title = element_blank())
+```
+
+Now the cutoff is 0.1994621. This splits the loan status predictions into two parts: higher than the cutoff is a default, and lower than the cutoff is a no-default. Here are the cutoff values as a function of quantiles.
+
+```{r Cutoff by quantiles}
+cutoff_all <- quantile(pred_logi_full, seq(0.1, 1, 0.1))
+data.frame("cut_off" = round(cutoff_all,5))
+```
+
+We can show a similar summary table as we did with the cutoff of 0.15. Here, we show the predictive ability of the <tt>`logi_full`</tt> model with new cutoff of 0.1994621.
+
+```{r Confusion matrix pred_full_20}
+# Calculate the predictions with the same model and new cutoff.
+pred_full_20 <- ifelse(pred_logi_full > cutoff, 1, 0)
+# Show results in a confusion matrix.
+CrossTable(test$loan_st, pred_full_20, prop.r = FALSE,
+           prop.c = FALSE, prop.t = TRUE, prop.chisq = FALSE)
+```
+
+With a cutoff of 0.1994621 we accept 7,309 + 447 = 7,756 applications as those are the ones that the model predicts a no default. Previously, in the case of a cutoff of 0.15 we accept 6,554 + 308 = 6,862. 
+
+Let's compare both confusion matrices:
+
+```{r Cutoff of 15 and 19 comparison}
+cat <- c("Correct no-default (true negatives).", 
+         "False default (false positives).", 
+         "False no-default (false negatives).", 
+         "Correct default (true positives).")
+cut_15 <- c("67.6%", "21.5%", "3.2%", "7.8%")
+cut_1994621 <- c("75.4%", "13.7%", "4.6%", "6.3%")
+cbind("Classification." = cat, cut_15, cut_1994621)
+```
+
+Type I and Type II errors are key concepts in hypothesis testing and statistical decision-making, particularly relevant in loan default prediction. A Type I error (false positive) occurs when good customers, who would not default, are incorrectly rejected. On the other hand, a Type II error (false negative) happens when bad customers, who will default, are mistakenly accepted.
+
+The new cutoff of 0.1994621 improves the identification of no-defaults but worsens the identification of defaults. Additionally, the new cutoff results in fewer false positives but more false negatives. This suggests that there is a trade-off between the two outcomes.
+
+We can also look at the detail of the 0.1994621 cutoff by comparing two columns: the one on the left with the actual loan status, and the one on the right with the estimated loan status.
+
+```{r pred_full_20 for a sample of 10 applicants}
+# Comparative table in detail.
+real_pred_20 <- cbind.data.frame(test$loan_st, pred_full_20,
+                     "Did the model succeed?" = test$loan_st == pred_full_20)
+# Show some values.
+real_pred_20[131:140,]
+```
+
+In this sample, the model fails for 1 out of 10 individuals, a fairly good result. Now, let's imagine we are a bank with 9,695 loan applications on our desk (or computer). Suppose we use the predictions from `pred_full_20` to decide whether to accept a loan application. Our model-based acceptance rule is as follows: if `pred_full_20 = 0`, the model predicts no default, and we accept the loan application. According to the excerpt from the table above, we correctly reject applications 399, 417, and 425 because those were indeed defaults. However, we incorrectly reject application 404, which did not default. Overall, using a model as the basis for a decision rule can lead to better outcomes than guessing or applying a random approval policy.
+
+Let's count how many applications are accepted and rejected according to our rule.
+
+```{r Accepted and rejected applications given the model rule}
+# Accepted.
+accept_20 <- sum(pred_full_20 == 0)
+# Rejected.
+reject_20 <- sum(pred_full_20 == 1)
+data.frame("total" = length(pred_full_20), accept_20, reject_20)
+```
+
+By taking the top 20% of the `pred_logi_full` estimates as defaults and the bottom 80% as non-defaults, we construct a rule that accepts 7,756 loan applications (80% of the total) and rejects 1,939 applications (20% of the total). The cutoff criterion determines the number of accepted applications, while the `logi_full` model specifies which applications to accept or reject.
+
+We can evaluate this loan acceptance/rejection rule by comparing it against the actual outcomes recorded in `loan_st`. To begin, let's illustrate the decision-making process based on the model's estimates.
+
+```{r Accept and reject decision}
+# First 10 accept decisions.
+head(data.frame(real_pred_20[,1:2], 
+                decision = ifelse(real_pred_20$pred_full_20 == 0, 
+                                  "accept", "reject")), 12)
+```
+
+We can add an evaluation column.
+
+```{r Accept and reject decision plus an evaluation}
+# First 10 accept decisions.
+head(data.frame(real_pred_20[,1:2], 
+                decision = ifelse(real_pred_20$pred_full_20 == 0, 
+                                  "accept", "reject"),
+                evaluation =
+                  ifelse(real_pred_20$pred_full_20 == 0 &
+                           real_pred_20$`test$loan_st` == 0,
+                         "good decision",
+                  ifelse(real_pred_20$pred_full_20 == 0 &
+                           real_pred_20$`test$loan_st` == 1,
+                         "bad decision",
+                  ifelse(real_pred_20$pred_full_20 == 1 &
+                           real_pred_20$`test$loan_st` == 1,
+                         "correct rejection",
+                         "lost good customer")))), 12)
+```
+
+In the table above, we see the outcomes of the first 12 loan applications. According to our rule, some applications are accepted and some are rejected. A "good decision" refers to cases where we accept a loan application that does not default, meaning we correctly identify the applicant as creditworthy. Conversely, a "bad decision" occurs when we accept a loan application that defaults, leading to a financial loss. If we reject an applicant who would have defaulted, the model made a correct rejection. If we reject an applicant who would not have defaulted, the bank loses a potentially profitable customer.
+
+While this table provides valuable insights, it is somewhat problematic because it incorporates a counterfactual approach. Specifically, we are evaluating the rejected applications based on their potential outcomes if they had been accepted. This requires us to hypothesize about what would have happened, which introduces assumptions and uncertainty, as these scenarios did not actually occur. A more practical and grounded approach is to focus on evaluating the rule based solely on the cases where we do accept loan applications. This is where the concept of the "bad rate" becomes useful. The bad rate measures the proportion of accepted loans that default, providing a straightforward and actionable metric. By concentrating on the actual outcomes of accepted applications, the bad rate allows us to assess the effectiveness of our rule without relying on speculative counterfactuals, making it a more reliable and convenient evaluation method.
+
+Remember that the `real_pred_20` object is significant because it contains both the binary model predictions and the actual loan status, essentially, the model's prediction and the corresponding real outcomes. In the code below, we first filter for accepted loans, which are cases where the prediction equals 0. If this condition is met, we assign the value from the first column, which represents the loan status.
+
+As a result, `accepted_loans` becomes a vector of zeros and ones: a value of 0 indicates a loan that did not default, while a value of 1 indicates a loan that defaulted. The length of the `accepted_loans` vector, 7,756, corresponds to the number of loans allocated based on the cutoff value of 0.1994621 and the predictions from the `logi_full` model.
+
+
+```{r A more efficient way to conduct the model evaluation}
+# We accept loans that the model predicts a no-default (0).
+# In "accepted_loans" we know whether the accepted loans are in fact
+# default or no-default.
+accepted_loans <- real_pred_20[pred_full_20 == 0, 1]
+length(accepted_loans)
+# The code above says: if we accept the application, tell me what happened.
+```
+
+```{r}
+head(accepted_loans, 10)
+```
+
+Note that the third and the tenth application default. These are applications #18 and #37 as expected. Now let's evaluate not 12 applications but all of them, which are 7,756. The bad rate is now expressed as a percentage of the total:
+
+```{r Bad rate calculation}
+# bad_rate is the proportion of accepted loans that are in fact default.
+bad_rate <- sum(accepted_loans == 1)/length(accepted_loans)
+bad_rate
+```
+
+This is, by following the model-based rule, we accepted 7,756 loan applications that represent 80% of the total applications. However, 5.76% of those accepted applications were in fact a default. In particular, we accepted 447 loans that are defaults so: $447/7756=0.0576328$.
+
+Models are not perfect but we are always interested to find out a good model that leads to a lower bad rate because (in principle) we do not want to accept many defaults. If we keep the same model, we could reduce this 5.76% by being more strict in the loan application which in simple terms mean to reduce the acceptance rate. This alternative could be controversial as a lower acceptance rate represents lower income (less customers, fewer sales) for the bank or financial firm. 
+
+Let's consider we reduce the acceptance rate from 80% to 65% so we can evaluate the impact over the bad rate.
+
+```{r Bad rate when the acceptance rate is 65}
+# New cutoff value.
+cutoff <- quantile(pred_logi_full, 0.65)
+# Split the pred_logi_full into a binary variable.
+pred_full_35 <- ifelse(pred_logi_full > cutoff, 1, 0)
+# A data frame with real and predicted loan status.
+real_pred_35 <- cbind.data.frame(test$loan_st, pred_full_35)
+# Loans that we accept given these new rules.
+accepted_loans <- real_pred_35[pred_full_35 == 0, 1]
+# Bad rate (accepted loan applications that are defaults).
+bad_rate <- sum(accepted_loans == 1)/length(accepted_loans)
+# Show the bad rate.
+bad_rate
+```
+
+As expected, the bad rate is lower (from 5.76% to 3.71%). This is, the lower the acceptance rate the lower the bad rate. In the extreme, if we accept 0 loan applications then our bad rate would be zero, but doing so is equivalent as going out of business. We can create a function such that given a vector of prediction of loan status we can return the bad rate for different cutoff values. This could be useful to build the *bank strategy*. This function will reveal the trade-off between the acceptance rate and the bad rate. In particular, the lower the acceptance rate, the lower the income (bad thing) and the lower the bad rate (good thing). So, *which combination is the optimal?*
+
