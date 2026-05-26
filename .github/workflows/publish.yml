@@ -51,7 +51,8 @@ jobs:
             "Sim.DiffProc",
             "tidyr",
             "vembedr",
-            "viridis"
+            "viridis",
+            "xgboost"
           ))
 
       - name: Render book
