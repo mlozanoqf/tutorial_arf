@@ -2,11 +2,11 @@
 source("R/logistic-data.R")
 ```
 
-## Logistic models
+## Logistic regression models
 
 Logistic models allow us to make predictions about loan defaults. Logistic regression is a statistical model that in its basic form uses a logistic function to model a binary dependent variable like <tt>`loan_st`</tt>. In this case, the binary dependent variable is default (1) or no default (0). A good reference for this section is @hull2020machine.
 
-First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimating models, and the test set is used to evaluate our model predictions with new data. When estimating models, it is common practice to separate the available data into two parts, *training* and *test* data, where the training data is used to estimate parameters (in-sample) and the test data is used to evaluate its accuracy (out of sample). Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications. If we ignore this split and use the whole database to estimate our models, we may succeed at explaining defaults in our database but we may fail to explain defaults for new loan applications.
+First, load the data and split it into two sets: (1) training and (2) test. The training set is for building and estimating models, and the test set is used to evaluate our model predictions with new data. When estimating models, it is common practice to separate the available data into two parts, *training* and *test* data, where the training data is used to estimate parameters (in-sample) and the test data is used to evaluate out-of-sample performance. Because the test data is not used in determining the estimation, it should provide a reliable indication of how well the model is likely to estimate or forecast on new data. In sum, we train the model, we test the model, and once we are OK with the model performance on new data, we are ready to use it in real-life applications. If we ignore this split and use the whole database to estimate our models, we may succeed at explaining defaults in our database but we may fail to explain defaults for new loan applications.
 
 ```{r Training and test set construction}
 # It is convenient to set the loan status as factor.
@@ -40,18 +40,24 @@ prop
 
 The proportions of "defaults" and "no defaults" in the train and test datasets are very similar to those in the original dataset, indicating that both samples are representative. Specifically, the proportion of "defaults" in the train and test datasets closely matches that of the original dataset, as does the proportion of "no defaults." This suggests that the random sampling process has preserved the overall distribution of the target variable, ensuring that the train and test sets reflect the characteristics of the full dataset.
 
-Assume we think that the <tt>`loan_st`</tt> depends on the age of the individual. We can estimate a simple logistic model to learn about the relationship between age and loan status.
+This split is enough for the teaching objective of the chapter: it lets us estimate models on one sample and evaluate their behavior on observations that were not used for estimation. In a production workflow, however, we would usually add one more layer. Model choices such as variable selection, cutoffs, and tuning decisions should be made with a training/validation structure or cross-validation, while a final holdout test set should be reserved for the last evaluation. In this book we use the test set repeatedly to make the logic visible, so the results should be read as a controlled learning exercise rather than as a complete production validation design.
+
+Assume we think that the <tt>`loan_st`</tt> depends on the age of the individual. To keep the mathematical notation separate from the code, let $Y_i$ denote the value stored in `loan_st` for applicant $i$, and let $\text{age}_i$ denote that applicant's age. We can estimate a simple logistic model to learn about the relationship between age and loan status.
 
 
-$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 \times \text{age}$.
+$$
+\log\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \beta_1 \times \text{age}_i.
+$$
 
 Where:
 
-* $p$ is the probability that `loan_st = 1` (e.g., the probability of default).
+* $Y_i$ is the observed outcome in the data: $Y_i=1$ means default and $Y_i=0$ means no default.
+
+* $p_i = P(Y_i = 1 \mid \text{age}_i)$ is the probability that applicant $i$ defaults, conditional on age.
 
 * $\beta_0$ is the intercept, and $\beta_1$ is the coefficient for the predictor variable `age`.
 
-The dependent variable in logistic regression is expressed as: $\log\left(\frac{p}{1-p}\right)$. This transformation, known as the *logit function*, maps probabilities $p$ which range between 0 and 1 to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s) (e.g., age) and the transformed dependent variable, making estimation feasible. The fraction $\frac{p}{1-p}$, called the *odds*, represents the ratio of the probability of an event happening $p$ to the probability of it not happening $1-p$, making it a natural choice for modeling binary outcomes.
+The dependent variable in logistic regression remains binary: in the data, `loan_st` is either 0 or 1. What the model transforms is not the observed 0/1 outcome itself, but the conditional probability of default, $p_i$. The transformation $\log\left(\frac{p_i}{1-p_i}\right)$, known as the *logit function*, maps probabilities $p_i$, which range between 0 and 1, to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s), such as age, and the transformed probability. The fraction $\frac{p_i}{1-p_i}$, called the *odds*, represents the ratio of the probability of an event happening $p_i$ to the probability of it not happening $1-p_i$, making it a natural choice for modeling binary outcomes.
 
 Let's estimate the age model.
 
@@ -61,11 +67,13 @@ logi_age <- glm(loan_st ~ age, family = "binomial", data = train)
 logi_age
 ```
 
-The estimated model is: $\log\left(\frac{p}{1-p}\right) = -1.90097 - 0.00623 \times \text{age}$.
+The equation and the code correspond directly. In `glm(loan_st ~ age, family = "binomial", data = train)`, the left side of `~` is the observed $Y_i$, the right side is the predictor $\text{age}_i$, and `family = "binomial"` tells R to estimate the logit model. The coefficients $\beta_0$ and $\beta_1$ are the numbers returned by `glm()`, and later `predict(logi_age, newdata = ..., type = "response")` will transform the logit score back into the estimated probability $\hat p_i$.
+
+The estimated model is: $\log\left(\frac{p_i}{1-p_i}\right) = -1.90097 - 0.00623 \times \text{age}_i$.
 
 The model suggests there is a negative relationship between age and loan status. 
 
-We can solve for $p$ to find the estimate of the probability of default according to the age model: $p = \frac{\exp(-1.90097 - 0.00623 \times \text{age})}{1 + \exp(-1.90097 - 0.00623 \times \text{age})}$. Let's evaluate $p$ for a couple of age values.
+We can solve for $p_i$ to find the estimate of the probability of default according to the age model: $p_i = \frac{\exp(-1.90097 - 0.00623 \times \text{age}_i)}{1 + \exp(-1.90097 - 0.00623 \times \text{age}_i)}$. Let's evaluate $p_i$ for a couple of age values.
 
 Substituting `age = 18`: $p = \frac{\exp(-1.90097 - 0.00623 \times 18)}{1 + \exp(-1.90097 - 0.00623 \times 18)}$,
 
@@ -106,7 +114,7 @@ ggplot(data = data.frame(age = ages, p = p_values),
 ```
 The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. This implies that, to observe the full range of probabilities from 0 to 1, we would require age values that are unrealistic or implausibly extreme. Such behavior suggests that the model is poorly specified, as it fails to generate meaningful distinctions in probabilities across a realistic range of ages.
 
-The AIC value of the age model (13,580) is useful when comparing models. The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data. At the moment we cannot interpret the AIC simply because we only have one model and we cannot compare it with another AIC.
+The AIC value of the age model (13,580) is useful when comparing models estimated on the same response variable and sample. The Akaike information criterion (AIC) is a mathematical method for comparing in-sample fit while penalizing model complexity. In statistics, AIC is used to compare different possible models; lower AIC values indicate a better in-sample trade-off between fit and parsimony among the models being compared. At the moment we cannot interpret the AIC very much because we only have one model and we cannot compare it with another AIC.
 
 Let's estimate another simple model where the interest rate category is used as a predictor of the <tt>`loan_st`</tt>. Remember we are not conducting any prediction at all at this moment, we are only estimating models using the training set.
 
@@ -117,7 +125,7 @@ logi_int <- glm(formula = loan_st ~ int, family = "binomial", data = train)
 logi_int
 ```
 
-The AIC is lower (13,220 versus 13,580), so we have a better model now.
+The AIC is lower (13,220 versus 13,580), so this model has a better in-sample fit-parsimony trade-off than the age-only model.
 
 Using one single predictor as age or interest rate is clearly a limited approach. Let's add some more predictors. Also, let's introduce the <tt>`summary()`</tt> function to extract more information about the model estimation results. The <tt>`logi_multi`</tt> below assumes that the loan status depend on the age, interest rate, grade, loan amount, and annual income.
 
@@ -129,7 +137,26 @@ logi_multi <- glm(loan_st ~ age + int + grade + log(l_amnt) +
 summary(logi_multi)
 ```
 
-The multi-factor model is a stronger candidate than the previous two. In <tt>`logi_multi`</tt>, the AIC value is the lowest so far (13,050 versus 13,220), so this should be considered the best in-sample model at the moment. The <tt>`summary()`</tt> function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we want to conduct predictions about the <tt>`loan_st`</tt>. This is, we are interested to use a model to find out whether new applicants in the test set are expected to default or not, rather than in the applicants' credit risk factors. This is why we are concentrated in AIC now. However, AIC is still an in-sample criterion; the model's practical predictive value must be checked later with the test set.
+The multi-factor model is a stronger candidate than the previous two. In <tt>`logi_multi`</tt>, the AIC value is the lowest so far (13,050 versus 13,220), so this should be considered the best in-sample model among these candidates at the moment. The <tt>`summary()`</tt> function shows the significance levels of the estimators, but we are currently more interested in the goodness of fit of the models because we want to conduct predictions about the <tt>`loan_st`</tt>. This is, we are interested to use a model to find out whether new applicants in the test set are expected to default or not, rather than in the applicants' credit risk factors. This is why we are concentrated in AIC now. However, AIC is still an in-sample criterion; the model's practical predictive value must be checked later with the test set.
 
-When a customer fill out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
+Even if prediction is our main objective, it is useful to understand what the coefficients mean. Logistic regression coefficients are expressed in log-odds units, not directly in probability units. A positive coefficient increases the log-odds of default, while a negative coefficient decreases them. If we exponentiate a coefficient with the `exp()` function, we obtain an odds ratio:
+
+$$
+\text{odds ratio}_j = \exp(\beta_j).
+$$
+
+An odds ratio above 1 means higher odds of default, and an odds ratio below 1 means lower odds of default. In the code below, `coef(logi_multi)` extracts the estimated $\beta_j$ values and `exp(coef(logi_multi))` applies the equation to each coefficient.
+
+```{r Odds ratios for the multi-factor model}
+odds_ratios <- data.frame(
+  coefficient = coef(logi_multi),
+  odds_ratio = exp(coef(logi_multi))
+)
+
+round(odds_ratios, 4)
+```
+
+The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed: a one-unit increase in `log(l_amnt)` is not the same as a one-dollar increase in loan amount. Most importantly, odds ratios are not probability changes. They describe multiplicative changes in the odds of default, while the implied change in probability depends on the starting probability.
+
+When a customer fills out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
 

@@ -2,7 +2,7 @@
 source("R/logistic-models.R")
 ```
 
-## The bank strategy
+## Acceptance strategy and model comparison
 
 A bank could be interested to understand the relationship between the acceptance rate and the bad rate given a model that predicts the loan status.
 
@@ -130,9 +130,98 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
 
 The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
 
-The ROC (Receiver Operating Characteristic) curve is a graphical representation used to evaluate the performance of a binary classification model, such as a credit risk model designed to predict defaults and non-defaults. In this context, the ROC curve plots the true positive rate, or sensitivity, against the false positive rate, which is equal to $1 - \text{specificity}$, across various cutoff values. We will still report specificity directly because it has a clear credit-risk interpretation: the proportion of non-default loans correctly identified as non-defaults.
+The bad rate is useful, but it does not fully describe the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we can define a hypothetical *net payoff*. This is not an accounting profit measure. It is a transparent scoring rule that assigns a benefit to accepting a good loan and a cost to accepting a bad loan.
 
-The area under the ROC curve (AUC) quantifies the model's ability to discriminate between the two classes: a higher AUC indicates better performance. For example, a model with an AUC close to 1 suggests it can effectively distinguish between defaulting and non-defaulting borrowers, while an AUC of 0.5 indicates no better performance than random guessing. By analyzing the trade-off between sensitivity (correctly identifying defaults) and specificity (correctly identifying non-defaults), the ROC curve helps determine an optimal threshold for classification, balancing the cost of misclassifying borrowers.
+Suppose that accepting a loan that does not default gives the bank a payoff of 1, while accepting a loan that defaults costs 5. Rejected loans receive a payoff of 0 because the bank does not issue the loan. Under these assumptions:
+
+$$
+\text{net payoff} =
+(\text{accepted good loans}) -
+5 \times (\text{accepted default loans}).
+$$
+
+In the code below, `accepted_good` is the first term, `accepted_defaults` is the second term, `good_loan_payoff = 1`, and `bad_loan_cost = 5`. The expression `accepted_good * good_loan_payoff - accepted_defaults * bad_loan_cost` is therefore the code version of the equation. This lets us compare acceptance rates using the same model and the same test set.
+
+```{r Net payoff by acceptance rate}
+actual_default_strategy <- as.numeric(as.character(test$loan_st))
+
+net_payoff_strategy <- function(prob_of_default, accept_rate,
+                                good_loan_payoff = 1,
+                                bad_loan_cost = 5) {
+  cutoff <- unname(quantile(prob_of_default, accept_rate))
+  accept <- prob_of_default <= cutoff
+  accepted_good <- sum(actual_default_strategy[accept] == 0)
+  accepted_defaults <- sum(actual_default_strategy[accept] == 1)
+  accepted <- sum(accept)
+  net_payoff <- accepted_good * good_loan_payoff -
+    accepted_defaults * bad_loan_cost
+
+  data.frame(
+    accept_rate = accept_rate,
+    cutoff = cutoff,
+    accepted = accepted,
+    accepted_good = accepted_good,
+    accepted_defaults = accepted_defaults,
+    bad_rate = accepted_defaults / accepted,
+    net_payoff = net_payoff
+  )
+}
+
+acceptance_grid <- c(0.50, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90)
+net_payoff_results <- do.call(
+  rbind,
+  lapply(acceptance_grid, net_payoff_strategy,
+         prob_of_default = pred_logi_full)
+)
+
+net_payoff_results
+```
+
+In this example, the highest net payoff occurs at an acceptance rate of 80%. This does not mean that 80% is universally optimal. It means that, under this particular payoff assumption, the additional good loans accepted when moving from 65% to 80% more than compensate for the additional defaults. After 80%, accepting more applications still brings in more good loans, but the extra defaults become too costly under this rule.
+
+The preferred acceptance rate depends on how costly defaults are relative to good accepted loans. We can therefore repeat the calculation under different assumptions for the cost of accepting a default.
+
+```{r Net payoff sensitivity}
+best_net_payoff <- function(bad_loan_cost) {
+  payoff_grid <- do.call(
+    rbind,
+    lapply(seq(0.50, 0.95, 0.05), net_payoff_strategy,
+           prob_of_default = pred_logi_full,
+           bad_loan_cost = bad_loan_cost)
+  )
+
+  payoff_grid[which.max(payoff_grid$net_payoff), ]
+}
+
+net_payoff_sensitivity <- do.call(
+  rbind,
+  lapply(c(2, 5, 10, 15), best_net_payoff)
+)
+
+data.frame(
+  bad_loan_cost = c(2, 5, 10, 15),
+  best_accept_rate = net_payoff_sensitivity$accept_rate,
+  accepted_defaults = net_payoff_sensitivity$accepted_defaults,
+  bad_rate = net_payoff_sensitivity$bad_rate,
+  net_payoff = net_payoff_sensitivity$net_payoff
+)
+```
+
+The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The important point is not to treat these assumed payoffs as real bank profits, but to make explicit that cutoff selection is a business decision under costs and benefits, not only a statistical exercise.
+
+This simple net payoff rule is closely related to the credit-risk idea of expected loss, but it is not the same object. A standard expected-loss expression is:
+
+$$
+\text{Expected loss} = PD \times LGD \times EAD,
+$$
+
+where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$ is exposure at default. In this chapter, the predicted probability $\hat p_i$ plays the role of the model-based $PD$, while the values 1 and 5 are simplified teaching assumptions about benefits and costs. A full profitability model would also include loan amount, interest income, funding costs, recovery rates, and exposure. The simplified net payoff is useful because it makes the decision logic transparent before adding those additional banking details.
+
+## ROC, AUC, and calibration
+
+The acceptance-rate analysis compares business rules at selected cutoffs. We now move to metrics that summarize ranking, calibration, and sensitivity/specificity across cutoffs. The ROC (Receiver Operating Characteristic) curve is a graphical representation used to evaluate the performance of a binary classification model, such as a credit risk model designed to predict defaults and non-defaults. In this context, the ROC curve plots the true positive rate, or sensitivity, against the false positive rate, which is equal to $1 - \text{specificity}$, across various cutoff values. We will still report specificity directly because it has a clear credit-risk interpretation: the proportion of non-default loans correctly identified as non-defaults.
+
+The area under the ROC curve (AUC) quantifies the model's ability to discriminate between the two classes: a higher AUC indicates better ranking performance. For example, a model with an AUC close to 1 tends to assign higher default probabilities to defaulting borrowers than to non-defaulting borrowers, while an AUC of 0.5 indicates no better ranking performance than random guessing. By analyzing the trade-off between sensitivity (correctly identifying defaults) and specificity (correctly identifying non-defaults), the ROC curve helps determine an operational threshold for classification, balancing the cost of misclassifying borrowers.
 
 ```{r}
 #| label: fig-fmibamio
@@ -160,7 +249,116 @@ auc(ROC_logi_full)
 auc(ROC_logi_age)
 ```
 
-Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule. 
+Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule.
+
+The AUC is useful, but it does not answer every question. In particular, AUC evaluates discrimination or ranking: whether applicants who default tend to receive higher predicted probabilities than applicants who do not default. It does not tell us whether the predicted probabilities are well calibrated. Calibration is a different question. If the model assigns a group of applicants an average predicted probability of default of 20%, do about 20% of those applicants actually default?
+
+This distinction matters because we have been calling the output of the model a probability of default. If the model is well calibrated, the predicted probabilities can be interpreted more literally. If the model is poorly calibrated, the model may still be useful for ranking applicants from low risk to high risk, but the numerical probability values should be interpreted with more caution.
+
+One simple way to inspect calibration is to divide the test set into groups according to the predicted probability of default. Here we use ten groups, or deciles. The first decile contains the applicants with the lowest predicted probabilities, and the tenth decile contains the applicants with the highest predicted probabilities. Then, for each decile and each model, we compare the average predicted probability with the observed default rate.
+
+```{r Calibration table full and age models}
+calibration_data <- bind_rows(
+  data.frame(
+    model = "logi_full",
+    observed_default = as.numeric(as.character(test$loan_st)),
+    predicted_pd = pred_logi_full
+  ),
+  data.frame(
+    model = "logi_age",
+    observed_default = as.numeric(as.character(test$loan_st)),
+    predicted_pd = pred_logi_age
+  )
+)
+
+calibration_models <- calibration_data |>
+  group_by(model) |>
+  mutate(risk_decile = ntile(predicted_pd, 10)) |>
+  group_by(model, risk_decile) |>
+  summarize(
+    applications = n(),
+    average_predicted_pd = mean(predicted_pd),
+    observed_default_rate = mean(observed_default),
+    .groups = "drop"
+  ) |>
+  ungroup()
+
+calibration_models |>
+  mutate(
+    average_predicted_pd = round(average_predicted_pd, 4),
+    observed_default_rate = round(observed_default_rate, 4)
+  )
+```
+
+The interpretation is direct. If the average predicted probability and the observed default rate are close within each decile, the model is reasonably calibrated for that part of the risk distribution. If the observed default rate is systematically above the predicted probability, the model is underestimating credit risk. If the observed default rate is systematically below the predicted probability, the model is overestimating credit risk.
+
+We can visualize the same idea. The dashed line represents perfect calibration. Points close to the dashed line indicate that predicted probabilities and observed default rates are similar. Points far from the dashed line indicate calibration problems. We use the same colors as in the ROC figure: blue for the full model and orange for the age model.
+
+```{r}
+#| label: fig-calibration-models
+#| fig-cap: "Calibration by decile: full model in blue, age model in orange."
+ggplot(calibration_models,
+       aes(x = average_predicted_pd, y = observed_default_rate,
+           color = model)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed",
+              color = "gray50") +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("logi_full" = "blue", "logi_age" = "orange")) +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Average predicted probability of default",
+       y = "Observed default rate",
+       color = "Model") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+The Brier score gives us a compact numerical summary of probability prediction error. It is the average squared distance between the predicted probability and the observed outcome, where the observed outcome is 1 for default and 0 for no default:
+
+$$
+\text{Brier score} =
+\frac{1}{n}\sum_{i=1}^{n}(\hat{p}_i - y_i)^2.
+$$
+
+A lower Brier score indicates better probability predictions. The measure is useful here because it evaluates the probabilities directly, before converting them into a binary accept/reject decision. The function `brier_score(actual, predicted_probability)` implements the formula directly: `actual` is $y_i$, `predicted_probability` is $\hat p_i$, and `mean((predicted_probability - actual)^2)` is the average squared error.
+
+```{r Brier score}
+brier_score <- function(actual, predicted_probability) {
+  mean((predicted_probability - actual)^2)
+}
+
+actual_default <- as.numeric(as.character(test$loan_st))
+constant_pd <- rep(mean(actual_default), length(actual_default))
+
+brier_results <- data.frame(
+  model = c("logi_full", "logi_age", "constant default rate"),
+  brier_score = c(
+    brier_score(actual_default, pred_logi_full),
+    brier_score(actual_default, pred_logi_age),
+    brier_score(actual_default, constant_pd)
+  )
+)
+
+baseline_brier <- brier_results$brier_score[
+  brier_results$model == "constant default rate"
+]
+brier_results$brier_skill <- 1 - brier_results$brier_score / baseline_brier
+
+brier_results
+```
+
+The constant default-rate model is a simple benchmark: it assigns the same probability of default to every applicant, equal to the observed default rate in the test set. A useful probability model should improve on that benchmark. The Brier skill score expresses this improvement relative to the benchmark:
+
+$$
+\text{Brier skill} =
+1 - \frac{\text{Brier score of the model}}
+{\text{Brier score of the benchmark}}.
+$$
+
+A value close to 0 means the model is barely improving on the constant default-rate benchmark; a positive value means the model reduces probability error relative to that benchmark. In code, `baseline_brier` is the denominator and `1 - brier_results$brier_score / baseline_brier` is the Brier skill calculation. The Brier score is not a pure calibration test because it also rewards models that separate high-risk and low-risk applicants, but it is a convenient way to summarize whether the predicted probabilities are numerically close to the observed default outcomes.
+
+In practice, discrimination and calibration answer complementary questions. AUC helps us decide whether the model ranks applicants in a useful way. Calibration helps us decide whether the estimated probabilities can be interpreted as realistic probabilities of default. A lending strategy can benefit from both: ranking is useful for deciding whom to accept or reject, while calibration is useful for pricing, provisioning, stress testing, and communicating the meaning of a predicted probability.
 
 Sensitivity refers to the model's ability to correctly identify defaults, also known as true positives. Specificity, on the other hand, measures the model's ability to correctly identify non-default loans, also referred to as true negatives. In practical terms, a highly sensitive model minimizes the risk of missing actual defaults, ensuring that loans likely to fail are identified and rejected. However, an extreme focus on sensitivity can lead to over-rejection, where many creditworthy applicants are misclassified as high risk. This conservative approach reduces potential defaults but can severely limit revenue, harming the firm's profitability and growth.
 
@@ -320,7 +518,7 @@ plot(ROC_perfect)
 auc(ROC_perfect)
 ```
 
-In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identify defaults (100% sensitivity) and at the same time the model correctly identify no-defaults (100% specificity).
+In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identifies defaults (100% sensitivity) and at the same time correctly identifies no-defaults (100% specificity).
 
 Edward Malthouse explains these concepts quite well:
 

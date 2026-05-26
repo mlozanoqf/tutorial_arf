@@ -18,6 +18,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   backToTopButton.addEventListener("click", function () {
+    if (window.location.hash && window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+
     window.scrollTo({
       top: 0,
       behavior: "smooth"

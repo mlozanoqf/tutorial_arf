@@ -4,12 +4,12 @@
 source("R/merton-common.R")
 ```
 
-Let's go back to our main example and assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15.
+Let's go back to our main example and assume the daily evolution of the market value of the firm assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,...,T$. The reference of this section is [@Hull] Chapter 14 and 15. Because this section is connected to the valuation formula, the simulations use the risk-neutral drift $rf$. They are not forecasts under the firm's real expected return; they are simulations under the same risk-neutral world used to value the equity option.
 
 ```{r}
 #| label: fig-so10pota
 #| fig-cap: "Simulation of 10 paths of the assets."
-# Merton assumes V follows a geometric Brownian motion process.
+# For valuation, Merton assumes V follows a risk-neutral GBM process.
 V0.sim <- function(i) {  # the argument i is not used here.
   GBM(N = 365, T = 1, t0 = 0, x0 = V0, theta = 0.05, sigma = sv) }
 set.seed(3) # Reproducibility  
@@ -26,7 +26,7 @@ points(rep(366, 2), paths[366, paths[366, ] < 10],
        pch = 1, cex = 1.5, col = "red")
 ```
 
-These simulations can be interpreted as the evolution of the value of the firm's assets in 10 parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
+These simulations can be interpreted as the evolution of the value of the firm's assets in 10 risk-neutral parallel universes. In the past, some students have called this figure *la gráfica de los pelitos*, this is OK as long as you understand the figure implications. The right name is 10 simulated geometric Brownian motion processes under the risk-neutral measure. Let's count the cases in which $V_t<D$ note that here I use $t$ and not $T$, so we are counting the cases in which at least at some time $t$ the value of the assets were lower than 10. 
 
 ```{r}
 # Which path went lower than D?
@@ -46,13 +46,13 @@ abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
 
-The blue path was lower than 10 at some time, but at $t=T$ it is clearly higher than 10. For this reason, the blue path does not represent a firm's default. See how the assets are not high enough to pay the debt at maturity only in two cases: green and red. Thus, according to this simulation the probability of default is 20%. Here is how we can calculate the cases in which $V_T<D$.
+The blue path was lower than 10 at some time, but at $t=T$ it is clearly higher than 10. For this reason, the blue path does not represent a firm's default. See how the assets are not high enough to pay the debt at maturity only in two cases: green and red. Thus, according to this risk-neutral simulation the probability of default is 20%. Here is how we can calculate the cases in which $V_T<D$.
 
 ```{r}
 sum(paths[366,] < 10) / 10
 ```
 
-The probability of default of 20% can be disappointing because it is significantly higher than 12.693963%. This is because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
+The simulated risk-neutral probability of default of 20% can be disappointing because it is significantly higher than 12.693963%. This is because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
 
 Here are 100 simulated paths of $V_0$ to $V_T$.
 
@@ -69,7 +69,7 @@ abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
 
-Given the simulation above, the probability of default is 17%. This is closer to 12.693963%.
+Given the simulation above, the simulated risk-neutral probability of default is 17%. This is closer to 12.693963%.
 
 ```{r}
 sum(paths[366,] < 10) / 100
@@ -107,7 +107,7 @@ abline(h = D, col = "red", lwd = 2)
 points(1, V0, pch = 19, cex = 1.5, col = "blue")
 ```
 
-Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 ([@Hull]). Note that instead of drawing the complete paths, we can directly get the distribution of $V_T$. The resulting distribution is log-normal.
+Here are 100,000 simulated $V_T$ showed in a histogram. The reference for this section is 15.1 ([@Hull]). Note that instead of drawing the complete paths, we can directly get the risk-neutral distribution of $V_T$. The resulting distribution is log-normal.
 
 ```{r}
 #| label: fig-ho1votaam
@@ -123,21 +123,21 @@ plot(h, main = NULL, col = c("red", "blue")[ccat],
      xlab = "Value of the assets at maturity", xlim = c(4, 30))
 legend("topright", 
 legend = c("The red area is 12.657%, and represents
-the simulated probability of default.
-The probability of default of the model
+the simulated risk-neutral probability of default.
+The risk-neutral probability of default of the model
 following the textbook example is 
 N(-d_2)=12.69396%. As we can see,
 both are very close."),
 col = c("red", "blue"), pch = c(19), bg = "white", bty = "n", cex = 0.8)
 ```
 
-The probability of default can be calculated as:
+The simulated risk-neutral probability of default can be calculated as:
 
 ```{r}
 sum(VT < 10) / 100000
 ```
 
-Note that 0.12657 is now much closer than 0.12693963. Convergence achieved.
+Note that 0.12657 is now much closer than the model value 0.12693963. Convergence achieved.
 
 This firm can be represented as an European call option payoff. The payoff of a typical stock option is $c=max(S_T-K, 0)$ or equivalently in terms of Merton's model: $E_T=max(V_T-D, 0)$.
 
@@ -156,7 +156,7 @@ in 12.657% of the
 bg = "white", bty = "n", cex = 0.9)
 ```
 
-This diagram show the firm's market values in the future at maturity. This is because the $E_T$ is a function of $V_T$ and $D$. As long as $V_T<D$, then the value of $E_T=0$. Otherwise, the value of $E_T= V_T-D$, just as the accounting equation suggest but in future terms. Note that the Merton's model says nothing about the estimated value of $E_T$, instead we have an estimate about how likely is that $V_T<D$, or in other words how likely is that $E_T<0$.
+This diagram show the firm's market values in the future at maturity. This is because the $E_T$ is a function of $V_T$ and $D$. As long as $V_T<D$, then the value of $E_T=0$. Otherwise, the value of $E_T= V_T-D$, just as the accounting equation suggest but in future terms. Note that the Merton's model says nothing about the estimated value of $E_T$, instead we have a risk-neutral estimate about how likely is that $V_T<D$, or in other words how likely is that $E_T<0$.
 
 Then, we know that $E_T= max(V_T-D, 0)$. The Black-Scholes-Merton formula can also estimate the theoretical value of $E_0$. This is, if the observable market value given by the market capitalization available in any financial site is $E_0=3$, we can retrieve the theoretical value of $E_0$ so we can compare whether the firm observable market value is over or undervalued. In other words, the Black-Scholes-Merton model can give us an estimate of the firm value. In particular, the model gives the value of the equity today as:
 

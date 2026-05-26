@@ -4,7 +4,9 @@
 source("R/merton-packages.R")
 ```
 
-Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the probability of default $pd$ among other interesting results.
+Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the Merton risk-neutral probability of default $pd$ among other interesting results.
+
+The risk-free rate appears here because equation 24.3 is a valuation equation. We are not assuming that the firm's assets truly earn the risk-free rate in the real world. We are valuing equity under the risk-neutral measure, which is the same logic used to price a European call option. In that artificial valuation world, default is still the event $V_T < D$. After estimating $V_0$ and $\sigma_V$, we will write the risk-neutral probability of that event as $N(-d_2)$.
 
 These are the known parameters.
 
@@ -39,17 +41,17 @@ kable(data.frame("Market value" = V0,
       caption = "Assets.")
 ```
 
-Calculate the probability of default $N(-d_2)$ as a function of $V_0$ and $\sigma_V$.
+Calculate the Merton risk-neutral probability of default as a function of $V_0$ and $\sigma_V$. In Hull's notation, this probability is $N(-d_2)$. The next paragraphs unpack what that notation means.
 
 ```{r}
 PD <- function(V0, sv) { 
   pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) / 
              (sv * sqrt(TT))) - sv * sqrt(TT))) }
-# Calculate the probability of default given the previous parameters.
+# Calculate the risk-neutral probability of default given the previous parameters.
 pd <- PD(V0, sv)
 pd
 ```
-The probability of default is 12.69396%.
+The risk-neutral probability of default is 12.69396%. This number is market-implied by the option-pricing structure of the model. It should not be read as a direct historical frequency unless we add a separate calibration from risk-neutral probabilities to real-world probabilities.
 
 Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
 
@@ -63,13 +65,48 @@ ans <- data.frame(d1, Nd1, d2, Nd2)
 ans
 ```
 
+Before connecting this result with the figure, unpack the notation. The symbol $N(\cdot)$ means the cumulative standard normal distribution. In plain words, $N(x)$ is the area to the left of $x$ under the standard normal curve. The value $d_2$ comes from the Black-Scholes-Merton formula. In this chapter, we do not need to treat $d_2$ as mysterious: it is the cutoff that separates survival from default after the model writes future asset values in standard normal units.
 
-Now, let's illustrate how $N(-d_2)$ lead to the probability of default given the properties of a standard normal distribution.
+The red default area will be $N(-d_2)$, the area to the left of $-d_2$. The green survival area is the rest of the curve. Because the standard normal distribution is symmetric, that survival area is $1-N(-d_2)=N(d_2)$.
 
+Now we can bring back the generic risk-neutral example. In the simple one-period example, the artificial probability $q=0.80$ was the pricing weight of the survival branch, and $1-q=0.20$ was the pricing weight of the default branch. In the Merton model, there are not only two branches. There is a continuous distribution of possible future asset values $V_T$. The numbers are different because this is now the Hull/Merton example, but the interpretation is the same:
+
+| One-period example | Merton model |
+|---|---|
+| Survival branch | Region where $V_T>D$ |
+| Default branch | Region where $V_T<D$ |
+| Survival pricing weight: $q=0.80$ | Survival pricing weight: $N(d_2)=0.8730604$ |
+| Default pricing weight: $1-q=0.20$ | Default pricing weight: $N(-d_2)=0.1269396$ |
+
+This is why the 12.69396% probability should be read as a risk-neutral default weight. It is the continuous-model version of the bad branch in the generic example.
+
+Now, let's illustrate how $N(-d_2)$ leads to the risk-neutral probability of default given the properties of a standard normal distribution.
+
+This is the continuous version of the one-period example. In the one-period example, there was only one default branch, so the risk-neutral probability of default was simply $1-q$. In Merton, there is not just one bad branch. There is a full range of possible values for $V_T$, and every value below $D$ is a default state.
+
+The model converts the default condition into standard normal units. In asset-value terms, default is:
+
+$$
+V_T<D.
+$$
+
+In standardized normal terms, the same event is:
+
+$$
+Z<-d_2.
+$$
+
+This is only a change of scale. Instead of looking at future assets in units of money, we look at the same event in standard normal units. In our example, $d_2$ is positive, so default is the left-tail event $Z<-d_2$. Therefore:
+
+$$
+P^Q(V_T<D)=P^Q(Z<-d_2)=N(-d_2).
+$$
+
+Figure @fig-trartpod shows exactly this area in red. The red area is the continuous-model equivalent of the bad branch in the one-period example.
 
 ```{r}
 #| label: fig-trartpod
-#| fig-cap: "The red area represents the probability of default."
+#| fig-cap: "The red area represents the risk-neutral probability of default."
 xseq <- seq(-4, 4, 0.01) 
 densities <- dnorm(xseq, 0, 1) # Standard normal distribution.
 # Graphical evaluation of N(-d_2).
@@ -198,7 +235,7 @@ ans <- data.frame(market_value_debt, pv_promised_payment_debt,
 kable(t(ans), caption = "Other results in the Merton's model.")
 ```
 
-Could we figure out the implied bond yield spread? It would be similar to the fair interest rate that this firm has to pay given its probability of default and recovery rate. Take Hull's equation 24.2 as a reference: $\lambda(T)=S(T)/(1-R)$ and solve for $S(T)$: $S(T)=\lambda(T)\times(1-R)$, so $S(T)=(0.12693963)\times(1-0.90350393)$. This is 122.4918 basis points more than the risk-free rate. Then, with five parameters we can calculate (among other things) the firm's probability of default and the correspondent yield spread of this firm's bond. It would be interesting to compare this value with the market yield spread and evaluate whether the market yield is over or underestimated according to our theoretical value. 
+Could we figure out the implied bond yield spread? It would be similar to the fair interest rate that this firm has to pay given its model-implied default risk and recovery rate. Take Hull's equation 24.2 as a reference: $\lambda(T)=S(T)/(1-R)$ and solve for $S(T)$: $S(T)=\lambda(T)\times(1-R)$, so $S(T)=(0.12693963)\times(1-0.90350393)$. This is 122.4918 basis points more than the risk-free rate. Then, with five parameters we can calculate (among other things) the firm's risk-neutral probability of default and the correspondent yield spread of this firm's bond. It would be interesting to compare this value with the market yield spread and evaluate whether the market yield is over or underestimated according to our theoretical value. 
 
 This is the spread function.
 

@@ -1,0 +1,109 @@
+## Interpreting XGBoost
+
+The main risk with XGBoost is not that it is impossible to inspect. The risk is that the model is easier to use than to understand. We therefore need several complementary views of the model. No single plot makes the model fully transparent, but together they help us understand what the model is using and how it behaves.
+
+The first view is feature importance. XGBoost can report which encoded variables are used most often and most effectively in the ensemble.
+
+```{r}
+#| label: fig-xgboost-importance
+#| fig-cap: "XGBoost feature importance."
+xgb_importance |>
+  slice_max(Gain, n = 12) |>
+  mutate(Feature = reorder(Feature, Gain)) |>
+  ggplot(aes(x = Gain, y = Feature)) +
+  geom_col(fill = "steelblue") +
+  labs(x = "Gain", y = "Feature") +
+  theme_minimal()
+```
+
+Gain measures how much a feature contributes to improving the model's splits. It does not mean that a feature has a positive or negative effect by itself. It only tells us that the model uses that feature to reduce prediction error. For direction and local interpretation, we need another tool.
+
+SHAP-style contributions provide a second view. For each observation, XGBoost can decompose the model score into contributions from the encoded variables plus a baseline term:
+
+$$
+F_i = \phi_0 + \sum_j \phi_{ij},
+\qquad
+\hat{p}_i = \frac{1}{1 + \exp(-F_i)}.
+$$
+
+The contributions $\phi_{ij}$ are on the model-score scale before the logistic transformation. A positive contribution increases the score and therefore pushes the prediction toward higher default risk; a negative contribution lowers the score and pushes the prediction toward lower default risk. In code, `xgb_shap <- predict(xgb_model, newdata = xgb_test, predcontrib = TRUE)` creates the contribution values. The `BIAS` column corresponds to $\phi_0$, and the other columns correspond to the feature contributions $\phi_{ij}$.
+
+```{r}
+#| label: fig-xgboost-shap-importance
+#| fig-cap: "Average absolute XGBoost contribution by feature."
+xgb_shap_importance |>
+  slice_max(mean_abs_shap, n = 12) |>
+  mutate(feature = reorder(feature, mean_abs_shap)) |>
+  ggplot(aes(x = mean_abs_shap, y = feature)) +
+  geom_col(fill = "darkorange") +
+  labs(x = "Mean absolute contribution", y = "Feature") +
+  theme_minimal()
+```
+
+This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. It still does not make XGBoost as simple as a logistic regression coefficient, but it helps identify the variables that materially affect predicted default probabilities.
+
+We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. The point is not that this single applicant validates the model. The point is to see how the different model classes translate the same borrower information into predicted default probabilities.
+
+```{r XGBoost John Doe predictions}
+john_doe_prediction_summary |>
+  mutate(across(where(is.numeric), ~ round(.x, 4)))
+```
+
+The table compares the full logistic model, the single tree, and XGBoost for the same applicant. All three values are probabilities of default, so they can be compared directly. What differs is the way each model arrives at that probability: the logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
+
+For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. In that narrow sense, the logistic model is the closest to the realized outcome because it assigns an almost zero probability of default. XGBoost also assigns a low probability of default, and the single tree assigns a somewhat higher but still modest probability. All three models point in the correct direction for this applicant, but this single case should not be used to declare a general winner. The model comparison must still be based on the full test set.
+
+For XGBoost, the local explanation follows the score equation introduced above:
+
+$$
+F_i = \phi_0 + \sum_j \phi_{ij},
+\qquad
+\hat p_i = \frac{1}{1 + \exp(-F_i)}.
+$$
+
+The next table verifies the mechanics. The baseline plus all feature contributions gives the XGBoost score $F_i$. Applying the logistic transformation to that score gives the same probability returned by `predict(xgb_model, ...)`.
+
+```{r XGBoost John Doe score reconstruction}
+john_xgb_score_summary |>
+  mutate(value = round(value, 4))
+```
+
+The largest local contributions for John Doe are:
+
+```{r XGBoost John Doe local contributions}
+john_xgb_contribution_table |>
+  mutate(contribution = round(contribution, 4))
+```
+
+A positive contribution increases John Doe's XGBoost score and therefore increases the predicted probability of default. A negative contribution lowers the score and therefore lowers the predicted probability of default. These values are not probability points; they are score-scale contributions before the logistic transformation. This is why the contribution table should be read together with the score reconstruction table.
+
+The third view is partial dependence. Here we change one variable at a time and average the model's predicted probability over the test set. This gives an approximate picture of how the model behaves as that variable changes, while the empirical distribution of the other variables is kept in the background.
+
+```{r}
+#| label: fig-xgboost-partial-dependence
+#| fig-cap: "Partial dependence of XGBoost predicted default probability."
+partial_dependence_data |>
+  mutate(
+    variable = recode(variable,
+                      "int" = "Interest rate",
+                      "income" = "Income",
+                      "age" = "Age")
+  ) |>
+  ggplot(aes(x = value, y = average_predicted_pd)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  facet_wrap(~ variable, scales = "free_x") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Variable value", y = "Average predicted default probability") +
+  theme_minimal()
+```
+
+Partial dependence should be read carefully. It is not a causal effect. It does not say that changing a borrower's age, income, or interest rate would mechanically cause the default probability to change by that amount. It says how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
+
+The interpretation strategy is therefore layered:
+
+1. Feature importance tells us what the model uses.
+2. SHAP-style contributions tell us what moves predictions.
+3. Partial dependence shows how predicted risk changes across selected variables.
+4. Calibration and performance metrics tell us whether the predictions behave well out of sample.
+
+This is the sense in which XGBoost can be made transparent by inspection, even though it is not transparent by construction like a logistic regression.

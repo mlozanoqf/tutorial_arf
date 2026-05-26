@@ -24,6 +24,7 @@ pd <- function(E0, se, rf, TT, D) {
   V0 <- V0_sv$par[1]
   sv <- V0_sv$par[2]
 
+  # Merton risk-neutral/implied probability: P_Q(V_T < D) = N(-d2).
   pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) /
     (sv * sqrt(TT))) - sv * sqrt(TT)))
 }

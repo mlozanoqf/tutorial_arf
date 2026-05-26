@@ -1,10 +1,12 @@
-## The probability of default as a function of some parameters
+## The risk-neutral probability of default as a function of some parameters
 
 ```{r merton-pd-parameters-setup, include=FALSE}
 source("R/merton-pd-function.R")
 ```
 
 Now we have a convenient function: $pd = f(E_0, \sigma_E, rf, T, D)$. Remember these five parameters are required to estimate $V_0$ and $\sigma_V$ before calculating $pd$.
+
+Throughout this section, $pd$ means the Merton risk-neutral/implied probability of default. The function changes one or two observable inputs, solves again for the unobservable $V_0$ and $\sigma_V$, and then recomputes $N(-d_2)$ under the risk-neutral distribution.
 
 ```{r}
 # Evaluate the case of the textbook example.
@@ -31,12 +33,12 @@ pd.se <- mapply(pd, E0, x.se, rf, TT, D)
 ```
 
 
-Let's plot the probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as the $E_0$ has 50 values from 1 to 20. By doing this, we end up with 50 values of the probability of default. 
+Let's plot the risk-neutral probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as the $E_0$ has 50 values from 1 to 20. By doing this, we end up with 50 values of the risk-neutral probability of default. 
 
 ```{r}
 #| label: fig-tpodaafoteaatz
-#| fig-cap: "The probability of default as a function of the equity at time zero."
-plot(x.E, pd.E, type = "l", ylab = "Probability of default", 
+#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero."
+plot(x.E, pd.E, type = "l", ylab = "Risk-neutral PD", 
      xlab = "Equity at time zero", lwd = 3, ylim = c(0, 0.15))
 lines(x.E, pd.E)
 abline(v = E0, lty = 2)
@@ -44,12 +46,12 @@ abline(h = pd1, lty = 2)
 points(E0, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-These relationships between the parameters and the probability of default are all non-linear. This is interesting because according to the model, the current levels of the parameters are important when deciding which parameter might lead to a high or low impact over the probability of default.
+These relationships between the parameters and the risk-neutral probability of default are all non-linear. This is interesting because according to the model, the current levels of the parameters are important when deciding which parameter might lead to a high or low impact over the model-implied probability of default.
 
 ```{r}
 #| label: fig-tpodaafotrfr
-#| fig-cap: "The probability of default as a function of the risk-free rate."
-plot(x.rf, pd.rf, type = "l", ylab = "Probability of default", 
+#| fig-cap: "The risk-neutral probability of default as a function of the risk-free rate."
+plot(x.rf, pd.rf, type = "l", ylab = "Risk-neutral PD", 
      xlab = "Risk-free rate", lwd = 3)
 abline(h = 0, lty = 2)
 abline(v = rf, lty = 2)
@@ -57,12 +59,12 @@ abline(h = pd1, lty = 2)
 points(rf, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Probability of default as a function of debt. Note that adding 1 or subtracting 1 unit of debt has different impact over the probability of default.
+Risk-neutral probability of default as a function of debt. Note that adding 1 or subtracting 1 unit of debt has different impact over the probability of default.
 
 ```{r}
 #| label: fig-tpodaafotd
-#| fig-cap: "The probability of default as a function of the debt."
-plot(x.D, pd.D, type = "l", ylab = "Probability of default", 
+#| fig-cap: "The risk-neutral probability of default as a function of the debt."
+plot(x.D, pd.D, type = "l", ylab = "Risk-neutral PD", 
      xlab = "Debt", lwd = 3, ylim = c(0, 0.15))
 abline(h = 0, lty = 2)
 abline(v = D, lty = 2)
@@ -70,12 +72,12 @@ abline(h = pd1, lty = 2)
 points(D, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Probability of default as a function of maturity. Note that asking for a higher debt maturity (as in a negotiation), do not lead to a lower probability of default if we keep the rest of the parameters unchanged in our firm. Imagine we arrange a meeting with the bank manager and we ask for more time to pay our debt. The bank manager should not (in principle) extend the debt maturity as long as we commit to do some changes in the firm. For example, we can negotiate a longer maturity and promise to increase the firm's equity.
+Risk-neutral probability of default as a function of maturity. Note that asking for a higher debt maturity (as in a negotiation), do not lead to a lower probability of default if we keep the rest of the parameters unchanged in our firm. Imagine we arrange a meeting with the bank manager and we ask for more time to pay our debt. The bank manager should not (in principle) extend the debt maturity as long as we commit to do some changes in the firm. For example, we can negotiate a longer maturity and promise to increase the firm's equity.
 
 ```{r}
 #| label: fig-tpodaafotdm
-#| fig-cap: "The probability of default as a function of the debt's maturity."
-plot(x.T, pd.T, type = "l", ylab = "Probability of default", 
+#| fig-cap: "The risk-neutral probability of default as a function of the debt's maturity."
+plot(x.T, pd.T, type = "l", ylab = "Risk-neutral PD", 
      xlab = "Maturity", lwd = 3)
 abline(h = 0, lty = 2)
 abline(v = TT, lty = 2)
@@ -83,12 +85,12 @@ abline(h = pd1, lty = 2)
 points(TT, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Probability of default as a function of the volatility of the equity $\sigma_E$.
+Risk-neutral probability of default as a function of the volatility of the equity $\sigma_E$.
 
 ```{r}
 #| label: fig-tpodaafote
-#| fig-cap: "The probability of default as a function of the volatility of the equity."
-plot(x.se, pd.se, type = "l", ylab = "Probability of default",
+#| fig-cap: "The risk-neutral probability of default as a function of the volatility of the equity."
+plot(x.se, pd.se, type = "l", ylab = "Risk-neutral PD",
      xlab = "Standard deviation of equity", lwd = 3)
 abline(h = 0, lty = 2)
 abline(v = se, lty = 2)
@@ -97,22 +99,22 @@ points(se, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
 
-In the previous plots we evaluate the probability of default function by changing one of the following parameters: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these five parameters. Note that $V_0$ and $\sigma_V$ do not remain fixed because they are at the same time a function of $E_0$, $\sigma_E$, $rf$, $T$ and $D$. Now, let's start by plotting the probability of default as a function of $E_0$ and $\sigma_E$.
+In the previous plots we evaluate the probability of default function by changing one of the following parameters: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these five parameters. Note that $V_0$ and $\sigma_V$ do not remain fixed because they are at the same time a function of $E_0$, $\sigma_E$, $rf$, $T$ and $D$. Now, let's start by plotting the risk-neutral probability of default as a function of $E_0$ and $\sigma_E$.
 
 One alternative is to evaluate the probability of default function 50 times by taking the 50 pairs of values of $E_0$ and $\sigma_E$. By doing that, we will end with three vectors of size 50 that we can plot as a three dimension scatter plot.
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoe
-#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity."
+#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity."
 ED <- mapply(pd, x.E, x.se, rf, TT, D)
 p.ED <- scatterplot3d(x.E, x.se, ED, pch = 16, type = "h", color = 1:50, 
                       angle = 100, xlab = "Equity at time zero", 
                       ylab = "Volatility of equity", 
-                      zlab = "Probability of default")
+                      zlab = "Risk-neutral PD")
 p.ED$points3d(E0, se, pd1, type = "h", col = "red", pch = 20, cex = 3)  
 ```
 
-The red point represent the case of the original textbook example in which $pd = f(E_0=3, \sigma_E=0.8,rf=0.05,T=1,D=10)=0.1269396$. Note that the red point is not part of the 50 plotted observations simply because there is no case in which the probability of default function is evaluated in $E_0=3, \sigma_E=0.8$. Although the plot above is not incorrect, it might be incomplete as we are not showing all possible values of the probability of default. One alternative to show a more complete plot is to evaluate all possible combinations of $E_0$ and $\sigma_E$ to evaluate the probability of default function. If we do that, we will have 50 values for $E_0$ and $\sigma_E$ that represent the $x$ and $y$ axis, and a $50 \times 50$ matrix containing the probability of default. This allows us to plot a surface plot and a contour plot.
+The red point represent the case of the original textbook example in which $pd = f(E_0=3, \sigma_E=0.8,rf=0.05,T=1,D=10)=0.1269396$. Note that the red point is not part of the 50 plotted observations simply because there is no case in which the probability of default function is evaluated in $E_0=3, \sigma_E=0.8$. Although the plot above is not incorrect, it might be incomplete as we are not showing all possible values of the risk-neutral probability of default. One alternative to show a more complete plot is to evaluate all possible combinations of $E_0$ and $\sigma_E$ to evaluate the probability of default function. If we do that, we will have 50 values for $E_0$ and $\sigma_E$ that represent the $x$ and $y$ axis, and a $50 \times 50$ matrix containing the risk-neutral probability of default. This allows us to plot a surface plot and a contour plot.
 
 ```{r}
 # Create the empty matrix.
@@ -127,7 +129,7 @@ Let's plot the results.
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoeaposv
-#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."
+#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."
 # Plot results.
 p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd", 
                xlab = "Equity at time zero", 
@@ -138,11 +140,11 @@ p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd",
 points(trans3d(E0, se, pd1, p.ED1), cex = 2, pch = 19, col = "blue")
 ```
 
-Now the plot becomes a plane. A contour plot simplify the reading of a three dimension plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the probability of default is represented by the contour lines. 
+Now the plot becomes a plane. A contour plot simplify the reading of a three dimension plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the risk-neutral probability of default is represented by the contour lines. 
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoeacv
-#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: A contour view."
+#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: A contour view."
 contour(x.E, x.se, p_E_se, xlab = "Equity at time zero", 
         ylab = "Volatility of equity", lwd = 2)
 points(E0, se, pch = 19, col = "blue", cex = 2)
@@ -165,12 +167,12 @@ for(i in 1 : l){ # Is there an easier way to do this?
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoeaiv
-#| fig-cap: "The probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."
+#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."
 plot_ly(type = "surface" , x = x.se, y = x.E , z = p_E_se ) %>%
 layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
        scene = list(xaxis = list(title = "Volatility of equity"), 
                     yaxis = list(title = "Market value of equity"), 
-                    zaxis = list(title = "Probability of default")))  %>%
+                    zaxis = list(title = "Risk-neutral PD")))  %>%
   hide_colorbar()
 #add_markers(y = 3, x = 0.8, z = 0.1269396, inherit = TRUE)
 ```

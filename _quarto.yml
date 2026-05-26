@@ -20,6 +20,7 @@ book:
     - text: "Credit Risk with R"
       href: index.qmd
     - 01-logistic.qmd
+    - 02-tree-based.qmd
     - 02-merton.qmd
     - 03-gaussian-copula.qmd
     - 04-cvar.qmd

@@ -2,7 +2,7 @@
 source("R/logistic-packages.R")
 ```
 
-## Explore the database
+## Data exploration and cleaning
 
 Let's load the data called <tt>`loan_data_ARF.rds`</tt> and then understand its structure before conducting any further analysis. This database is available [here](https://github.com/mlozanoqf/tutorial_arf/blob/main/loan_data_ARF.rds).
 
@@ -112,14 +112,14 @@ ggplot(dat, aes(income)) +
        x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
-The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (6,000,000). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these are valid observations or errors in the original dataset.
+The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (6,000,000). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these observations should remain in the analysis or whether they distort the visual and statistical summary of the rest of the sample.
 
 ```{r Extract the row of the high income individuals}
 high_income <- dat[(dat$income > 1000000), ]
 high_income
 ```
 
-One individual (ID 19486) is not only extremely wealthy but also 144 years old. As a result, I have decided to remove these nine observations. Data cleaning is a common task when working with large datasets, and it is acceptable as long as the integrity of the data remains intact.
+One individual (ID 19486) is not only extremely wealthy but also 144 years old. The age value is not credible, and the income values are extreme relative to the rest of the sample. In this book we continue with an analysis without these extreme observations. This is a discretionary cleaning criterion rather than a universal rule: in an applied project, we would document the decision and usually compare results with and without these observations.
 
 ```{r}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
@@ -139,7 +139,7 @@ ggplot(dat, aes(income)) +
 
 Somewhat better now.
 
-We could also explore some gender issues.
+We could also explore some gender-related summaries.
 
 ```{r Gender issues}
 summary_table <- dat |>
@@ -161,7 +161,7 @@ summary_table <- dat |>
 summary_table
 ```
 
-The table shows that females tend to have slightly higher average and median incomes compared to males. Additionally, the income distribution for females appears more variable, with a wider range of incomes. While the sample sizes for both groups are similar, females are slightly more represented. Overall, the data suggests a modest income advantage for females and greater variability in their earnings.
+The table shows that, in this dataset, observations labeled as female have slightly higher average and median incomes compared to observations labeled as male. The income distribution for females also appears more variable, with a wider range of incomes. This summary must be interpreted carefully: the `sex` variable was added for teaching purposes and should not be treated as evidence about gender and income in a real population. In applied credit risk work, variables related to protected characteristics, and variables that may proxy for them, require explicit legal, ethical, and fairness review before they are used in modeling or decision rules.
 
 The better we understand the data, the better positioned we are to analyze it, gain deeper insights into the problem, and interpret the solutions more effectively. However, there is a risk of falling into the trap of overexploration, losing sight of the main problem and failing to address the objectives. Data cleaning, for instance, can be an ongoing task. Removing outliers with excessively high incomes is just one example of how data cleaning can be approached. For now, we pause the exploration and cleaning process and move on to the next section, where we estimate models that will help us achieve the outlined objectives.
 

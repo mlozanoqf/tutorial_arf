@@ -1,0 +1,28 @@
+```{r include=FALSE}
+source("R/tree-models.R")
+```
+
+## The same credit scoring benchmark
+
+This chapter uses the same loan-level data set used in Chapter 1. The outcome is still `loan_st`, where 1 represents default and 0 represents no default. We also keep the same training and test split. This matters because model comparison is only meaningful when the models are evaluated on the same out-of-sample observations.
+
+The logistic benchmark is the `logi_full` model from Chapter 1. It uses age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The tree-based models will use the same information. The same warning from Chapter 1 applies: `sex` was added for teaching purposes, and protected characteristics or possible proxies require legal, ethical, and fairness review in applied credit decisions. The only thing that changes here is the way the model learns from those variables.
+
+In logistic regression, the model has a clear parametric form. A predictor changes the log-odds of default by a fixed amount, holding the other variables constant. Tree-based models are different. They split the data into regions. For example, a tree might first ask whether the interest rate is above a certain value, then ask whether grade is high or low, and then ask whether income is above a threshold. The prediction is built from a sequence of such rules.
+
+This makes tree-based models attractive for credit scoring because credit risk is often shaped by interactions. A high interest rate may be more concerning for one grade than for another. A loan amount may have a different meaning depending on income. A linear logistic model can include interactions, but the analyst has to specify them. A tree-based model can discover some of these interactions directly from the data.
+
+The comparison will use the same evaluation logic developed in Chapter 1:
+
+```{r Tree chapter model metrics preview}
+model_metrics |>
+  mutate(
+    auc = round(auc, 4),
+    brier_score = round(brier_score, 4),
+    brier_skill = round(brier_skill, 4)
+  )
+```
+
+The table is only a preview. We will return to these metrics after explaining how the tree-based models are built. For now, the important point is that the benchmark is fixed: same data, same outcome, same test set, and same business interpretation.
+
+There is also a methodological caveat. For teaching purposes, we keep the comparison compact and use the same test set to illustrate model behavior and business metrics. In a production workflow, tuning choices such as tree depth, learning rate, and number of boosting rounds should be selected with cross-validation or a validation set, leaving a final holdout test set for the last evaluation.

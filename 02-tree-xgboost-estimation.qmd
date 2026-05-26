@@ -1,0 +1,42 @@
+## Estimating an XGBoost model
+
+XGBoost requires a numerical matrix. This is why we use `model.matrix()`: it converts categorical variables such as `grade`, `home`, `sex`, and `region` into indicator variables, while keeping numerical variables such as `age`, `int`, `l_amnt`, and `income` in numerical form. This encoding step is important because it makes explicit what the algorithm receives as input. The mathematical object $x_i$ is represented in code by one row of `xgb_train_matrix` or `xgb_test_matrix`; the observed outcome $y_i$ is represented by `xgb_train_label` or `xgb_test_label`.
+
+```{r XGBoost design matrices}
+data.frame(
+  object = c("training matrix", "test matrix"),
+  rows = c(nrow(xgb_train_matrix), nrow(xgb_test_matrix)),
+  columns = c(ncol(xgb_train_matrix), ncol(xgb_test_matrix))
+)
+```
+
+The model was estimated with shallow trees and a moderate number of boosting rounds. We can inspect the training process by re-estimating the model at selected boosting rounds and calculating AUC on both the training and test sets.
+
+```{r}
+#| label: fig-xgboost-learning
+#| fig-cap: "XGBoost learning process: AUC over boosting rounds."
+ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("Train AUC" = "steelblue",
+                                "Test AUC" = "firebrick")) +
+  labs(x = "Boosting round", y = "AUC", color = "Series") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+The training curve helps us see whether the model is learning useful structure or merely memorizing the training data. If training AUC keeps increasing while test AUC stops improving or falls, the model may be overfitting. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
+
+The curve is a diagnostic, not an invitation to tune repeatedly on the test set. If we wanted to optimize XGBoost carefully, we would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
+
+```{r XGBoost prediction range}
+data.frame(
+  min_predicted_pd = min(pred_xgb),
+  median_predicted_pd = median(pred_xgb),
+  max_predicted_pd = max(pred_xgb),
+  auc = as.numeric(auc(ROC_xgb)),
+  brier_score = brier_score(actual_default_tree, pred_xgb)
+)
+```
+
+The XGBoost model returns predicted probabilities of default, just like the logistic model. In code, those probabilities are stored in `pred_xgb`; mathematically, they are the $\hat p_i$ values used by the same evaluation equations from Chapter 1. Therefore, all the credit-risk tools developed in Chapter 1 still apply: cutoffs, acceptance rates, bad rates, calibration, Brier score, and net payoff.

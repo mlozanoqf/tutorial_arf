@@ -295,8 +295,12 @@ body.book-sidebar-hidden #quarto-content {
 }
 
 #quarto-sidebar .book-sidebar-subsection-link.book-subsection-active {
+  background: var(--book-accent-soft);
+  border-radius: 4px;
+  box-shadow: inset 3px 0 0 var(--book-active-link);
   color: var(--book-active-link) !important;
   font-weight: 700;
+  padding-left: 0.5rem;
 }
 
 #title-block-header .quarto-title-breadcrumbs {

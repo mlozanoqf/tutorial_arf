@@ -1,4 +1,4 @@
-## Loan analysis
+## The credit scoring problem
 
 The main objective of this section is to predict whether a person or client applying for a loan will repay it or not. This issue can be considered a classification problem, where based on information about the client and the characteristics of their loan application, the client is classified into one of two categories: whether they will default or not. There are various ways to approach this classification problem; in this section, we will use a simple machine learning model called logistic regression. The model is first estimated or trained and then evaluated using new data to determine how well it performs the classification.
 

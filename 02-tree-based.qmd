@@ -1,0 +1,19 @@
+# Tree-based credit scoring
+
+The previous chapter built a transparent logistic-regression benchmark for credit scoring. This chapter keeps the same credit scoring problem, the same training and test split, and the same evaluation logic, but changes the model class. Instead of imposing a linear relationship on the log-odds of default, we now use tree-based models.
+
+The goal is not to replace interpretation with a black box. The goal is to understand what a tree-based model is doing, why it can capture patterns that a logistic model may miss, and how to compare it fairly against the logistic benchmark. We begin with a single decision tree, then move to gradient boosted trees through XGBoost, and finally compare the models using AUC, Brier score, calibration, bad rates, and net payoff.
+
+{{< include 02-tree-benchmark.qmd >}}
+
+{{< include 02-tree-single-tree.qmd >}}
+
+{{< include 02-tree-boosted-trees.qmd >}}
+
+{{< include 02-tree-xgboost-estimation.qmd >}}
+
+{{< include 02-tree-interpretation.qmd >}}
+
+{{< include 02-tree-comparison.qmd >}}
+
+{{< include 02-tree-gains-losses.qmd >}}

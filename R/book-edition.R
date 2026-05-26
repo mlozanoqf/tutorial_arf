@@ -73,8 +73,18 @@ book_js_string <- function(x) {
   paste0('"', x, '"')
 }
 
-book_time_label <- function(time) {
-  time <- as.POSIXlt(time)
+book_timezone <- function() {
+  timezone <- Sys.getenv("BOOK_TIMEZONE", unset = "America/Mexico_City")
+
+  if (!nzchar(timezone)) {
+    timezone <- "America/Mexico_City"
+  }
+
+  timezone
+}
+
+book_time_label <- function(time, tz = book_timezone()) {
+  time <- as.POSIXlt(time, tz = tz)
   month_names <- c(
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
