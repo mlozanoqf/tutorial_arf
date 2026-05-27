@@ -8,7 +8,7 @@ The previous chapters focused on one borrower at a time. A logistic model estima
 
 This chapter studies the Gaussian copula because it gives a practical answer to that portfolio question. The model starts with the marginal default probabilities of individual firms and combines them with a dependence structure. That combination lets us simulate which firms default together and how large the resulting portfolio loss can be. The final sections use a t-copula extension to show why tail dependence matters for capital.
 
-The starting point is Hull's discussion of default correlation in section 24.8, printed page 578 in the PDF used for this chapter. Hull's point is financial. Defaults tend to cluster because firms can share industries, countries, funding conditions, macroeconomic shocks, or direct business links. The Gaussian copula gives us a way to turn that idea into code.
+The starting point is Hull's discussion of default correlation in section 24.8 of [@Hull]. Hull's point is financial. Defaults tend to cluster because firms can share industries, countries, funding conditions, macroeconomic shocks, or direct business links. The Gaussian copula gives us a way to turn that idea into code.
 
 The chapter first rebuilds the inputs of Hull's Example 24.7 slowly. Cumulative default probabilities are converted into normal default thresholds. We then show why dependence matters with two firms, extend the simulation to ten firms, and connect correlated defaults to portfolio losses, tail risk, and credit capital.
 

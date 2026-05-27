@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-27
 
-This is the continuity note for the `tutorial_arf` repository. The project should be treated as a Quarto book, not as a tutorial. The rendered book is created in `_book`; that folder is generated output. The old root `index.html` and `index_files` are tracked historical render artifacts and should normally be restored after a full render if Quarto marks them as deleted.
+This is the continuity note for the `tutorial_arf` repository. The project should be treated as a Quarto book, not as a tutorial. The rendered book is created in `_book`; that folder is generated output.
 
 ## Current workflow
 
@@ -14,6 +14,7 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
   - Gaussian copula chapter: `quarto render 03-gaussian-copula.qmd`
 - Use full `quarto render` only before a publishing check, before commit/push, or when the user explicitly asks for the complete book.
 - The user inspects `_book/index.html` locally. Browser search and some behavior can differ under `file://`, but that is acceptable unless we need deeper browser QA.
+- Do not use root `index.html` or `Logistic.html` for content QA. They were legacy render artifacts from the old root-level build and were removed from version control on 2026-05-27. The GitHub Pages workflow renders and uploads `_book`.
 - Do not commit or push unless the user explicitly asks.
 
 ## Architecture
@@ -94,7 +95,7 @@ Current state:
 
 - On 2026-05-27, chapter 4 was substantially rebuilt from a general Gaussian-copula introduction into a portfolio credit-risk chapter.
 - The chapter title is now `The Gaussian copula model for portfolio credit risk`.
-- The chapter is anchored in Hull's discussion of default correlation in section 24.8, printed page 578 in the local PDF, and Hull Example 24.7. The old reference to Example 24.6 as the copula example was corrected; Example 24.6 is CVA, while Example 24.7 is the ten-firm Gaussian copula example.
+- The chapter is anchored in Hull's discussion of default correlation in section 24.8 of the 11th edition. Verified local page anchors: default correlation starts on p. 577, the Gaussian copula transformation and Example 24.7 are on pp. 579-580, and Credit VaR / Example 24.8 are on pp. 580-581. The old reference to Example 24.6 as the copula example was corrected; Example 24.6 is CVA, while Example 24.7 is the ten-firm Gaussian copula example.
 - The chapter's thesis says that individual PDs give marginal default risk, the copula adds dependence, and exposures plus recoveries convert dependent defaults into a portfolio loss distribution.
 - New chapter flow:
   - 4.1 Default correlation and the portfolio problem.
@@ -195,8 +196,8 @@ Relevant local source:
 
 - A full `quarto render` succeeded on 2026-05-26.
 - The render processed 7 inputs and created `_book/index.html`.
-- After the render, root `index.html` and `index_files` were restored to avoid generated deletion noise.
-- A later full `quarto render` also succeeded after the Merton block 4 coherence pass. It refreshed `_book/index.html` and all chapter pages so the shared sidebar anchors match the new Merton section titles. Root `index.html` and `index_files` were restored again after the render.
+- After the render, root `index.html` and `index_files` were restored to avoid generated deletion noise. This reflected the old repository state before the legacy root artifacts were removed.
+- A later full `quarto render` also succeeded after the Merton block 4 coherence pass. It refreshed `_book/index.html` and all chapter pages so the shared sidebar anchors match the new Merton section titles.
 - The main content batch was committed and pushed as `28bd579` (`Expand book chapters and Merton valuation notes`).
 - GitHub Actions/Pages failed after the push, but the push itself succeeded.
 - GitHub Status reported an active incident with Actions and Pages on 2026-05-26, including failures starting Actions runs and downloading actions from `codeload.github.com`.
@@ -208,6 +209,8 @@ Relevant local source:
 - The workflow can still fail while GitHub Actions/Pages is degraded, especially when downloading official actions such as `actions/configure-pages`.
 - On 2026-05-27, a complete local `quarto render` succeeded before publishing the Merton revision.
 - On 2026-05-27, another complete local `quarto render` succeeded after the chapter 4 copula/t-copula/Credit VaR revision and visual polish.
+- On 2026-05-27, the last confirmed good published version was `ac224d2` (`Revise copula chapter with tail risk`), which corresponds to visible `Publication: 90` on GitHub Pages. The live site is published from the workflow artifact `_book`, not from root `index.html`.
+- On 2026-05-27, legacy root render artifacts were removed from version control: `index.html`, `Logistic.html`, `index_files/`, `Logistic_files/`, and `libs/`. These files contained stale pre-book output and should not be restored unless the user explicitly asks to recover the old static render from history.
 - The latest published source commit before the chapter 4 revision was `8b3c0cc` (`Revise Merton chapter and reproducible outputs`), pushed to `origin/main` after the successful full render.
 - `Hull 11th.pdf` remains local and untracked. Do not commit it unless the user explicitly asks.
 

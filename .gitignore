@@ -40,3 +40,10 @@ vignettes/*.pdf
 
 /.quarto/
 /_book/
+
+# Legacy/generated HTML artifacts from the old root-level render.
+/index.html
+/index_files/
+/Logistic.html
+/Logistic_files/
+/libs/

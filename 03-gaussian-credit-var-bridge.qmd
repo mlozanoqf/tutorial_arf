@@ -258,7 +258,7 @@ credit_gaussian_capital <- credit_model_summary["Gaussian sim", "economic_capita
 credit_t4_capital <- credit_model_summary["t df = 4", "economic_capital_999"]
 ```
 
-The chapter now has all the pieces needed to make Credit VaR concrete. We have individual PDs, a dependence model, exposures, recoveries, a loss distribution, and tail-risk measures. Hull's next step after the Gaussian copula discussion, on page 578 of the eleventh edition, gives a compact large-portfolio approximation.
+The chapter now has all the pieces needed to make Credit VaR concrete. We have individual PDs, a dependence model, exposures, recoveries, a loss distribution, and tail-risk measures. Hull's Credit VaR section, section 24.9 of [@Hull], gives a compact large-portfolio approximation.
 
 The approximation applies to a large homogeneous portfolio. Each loan has the same one-year PD, the same recovery rate, and the same pairwise copula correlation. In a highly granular portfolio, borrower-specific noise largely diversifies away. Conditional on the common credit factor, the realized default fraction is close to the conditional default probability.
 
@@ -278,7 +278,7 @@ The formula uses the same objects as the copula simulation. $Q(T)$ is the margin
 
 The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $X$ corresponds to the factor quantile $N^{-1}(1-X)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-X)=N^{-1}(X)$.
 
-Hull's numerical example uses the following inputs.
+Hull's Example 24.8 uses the following inputs.
 
 ```{r}
 kable(
