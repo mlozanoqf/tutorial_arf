@@ -1,117 +1,114 @@
-## The basics
+## Default correlation and the portfolio problem
 
 ```{r gaussian-package-setup, include=FALSE}
 source("R/gaussian-common.R")
-threshold_six_months <- -2.5
-threshold_one_year <- -2
-pd_six_months <- pnorm(threshold_six_months)
-pd_one_year <- pnorm(threshold_one_year)
-density_extreme_4 <- dnorm(4)
+
+copula_input_table <- data.frame(
+  Object = c(
+    "$Q_i(T)$",
+    "$X_i$",
+    "$z_i(T)=N^{-1}(Q_i(T))$",
+    "$\\rho$",
+    "$EAD_i$",
+    "$R_i$",
+    "$LGD_i=1-R_i$"
+  ),
+  Code = c(
+    "`pd_cum`",
+    "simulated normal variable",
+    "`default_threshold <- qnorm(pd_cum)`",
+    "`rho`",
+    "`ead`",
+    "`recovery`",
+    "`lgd <- 1 - recovery`"
+  ),
+  Financial_role = c(
+    "Cumulative default probability of firm $i$ by horizon $T$.",
+    "Latent credit-quality state used by the copula.",
+    "Default boundary on the latent normal scale.",
+    "Copula correlation controlling how strongly firms move together.",
+    "Exposure at default measuring the amount at risk.",
+    "Fraction recovered after default.",
+    "Fraction lost after default."
+  )
+)
+names(copula_input_table) <- c("Object", "Code", "Financial role")
 ```
 
-In a finance-context, the variable $x$ represents a firm's future (unknown) performance measure that goes from $-4$ to $4$ in the horizontal axis. Strictly speaking, more extreme values of $x$ like $-\infty$ and $+\infty$ are theoretically possible but are very rare and happen quite infrequently at least in real-life situations. At the moment, we do not care too much about what kind of performance measure this is, it could be liquidity for example, solvency, or any other that it is normalized to have values between $-4$ and $4$. In a statistics-context, we can think that $x$ is equivalent to the so-called $z$-score in the context of the standardized normal distribution function.
+Hull introduces default correlation before introducing the Gaussian copula model. That order matters. The financial problem is portfolio co-default, where several borrowers can fail in the same bad state of the world.
+
+Defaults cluster for economic reasons. Firms in the same industry can be exposed to the same demand shock. Firms in the same country can be affected by the same interest-rate, exchange-rate, or funding shock. A large default can also weaken suppliers, customers, banks, or other connected firms. This dependence leaves diversification incomplete even when a portfolio contains many borrowers.
+
+The Gaussian copula model gives us a practical simulation machine for this problem. It takes individual default probabilities as inputs, adds a dependence structure, and produces simulated portfolio default events. Once we know which firms default in each simulation, we can add exposures and recoveries to obtain a loss distribution.
 
 ```{r}
-#| label: fig-sndf
-#| fig-cap: "Standard normal distribution function."
-# The standard normal distribution function is: y = f(x).
-x <- seq(-4, 4, 0.001) # First define x.
-y <- 1 / sqrt(2 * pi) * exp(-x ^ 2 / 2) # Define y as a function of x.
-# Now plot.
-plot(x, y, type = "l", lwd = 3, col = "blue" ,
-     ylab = "Standard normal density function: dnorm(x)")
-abline(h = 0, lty = 2)
+#| label: fig-copula-credit-risk-pipeline
+#| fig-cap: "Gaussian copula workflow for portfolio credit risk."
+#| fig-width: 9
+#| fig-height: 1.35
+old_par <- par(mar = c(0.1, 0.2, 0.1, 0.2))
+plot.new()
+plot.window(xlim = c(0, 1), ylim = c(0.35, 0.65))
+
+box_x <- c(0.14, 0.38, 0.62, 0.86)
+box_labels <- c(
+  "Individual\nPDs",
+  "Copula\ncorrelation",
+  "Simulated\ndefaults",
+  "Portfolio\nloss distribution"
+)
+box_width <- 0.18
+box_height <- 0.22
+
+for (i in seq_along(box_x)) {
+  rect(
+    box_x[i] - box_width / 2, 0.5 - box_height / 2,
+    box_x[i] + box_width / 2, 0.5 + box_height / 2,
+    col = "#F4F8FB", border = "#2C7FB8", lwd = 2
+  )
+  text(box_x[i], 0.5, box_labels[i], cex = 0.95)
+}
+
+arrows(
+  box_x[-length(box_x)] + box_width / 2 + 0.015, 0.5,
+  box_x[-1] - box_width / 2 - 0.015, 0.5,
+  length = 0.08, lwd = 2, col = "#555555"
+)
+par(old_par)
 ```
 
-The copula model, including the Gaussian, considers that the future firm performance measure $x$ in the horizontal axis is related with the firm's probability of default (from 0 to 1, or 0% to 100%) represented by the value of the cumulative density function <tt>`pnorm()`</tt> of the normal distribution. 
+The workflow separates three objects. Marginal default risk gives each firm its own cumulative default probability, denoted $Q_i(T)$. Dependence enters through the copula correlation $\rho$, which controls how much the latent credit-quality variables move together. Loss severity comes from exposures and recoveries, which convert default events into money losses.
 
-Assume the firm will default in six months as long as the firm performance $x$ in six months is lower than a given threshold: $\bar{x}=`r threshold_six_months`$. The threshold $\bar{x}=`r threshold_six_months`$ in the Gaussian copula model is equivalent to the $-d_2$ in the Merton model. Then, the six months firm's probability of default in math notation is $N(`r threshold_six_months`)$, or <tt>pnorm(`r threshold_six_months`) = `r fmt_num(pd_six_months, 9)`</tt> in R code, which is very low as it is close to 0. It is the red area below, which is `r fmt_pct(pd_six_months, 2)` of the 100% possible area under the curve.
+This separation is why copulas are useful in credit risk. We can hold each firm's default probability fixed and change only the dependence assumption. When the tail of the loss distribution changes, joint default behavior drives that change.
 
 ```{r}
-# Useful to construct next plots.
-D <- dnorm(x) 
-P <- pnorm(x)
+kable(
+  copula_input_table,
+  caption = "Objects used in the Gaussian copula credit-risk workflow.",
+  escape = FALSE
+)
 ```
 
-```{r}
-#| label: fig-smpod
-#| fig-cap: "Six months probability of default."
-plot(x, D, type = "l", lwd = 3, col = "blue" , 
-     ylab = "Standard normal density function: dnorm(x)")
-abline(h = 0, lty = 2)
-abline(v = threshold_six_months, lty = 2)
-polygon(c(x[x < threshold_six_months], threshold_six_months),
-        c(D[x < threshold_six_months], 0), col = "red")
-```
+One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the latent normal variables $X_i$ and $X_j$. The sample correlation between the default indicators $D_i$ and $D_j$ is a derived quantity, where $D_i$ is 1 after default and 0 otherwise. The indicator correlation depends on both $\rho$ and the default threshold. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
 
-Now assume the firm will default in one year as long as the firm performance $x$ in one year is lower than a higher given threshold: $\bar{x}=`r threshold_one_year`$. Then, the one year probability of default is $N(`r threshold_one_year`)$ or <tt>pnorm(`r threshold_one_year`) = `r fmt_num(pd_one_year, 9)`</tt> which is still low but higher than the six months probability of default. Note that the new red area is `r fmt_pct(pd_one_year, 2)`.
+We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula works with a latent standard normal variable $X_i$. The default threshold is
 
-```{r}
-#| label: fig-oypod
-#| fig-cap: "One year probability of default."
-plot(x, D, type = "l", lwd = 3, col = "blue" , 
-     ylab = "Standard normal density function: dnorm(x)")
-abline(h = 0, lty = 2)
-abline(v = threshold_one_year, lty = 2)
-polygon(c(x[x < threshold_one_year], threshold_one_year),
-        c(D[x < threshold_one_year], 0), col = "red")
-```
+$$
+z_i(T)=N^{-1}(Q_i(T)).
+$$
 
-At the moment, we have not discussed how to estimate the threshold values $\bar{x}$. However, we can say that the Gaussian copula model assumes that the probability of default increases as time passes. As if the firm will eventually default in the future. The six month probability of default `r fmt_pct(pd_six_months, 2)` is low because it is not very likely that the future firm performance lies below `r threshold_six_months` in six months. The one year probability of default `r fmt_pct(pd_one_year, 2)` is a bit higher because it is more likely that the future firm performance lies below `r threshold_one_year` in one year.
+The simulation rule is then
 
-Then, the <tt>`pnorm()`</tt> R function allows us to transform threshold values $\bar{x}$ into a probabilities of default. Transform probabilities into $\bar{x}$ is also possible as the function <tt>`qnorm()`</tt> is the inverse of <tt>`pnorm()`</tt>. 
+$$
+\text{firm } i \text{ defaults by } T
+\quad \Longleftrightarrow \quad
+X_i \leq z_i(T).
+$$
 
-From $\bar{x}$ to probabilities:
+This rule is constructed so that the marginal default probability is preserved.
 
-```{r}
-pnorm(threshold_six_months)
-pnorm(threshold_one_year)
-```
-From probabilities to $\bar{x}$:
+$$
+P(X_i \leq z_i(T))=P(X_i \leq N^{-1}(Q_i(T)))=Q_i(T).
+$$
 
-```{r}
-qnorm(pd_six_months)
-qnorm(pd_one_year)
-```
-Nice.
-
-The function <tt>`dnorm()`</tt> is relevant when we implement a graphical approach because it represents how frequent (or how likely) these values are given the standard normal distribution, so in both extreme values of $x$ the value of <tt>`dnorm()`</tt> is low. Here, extreme values of $x$ can be represented by $-4$ and $4$. This function delivers the height of the standard normal distribution, <tt>dnorm(4) = `r fmt_num(density_extreme_4, 10)`</tt>, and <tt>dnorm(-4) = `r fmt_num(dnorm(-4), 10)`</tt>. Given that the standard normal function is symmetrical, we have that in general: <tt>`dnorm(-x)=dnorm(x)`</tt>. The letter $d$ in <tt>`dnorm()`</tt> stands for density and it is maximum at $x=0$. When plotting the density values we get the bell-shaped normal curve. 
-
-See how these <tt>`pnorm()`</tt>, <tt>`qnorm()`</tt>, <tt>`dnorm()`</tt> R functions work and relate:
-
-```{r}
-# Here, x has 11 values only.
-x.summary <- c(-Inf, -4:4, Inf) # vector of x values to evaluate functions.
-ans <- data.frame(x.summary, dnorm(x.summary), 
-                  pnorm(x.summary), qnorm(pnorm(x.summary)))
-colnames(ans) <- c("x", "dnorm(x)=height", "pnorm(x)=pd", "qnorm(pd)=x")
-kable(ans, caption = "Review of standard normal distribution functions.", 
-      digits = 5)
-```
-
-You can type for example <tt>`?dnorm`</tt> in the RStudio console to see more details about this (and other) functions.
-
-Note that the only distribution function that we are currently analyzing is the standard normal (Gaussian) distribution function. A standard normal distribution function is the one that has mean 0 and variance 1. There are other copula models that assume other kinds of distributions. These other kinds of copulas are useful when we are interested in modeling cases in which extreme values are more likely to happen compared with the standard normal distribution. Understanding Gaussian copulas allows you to understand other more elaborated copulas.
-
-Instead of a density function, we can plot the cumulative probability distribution. Now, we do not need the $N(\cdot)$ function to compute the probability as the vertical axis already represents the probability of default.
-
-```{r}
-#| label: fig-thtxthtpod
-#| fig-cap: "The higher the x, the higher the probability of default."
-plot(x, P, type = "l", lwd = 3,
-     ylab = "Cumulative probability function: pnorm(x)", xlab = "x")
-abline(h = 0.5, lty = 2)
-abline(v = 0, lty = 2)
-```
-Both in the same plot.
-
-```{r}
-#| label: fig-cdapf
-#| fig-cap: "Cumulative density and probability functions."
-plot(x, P, type = "l", lwd = 3,
-     ylab = "pnorm(x) and dnorm(x)", xlab = "x")
-lines(x, D, type = "l", lwd = 3, col = "blue")
-abline(h = 0.5, lty = 2)
-abline(v = 0, lty = 2)
-```
-
+In R, the equation is exactly the pair `qnorm()` and `pnorm()`. The function `qnorm()` translates a given cumulative PD into a normal threshold. The function `pnorm()` checks that the threshold reproduces the same cumulative PD.

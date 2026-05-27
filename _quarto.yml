@@ -23,7 +23,6 @@ book:
     - 02-tree-based.qmd
     - 02-merton.qmd
     - 03-gaussian-copula.qmd
-    - 04-cvar.qmd
     - references.qmd
 
 bibliography: references.bib

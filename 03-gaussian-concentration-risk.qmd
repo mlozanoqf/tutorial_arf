@@ -1,0 +1,121 @@
+## Concentration risk with different exposure weights
+
+```{r gaussian-concentration-risk-setup, include=FALSE}
+source("R/gaussian-common.R")
+
+concentration_sims <- 100000
+concentration_n_firms <- 10
+concentration_rho <- 0.2
+concentration_total_ead <- 100e6
+concentration_recovery <- rep(0.40, concentration_n_firms)
+
+ead_equal <- rep(concentration_total_ead / concentration_n_firms, concentration_n_firms)
+ead_concentrated <- c(40e6, rep(60e6 / 9, 9))
+
+latent_concentration <- simulate_latent_credit(
+  n_sims = concentration_sims,
+  n_firms = concentration_n_firms,
+  rho = concentration_rho,
+  seed = 130575
+)
+defaults_concentration <- make_default_matrix(latent_concentration, default_threshold[5])
+
+loss_equal <- portfolio_losses(defaults_concentration, ead_equal, concentration_recovery)
+loss_concentrated <- portfolio_losses(defaults_concentration, ead_concentrated, concentration_recovery)
+
+concentration_summary_numeric <- rbind(
+  Equal_exposures = loss_risk_summary(loss_equal),
+  Concentrated_exposure = loss_risk_summary(loss_concentrated)
+)
+
+concentration_summary_table <- data.frame(
+  Portfolio = c("Equal exposures", "One large borrower"),
+  Largest_EAD = fmt_musd(c(max(ead_equal), max(ead_concentrated))),
+  Expected_loss = fmt_musd(concentration_summary_numeric[, "expected_loss"]),
+  VaR_99 = fmt_musd(concentration_summary_numeric[, "var_99"]),
+  VaR_99_9 = fmt_musd(concentration_summary_numeric[, "var_999"]),
+  ES_99 = fmt_musd(concentration_summary_numeric[, "es_99"]),
+  Economic_capital_99_9 = fmt_musd(concentration_summary_numeric[, "economic_capital_999"])
+)
+names(concentration_summary_table) <- c(
+  "Portfolio",
+  "Max EAD",
+  "EL",
+  "VaR 99%",
+  "VaR 99.9%",
+  "ES 99%",
+  "Capital 99.9%"
+)
+```
+
+The copula controls default dependence. Portfolio loss also depends on exposure concentration. To isolate this point, keep the same simulated default matrix, the same PDs, the same recovery rate, the same copula correlation, and the same total exposure. Change only the exposure weights.
+
+The comparison uses two portfolios.
+
+- **Equal exposures** with ten firms at $10 million each.
+- **One large borrower** with one firm at $40 million and nine firms sharing the remaining $60 million.
+
+Both portfolios have $100 million of total EAD. Since all firms have the same PD and recovery, expected loss is almost the same. Tail loss is not.
+
+```{r}
+kable(
+  concentration_summary_table,
+  caption = "Concentration risk with the same total exposure, PD, recovery, and copula correlation.",
+  escape = FALSE
+)
+```
+
+The reason is simple and important. In the equal-exposure portfolio, each default adds the same loss. In the concentrated portfolio, the default of the largest borrower creates a much larger loss jump. The default-count distribution is unchanged, while the loss distribution changes.
+
+```{r}
+#| label: fig-concentration-risk-losses
+#| fig-cap: "Same defaults and different exposure weights."
+old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+plot_concentration_hist <- function(losses, var_value, main, base_color) {
+  hist_object <- hist(
+    losses / 1e6,
+    breaks = seq(0, max(loss_concentrated) / 1e6 + 4, by = 4),
+    plot = FALSE
+  )
+  bar_color <- ifelse(
+    hist_object$mids >= var_value / 1e6,
+    adjustcolor("#C0392B", alpha.f = 0.90),
+    adjustcolor(base_color, alpha.f = 0.88)
+  )
+  plot(
+    hist_object,
+    col = bar_color,
+    border = "white",
+    main = main,
+    xlab = "Portfolio loss ($ millions)",
+    ylab = "Frequency"
+  )
+  abline(v = var_value / 1e6, col = "#7B241C", lwd = 3, lty = 2)
+  legend(
+    "topright",
+    legend = "99% VaR tail",
+    fill = adjustcolor("#C0392B", alpha.f = 0.90),
+    border = "white",
+    bg = "white",
+    box.col = "#CCCCCC"
+  )
+}
+
+plot_concentration_hist(
+  loss_equal,
+  concentration_summary_numeric["Equal_exposures", "var_99"],
+  "Equal exposures",
+  "#2C7FB8"
+)
+plot_concentration_hist(
+  loss_concentrated,
+  concentration_summary_numeric["Concentrated_exposure", "var_99"],
+  "One large borrower",
+  "#F39C12"
+)
+
+par(old_par)
+```
+
+This application moves from borrower-level PD to portfolio-level loss. A portfolio can have the same average credit quality and the same total exposure, while its tail-loss profile changes because the exposures are concentrated.

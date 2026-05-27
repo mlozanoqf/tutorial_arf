@@ -1,6 +1,6 @@
 # Book working notes for tutorial_arf
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 This is the continuity note for the `tutorial_arf` repository. The project should be treated as a Quarto book, not as a tutorial. The rendered book is created in `_book`; that folder is generated output. The old root `index.html` and `index_files` are tracked historical render artifacts and should normally be restored after a full render if Quarto marks them as deleted.
 
@@ -12,7 +12,6 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
   - Tree and XGBoost chapter: `quarto render 02-tree-based.qmd`
   - Merton chapter: `quarto render 02-merton.qmd`
   - Gaussian copula chapter: `quarto render 03-gaussian-copula.qmd`
-  - Credit VaR chapter: `quarto render 04-cvar.qmd`
 - Use full `quarto render` only before a publishing check, before commit/push, or when the user explicitly asks for the complete book.
 - The user inspects `_book/index.html` locally. Browser search and some behavior can differ under `file://`, but that is acceptable unless we need deeper browser QA.
 - Do not commit or push unless the user explicitly asks.
@@ -25,7 +24,8 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
 - Chapter 2 is `02-tree-based.qmd`: Tree-based credit scoring.
 - Chapter 3 is `02-merton.qmd`: The Merton model.
 - Chapter 4 is `03-gaussian-copula.qmd`: The Gaussian copula model.
-- Chapter 5 is `04-cvar.qmd`: Credit VaR.
+- Credit VaR is now handled inside chapter 4 as the final bridge/application section. There is no separate chapter 5 in the book flow.
+- Chapter 4 now includes a t-copula extension before the Credit VaR close, so the final application treats capital as sensitive to copula tail behavior.
 - Chapter files include smaller section fragments so content can be edited and rendered in focused passes.
 - Section numbering is enabled with hierarchical book numbering, so sections appear as 1.1, 1.2, etc., and figure numbers remain chapter-aware.
 - `sidebar-chapter-sections.html` adds collapsible subsection links under each chapter in the left sidebar.
@@ -39,6 +39,8 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
 - `.github/workflows/publish.yml` needs `actions/checkout` with `fetch-depth: 0` so publication count is stable in GitHub Actions.
 - The metadata labels should include `First publication:` with a colon.
 - The home page now includes an unnumbered `What's new in this edition` section. Keep it reader-facing and focused on substantive changes since the previous published version, not minor maintenance details.
+- The home page should not repeat the book title inside `index.qmd`; Quarto already renders the visible title. `Preface` should appear directly below the generated title area.
+- The `What's new in this edition` section should be a concise bullet list, not cards. The user prefers short reader-facing bullets over paragraph-length change descriptions.
 - The user observed a time difference between local and GitHub Pages dates. Prefer the local index timestamp as the reference if this comes up again.
 
 ## User preferences
@@ -52,6 +54,8 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
 - Use targeted renders during active editing to save time.
 - Inputs and teaching assumptions can be written directly, but values produced by code/model estimation/simulation should be computed in chunks or inline R and formatted with helpers from `R/format-helpers.R`.
 - The user prefers chapter 3 to have only two numbered section levels. Use `##` for numbered Merton sections and visual `.merton-subhead` blocks for internal labels; avoid `###` headings in Merton unless the user changes this preference.
+- Avoid repeatedly explaining by first negating a weak interpretation and then clarifying the intended one. State the intended logic directly whenever possible.
+- Avoid overusing colons in prose and section titles. Use complete sentences or cleaner headings unless a colon is genuinely useful.
 
 ## Chapter 1: Logistic credit scoring
 
@@ -83,6 +87,41 @@ Keep in mind:
 
 - The user likes XGBoost as a modern, visually rich, credit-risk-relevant contrast with logistic regression.
 - Avoid presenting XGBoost as a pure black box. Explain additive trees, margins/log-odds, probabilities, and local contributions.
+
+## Chapter 4: Gaussian copula portfolio credit risk
+
+Current state:
+
+- On 2026-05-27, chapter 4 was substantially rebuilt from a general Gaussian-copula introduction into a portfolio credit-risk chapter.
+- The chapter title is now `The Gaussian copula model for portfolio credit risk`.
+- The chapter is anchored in Hull's discussion of default correlation in section 24.8, printed page 578 in the local PDF, and Hull Example 24.7. The old reference to Example 24.6 as the copula example was corrected; Example 24.6 is CVA, while Example 24.7 is the ten-firm Gaussian copula example.
+- The chapter's thesis says that individual PDs give marginal default risk, the copula adds dependence, and exposures plus recoveries convert dependent defaults into a portfolio loss distribution.
+- New chapter flow:
+  - 4.1 Default correlation and the portfolio problem.
+  - 4.2 Hull Example 24.7 from cumulative PDs to thresholds.
+  - 4.3 One firm and the marginal default rule.
+  - 4.4 Two firms and joint defaults.
+  - 4.5 Ten firms in the Hull portfolio default simulation.
+  - 4.6 From correlated defaults to portfolio losses.
+  - 4.7 Concentration risk with different exposure weights.
+  - 4.8 Tail dependence with a t-copula.
+  - 4.9 Credit VaR under copula model risk.
+- New files added for the rebuilt chapter: `03-gaussian-example-247.qmd`, `03-gaussian-portfolio-losses.qmd`, `03-gaussian-concentration-risk.qmd`, `03-gaussian-t-copula.qmd`, and `03-gaussian-credit-var-bridge.qmd`.
+- `03-gaussian-example-246.qmd` was replaced by `03-gaussian-example-247.qmd`.
+- The old `04-cvar.qmd` chapter was removed from `_quarto.yml` and deleted after its useful content was absorbed into section 4.9. The book now goes from chapter 4 to references.
+- `R/gaussian-common.R` now contains reusable copula simulation helpers for correlation matrices, Gaussian and t-copula latent credit variables, default matrices, default-count summaries, portfolio losses, and loss-risk summaries.
+- `R/format-helpers.R` now includes `fmt_musd()` for formatting dollar millions.
+- `sidebar-chapter-sections.html` was updated to match the new chapter 4 section anchors.
+- A targeted render of `03-gaussian-copula.qmd` succeeded after adding sections 4.8 and 4.9. A full local `quarto render` also succeeded after the t-copula/Credit VaR model-risk addition.
+- A later chapter 4 visual pass corrected the custom sidebar labels for sections 4.8 and 4.9, added a zoomed threshold figure, improved default-region shading, made two-firm scatter panels square, and strengthened point/ tail colors in the portfolio figures.
+
+Keep in mind:
+
+- The user explicitly wants this chapter to avoid abstract copula exposition. Every equation should be tied to code and to a credit-risk interpretation.
+- Keep showing what changes numerically when dependence changes. Do not merely say that correlation affects risk.
+- The distinction between copula correlation of latent variables and correlation of default indicators is important and now stated in section 4.1.
+- The t-copula extension is now included because it has a clear financial payoff: same PD/EAD/LGD/correlation inputs can produce much larger tail capital under heavier joint tails.
+- Figure numbering in chapter 4 changed after adding the zoom figure. When discussing the visuals, refer to captions or source chunk labels rather than old figure numbers.
 
 ## Chapter 3: Merton model
 
@@ -167,11 +206,15 @@ Relevant local source:
   - `f445c55` removed third-party setup actions for R/Quarto and uses Chocolatey instead.
 - A later workflow run reached `quarto render` but failed at `01-logistic.qmd` while invoking Chocolatey's latest `R-4.6.0` with `The pipe is being closed`; local targeted render succeeded under `R-4.5.2`, so the workflow pins Chocolatey's `r.project` package to `4.5.2`.
 - The workflow can still fail while GitHub Actions/Pages is degraded, especially when downloading official actions such as `actions/configure-pages`.
+- On 2026-05-27, a complete local `quarto render` succeeded before publishing the Merton revision.
+- On 2026-05-27, another complete local `quarto render` succeeded after the chapter 4 copula/t-copula/Credit VaR revision and visual polish.
+- The latest published source commit before the chapter 4 revision was `8b3c0cc` (`Revise Merton chapter and reproducible outputs`), pushed to `origin/main` after the successful full render.
 - `Hull 11th.pdf` remains local and untracked. Do not commit it unless the user explicitly asks.
 
 ## Next session
 
-- Continue with the Merton chapter.
-- Merton block 4 has been completed. If continuing Merton, do a final reader pass only for style and flow, not another conceptual rewrite unless a specific weakness appears.
+- If context is lost after a Codex update, start by reading this file, checking `git status -sb`, and checking `git log -1 --oneline` to identify the latest pushed source commit.
+- Continue with chapter 4 only if the user asks for another visual/text pass. The current chapter 4 direction is portfolio credit risk, t-copula tail dependence, and Credit VaR model risk.
+- Continue with the Merton chapter only if the user asks for more Merton work. Merton block 4 has been completed; if continuing Merton, do a final reader pass only for style and flow, not another conceptual rewrite unless a specific weakness appears.
 - If GitHub Actions has recovered, re-run the latest failed workflow or trigger a new push.
 - Consider simplifying the publication workflow or adding a documented fallback for local publishing if Actions keeps being fragile.

@@ -1,205 +1,175 @@
-## Ten firms
+## Ten firms in the Hull portfolio default simulation
 
 ```{r gaussian-ten-firms-setup, include=FALSE}
 source("R/gaussian-common.R")
+
+portfolio_sims <- 100000
+n_firms_hull <- 10
+hull_horizon <- 5
+hull_threshold <- default_threshold[hull_horizon]
+hull_pd <- pd_cum[hull_horizon]
+hull_rho <- hull_example_247_rho
+rho_scenarios <- c(0, 0.2, 0.5)
+
+simulate_default_counts <- function(rho) {
+  latent <- simulate_latent_credit(
+    n_sims = portfolio_sims,
+    n_firms = n_firms_hull,
+    rho = rho,
+    seed = 130575
+  )
+  defaults <- make_default_matrix(latent, hull_threshold)
+  default_count <- rowSums(defaults)
+  list(
+    latent = latent,
+    defaults = defaults,
+    default_count = default_count,
+    events = summarize_default_events(defaults)
+  )
+}
+
+default_scenarios <- setNames(
+  lapply(rho_scenarios, simulate_default_counts),
+  paste0("rho_", rho_scenarios)
+)
+
+hull_default_count <- default_scenarios[[paste0("rho_", hull_rho)]]$default_count
+hull_distribution <- data.frame(
+  Defaults = 0:n_firms_hull,
+  Frequency = as.integer(tabulate(hull_default_count + 1, nbins = n_firms_hull + 1))
+)
+hull_distribution$Probability <- hull_distribution$Frequency / portfolio_sims
+
+event_summary_numeric <- do.call(rbind, lapply(default_scenarios, function(x) x$events))
+event_summary_table <- data.frame(
+  Copula_correlation = fmt_num(rho_scenarios, 1),
+  Expected_defaults = fmt_num(event_summary_numeric[, "expected_defaults"], 3),
+  P_no_default = fmt_pct(event_summary_numeric[, "no_default"], 2),
+  P_at_least_one = fmt_pct(event_summary_numeric[, "at_least_one"], 2),
+  P_three_or_more = fmt_pct(event_summary_numeric[, "three_or_more"], 2),
+  P_five_or_more = fmt_pct(event_summary_numeric[, "five_or_more"], 2),
+  P_all_ten = fmt_pct(event_summary_numeric[, "all_default"], 4)
+)
+names(event_summary_table) <- c(
+  "rho",
+  "E[defaults]",
+  "P(0)",
+  "P(>=1)",
+  "P(>=3)",
+  "P(>=5)",
+  "P(10)"
+)
+
+count_probability_matrix <- sapply(default_scenarios, function(x) {
+  as.numeric(tabulate(x$default_count + 1, nbins = n_firms_hull + 1)) / portfolio_sims
+})
+colnames(count_probability_matrix) <- paste0("rho = ", fmt_num(rho_scenarios, 1))
 ```
 
-The original @Hull example proposes a 10 firm case and here we implement this example following a simulation approach. First, we need a $10\times10$ correlation matrix to produce the new $x$ values using a random multi-variate distribution algorithm. According to @Hull example the copula default correlations between each pair of companies is 0.2. The code below has the option to vary the default correlation given a uniform random distribution.
+Hull's Example 24.7 moves from three ingredients to a portfolio simulation. The ingredients are ten firms, the same cumulative PD curve for every firm, and a common copula correlation of `r fmt_num(hull_rho, 1)` between every pair of latent variables.
 
-The new $10\times10$ correlation matrix is then:
+The correlation matrix is therefore exchangeable.
 
-```{r}
-# Create the correlation matrix.
-m <- 10 # number of firms.
-n <- 1000000 # number of simulations per firm.
-x <- matrix(rep(0.2, m * m), m, m) 
-ind <- lower.tri(x) 
-x[ind] <- t(x)[ind] 
-diag(x) = 1
-kable(x, caption = "Correlation matrix 0.2.")
-```
-Now, we can simulate the multivariate normal distribution. The variable <tt>`X10`</tt> length is `r fmt_int(n)` for each firm. We choose a higher number of simulations because otherwise the most restrictive constraints would not lead to any observations.
+$$
+\Sigma_{ii}=1,\qquad \Sigma_{ij}=\rho \quad \text{for } i\neq j.
+$$
+
+The R code creates the matrix.
 
 ```{r}
-# Create the simulated cases.
-set.seed(130575) # Reproducibility.
-X10 <- mvrnorm(n, mu = rep(0, m), Sigma = x)
-X10 <- data.frame(X10) # n simulated observations for 10 firms.
-colnames(X10) <- c("f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10")
-kable(head(X10),
-      caption = paste0("10 firms' performance, ",
-                       fmt_int(n), " simulations."),
-      digits = 3)
+n_firms_hull <- 10
+rho <- 0.2
+
+sigma <- matrix(rho, nrow = n_firms_hull, ncol = n_firms_hull)
+diag(sigma) <- 1
+kable(
+  sigma,
+  digits = 1,
+  caption = "Exchangeable correlation matrix for Hull Example 24.7."
+)
 ```
 
-How do we extract those cases in which all 10 firms will default in 5 years (at the same time)? Here are the first 6 of those cases. Note that in all cases the <tt>`X10`</tt> values are lower than $`r fmt_num(x.y[5], 6)`$.
+The simulation then creates one row per scenario and one column per firm.
 
 ```{r}
-# Given that we have 10 firms, it is easier to use filter_all function.
-# Although probably this could be simplified even further.
-y5.all.2 <- filter_all(X10, all_vars(. < x.y[5]))
-y4.all.2 <- filter_all(X10, all_vars(. < x.y[4])) 
-y3.all.2 <- filter_all(X10, all_vars(. < x.y[3])) 
-y2.all.2 <- filter_all(X10, all_vars(. < x.y[2])) 
-y1.all.2 <- filter_all(X10, all_vars(. < x.y[1])) 
-```
+portfolio_sims <- 100000
 
-Let's analyze the case of 5 years.
-
-```{r}
-kable(head(y5.all.2), 
-      caption = "Cases in which all 10 firms default in five years.", 
-      digits = 3)
-```
-
-```{r}
-kable((head(y5.all.2) < x.y[5]), caption = "Check if all of them default.")
-```
-
-How many cases are there?
-
-```{r}
-nrow(y5.all.2)
-```
-Which are those `r nrow(y5.all.2)` cases?
-
-```{r}
-# Here, I compare only firm 1 as if firm 1 defaults, then the rest default.
-kable(matrix(which(X10[,1] %in% y5.all.2[,1]), 6, 9), 
-      caption = paste0("Which of the ", fmt_int(n),
-                       " cases represent a default of all firms in five years?"))
-```
-
-In total, we only have `r nrow(y5.all.2)` cases. This is, the 10 firms will default at the same time in 5 years in `r nrow(y5.all.2)` out of `r fmt_int(n)` total cases. For the rest of the years, the cases are less frequent, in fact we have `r nrow(y1.all.2)` cases for year 1, `r nrow(y2.all.2)` for year 2, and `r nrow(y3.all.2)` for year 3.
-
-How do we extract those cases in which at least one of the 10 firms will default? 
-
-```{r}
-y5.any.2 <- filter_all(X10, any_vars(. < x.y[5]))
-y4.any.2 <- filter_all(X10, any_vars(. < x.y[4]))
-y3.any.2 <- filter_all(X10, any_vars(. < x.y[3]))
-y2.any.2 <- filter_all(X10, any_vars(. < x.y[2]))
-y1.any.2 <- filter_all(X10, any_vars(. < x.y[1]))
-```
-
-Here are the first 6 cases for the 5-year default.
-
-```{r}
-kable(head(y5.any.2), caption = "At least one firm default in five years.",
-      digits = 3)
-```
-
-```{r}
-kable((head(y5.any.2) < x.y[5]), caption = "Check which one(s) default.")
-```
-
-How many cases are these?
-
-```{r}
-nrow(y5.any.2)
-```
-
-In total, we have `r fmt_int(nrow(y5.any.2))` cases. This is, at least one of 10 firms will default in 5 years in `r fmt_int(nrow(y5.any.2))` of `r fmt_int(n)` cases. 
-
-And how to convert them into probabilities?
-
-```{r}
-atleastone02 <- t(data.frame(nrow(y1.any.2), nrow(y2.any.2),
-                nrow(y3.any.2), nrow(y4.any.2), nrow(y5.any.2)))
-all02 <- t(data.frame(nrow(y1.all.2), nrow(y2.all.2),
-                nrow(y3.all.2), nrow(y4.all.2), nrow(y5.all.2)))
-res02 <- data.frame(all02 / n, atleastone02 / n)
-rownames(res02) <- n.year
-colnames(res02) <- c("All firms", "At least one")
-kable(res02, caption = "Probabilities of default (10 firms, corr=0.2).")
-```
-
-Let's see the difference when we assume a different correlation matrix. This case, the correlation vary randomly between 0.45 and 0.65.
-
-```{r}
-m <- 10 # number of firms
-n <- 1000000 # number of simulations
 set.seed(130575)
-x <- matrix(runif(m * m, 0.45, 0.65), m, m) 
-ind <- lower.tri(x) 
-x[ind] <- t(x)[ind] 
-diag(x) = 1
-kable(x, caption = "Correlation between 0.45 and 0.65.", digits = 3)
+latent <- MASS::mvrnorm(
+  n = portfolio_sims,
+  mu = rep(0, n_firms_hull),
+  Sigma = sigma
+)
+
+threshold_5y <- qnorm(0.15)
+defaults_5y <- latent <= threshold_5y
+default_count_5y <- rowSums(defaults_5y)
+head(default_count_5y)
 ```
 
-The resulting values of <tt>`Xr`</tt> are:
+The object `defaults_5y` is the key credit-risk object. It is a matrix of TRUE/FALSE default indicators. A row is one simulated state of the world. A column is one firm. The sum across a row is the number of defaults in that simulated portfolio state.
+
+For the Hull correlation case $\rho=`r fmt_num(hull_rho, 1)`$, the simulated distribution of the number of defaults by year 5 is shown below.
 
 ```{r}
-set.seed(130575)
-Xr <- mvrnorm(n, mu = rep(0, m), Sigma = x)
-Xr <- data.frame(Xr)
-kable(head(Xr), caption = "Firms' performance.", digits = 3)
+hull_distribution_table <- data.frame(
+  Defaults = hull_distribution$Defaults,
+  Frequency = fmt_int(hull_distribution$Frequency),
+  Probability = fmt_pct(hull_distribution$Probability, 3)
+)
+
+kable(
+  hull_distribution_table,
+  caption = "Distribution of the number of defaults by year 5 for ten firms and rho = 0.2.",
+  escape = FALSE
+)
 ```
 
-Extract the cases in which all ten firms default at the same time in 5 years and the cases in which any firm default at the same time in 5 years.
+This table gives more information than the individual PD. The 5-year PD of each firm is still `r fmt_pct(hull_pd, 2)`, while the portfolio manager also sees the probability of no defaults, one default, several defaults, and a cluster of defaults.
+
+The next table compares different dependence assumptions while keeping the individual PD fixed.
 
 ```{r}
-Xr <- as_tibble(Xr)
-# All firms.
-Xr.y1.all <- filter_all(Xr, all_vars(. < x.y[1])) 
-Xr.y2.all <- filter_all(Xr, all_vars(. < x.y[2])) 
-Xr.y3.all <- filter_all(Xr, all_vars(. < x.y[3])) 
-Xr.y4.all <- filter_all(Xr, all_vars(. < x.y[4]))
-Xr.y5.all <- filter_all(Xr, all_vars(. < x.y[5])) 
-# At least one firm.
-Xr.y1.any <- filter_all(Xr, any_vars(. < x.y[1]))
-Xr.y2.any <- filter_all(Xr, any_vars(. < x.y[2]))
-Xr.y3.any <- filter_all(Xr, any_vars(. < x.y[3]))
-Xr.y4.any <- filter_all(Xr, any_vars(. < x.y[4]))
-Xr.y5.any <- filter_all(Xr, any_vars(. < x.y[5]))
+kable(
+  event_summary_table,
+  caption = "Default-event probabilities for ten firms under different copula correlations.",
+  row.names = FALSE,
+  escape = FALSE
+)
 ```
 
-All firms default in `r fmt_int(nrow(Xr.y5.all))` cases out of `r fmt_int(n)`.
+In the table, $P(\ge k)$ means the probability of $k$ or more defaults by year 5.
+
+The expected number of defaults is close to `r fmt_num(n_firms_hull * hull_pd, 2)` in every scenario because each firm still has a `r fmt_pct(hull_pd, 2)` marginal PD. Correlation changes the shape of the distribution. Higher correlation increases the probability of very quiet portfolios and also the probability of severe default clusters. It reduces the middle cases where diversification works smoothly.
 
 ```{r}
-nrow(Xr.y5.all)
-```
-Let's see the first 6 cases:
-
-```{r}
-kable(head(Xr.y5.all), 
-      caption = "Cases in which all 10 firms default in five years.", 
-      digits = 3)
-```
-
-Verify that those cases default.
-
-```{r}
-kable((head(Xr.y5.all) < x.y[5]), caption = "Check if all of them default.")
-```
-
-At least one firm default in `r fmt_int(nrow(Xr.y5.any))` out of `r fmt_int(n)`.
-
-```{r}
-nrow(Xr.y5.any)
-```
-
-```{r}
-kable(head(Xr.y5.any), caption = "At least one firm default in five years.",
-      digits = 3)
-```
-
-```{r}
-kable((head(Xr.y5.any) < x.y[5]), caption = "Check which one(s) default.")
+#| label: fig-ten-firm-default-count-distribution
+#| fig-cap: "Distribution of the number of defaults by year 5 under different copula correlations."
+default_counts <- 0:n_firms_hull
+default_count_colors <- adjustcolor(
+  c("#2C7FB8", "#F39C12", "#C0392B"),
+  alpha.f = 0.78
+)
+matplot(
+  default_counts,
+  count_probability_matrix,
+  type = "b",
+  pch = 19,
+  cex = 1.45,
+  lwd = 2.4,
+  lty = 1,
+  col = default_count_colors,
+  xlab = "Number of defaults by year 5",
+  ylab = "Simulated probability"
+)
+legend(
+  "topright",
+  legend = colnames(count_probability_matrix),
+  col = c("#2C7FB8", "#F39C12", "#C0392B"),
+  lty = 1,
+  pch = 19,
+  bty = "n"
+)
 ```
 
-And the corresponding probabilities:
-
-```{r}
-allR <- t(data.frame(nrow(Xr.y1.all), nrow(Xr.y2.all),
-        nrow(Xr.y3.all), nrow(Xr.y4.all), nrow(Xr.y5.all)))
-atleastoneR <- t(data.frame(nrow(Xr.y1.any), nrow(Xr.y2.any),
-        nrow(Xr.y3.any), nrow(Xr.y4.any), nrow(Xr.y5.any)))
-resR <- data.frame(allR / n, atleastoneR / n)
-ans <- data.frame(res02, resR)
-rownames(ans) <- n.year
-colnames(ans) <- c("All (corr=0.2)", "At least one (corr=0.2)",
-                    "All (corr=rand)", "At least one (corr=rand)")
-kable(ans, caption = "Probability of default.", 
-      row.names = TRUE)
-```
+This is the main lesson of the Gaussian copula in a portfolio. Individual PDs determine the average default rate. Dependence determines how much probability mass moves into joint-default states.

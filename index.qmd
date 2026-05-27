@@ -32,7 +32,8 @@ The organizing principle follows the literate programming spirit of @knuth1984li
 
 ## What's new in this edition {.unnumbered}
 
-- **Reproducible numbers:** calculated outputs are pulled more consistently from R objects and inline code.
-- **Merton chapter:** clearer path from risk-neutral valuation to equity as a contingent claim.
-- **Hull implementation:** equations 24.3 and 24.4 are introduced before the R code.
-- **Credit-risk interpretation:** debt due at maturity, model-implied spreads, and capital-structure scenarios are stated more directly.
+- **Portfolio credit risk:** Chapter 4 now builds the Gaussian copula model around Hull Example 24.7, correlated defaults, portfolio losses, concentration risk, and capital.
+- **Tail dependence:** A t-copula extension shows how heavier joint tails can change default clustering and loss measures while keeping the same marginal PDs.
+- **Credit VaR model risk:** The final application compares the Vasicek Gaussian benchmark with Gaussian and t-copula simulations.
+- **Cleaner chapter flow:** Credit VaR is now integrated into Chapter 4, so the book moves directly from copula portfolio risk to the references.
+- **Sharper visuals:** Chapter 4 figures now highlight default regions, threshold checks, loss tails, and model-risk comparisons more clearly.

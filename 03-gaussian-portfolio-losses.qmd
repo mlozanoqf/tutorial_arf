@@ -1,0 +1,132 @@
+## From correlated defaults to portfolio losses
+
+```{r gaussian-portfolio-losses-setup, include=FALSE}
+source("R/gaussian-common.R")
+
+loss_sims <- 100000
+loss_n_firms <- 10
+loss_total_ead <- 100e6
+loss_ead <- rep(loss_total_ead / loss_n_firms, loss_n_firms)
+loss_recovery <- rep(0.40, loss_n_firms)
+loss_lgd <- 1 - loss_recovery
+loss_threshold <- default_threshold[5]
+loss_rhos <- c(0, 0.2, 0.5)
+loss_expected_theoretical <- sum(loss_ead * loss_lgd * pd_cum[5])
+
+simulate_loss_scenario <- function(rho, ead = loss_ead, recovery = loss_recovery) {
+  latent <- simulate_latent_credit(
+    n_sims = loss_sims,
+    n_firms = length(ead),
+    rho = rho,
+    seed = 130575
+  )
+  defaults <- make_default_matrix(latent, loss_threshold)
+  losses <- portfolio_losses(defaults, ead, recovery)
+  list(defaults = defaults, losses = losses, summary = loss_risk_summary(losses))
+}
+
+loss_scenarios <- setNames(
+  lapply(loss_rhos, simulate_loss_scenario),
+  paste0("rho_", loss_rhos)
+)
+
+loss_summary_numeric <- do.call(rbind, lapply(loss_scenarios, function(x) x$summary))
+loss_summary_table <- data.frame(
+  Copula_correlation = fmt_num(loss_rhos, 1),
+  Expected_loss = fmt_musd(loss_summary_numeric[, "expected_loss"]),
+  Median_loss = fmt_musd(loss_summary_numeric[, "median_loss"]),
+  VaR_95 = fmt_musd(loss_summary_numeric[, "var_95"]),
+  VaR_99 = fmt_musd(loss_summary_numeric[, "var_99"]),
+  VaR_99_9 = fmt_musd(loss_summary_numeric[, "var_999"]),
+  ES_99 = fmt_musd(loss_summary_numeric[, "es_99"]),
+  Economic_capital_99_9 = fmt_musd(loss_summary_numeric[, "economic_capital_999"])
+)
+names(loss_summary_table) <- c(
+  "rho",
+  "EL",
+  "Median",
+  "VaR 95%",
+  "VaR 99%",
+  "VaR 99.9%",
+  "ES 99%",
+  "Capital 99.9%"
+)
+
+loss_distribution_matrix <- sapply(loss_scenarios, function(x) {
+  as.numeric(tabulate(x$losses / (loss_ead[1] * loss_lgd[1]) + 1, nbins = loss_n_firms + 1)) / loss_sims
+})
+colnames(loss_distribution_matrix) <- paste0("rho = ", fmt_num(loss_rhos, 1))
+```
+
+Defaults become financially useful when we attach exposures and recoveries. In one simulation state $s$, portfolio loss is
+
+$$
+L_s=\sum_{i=1}^n EAD_i \times LGD_i \times D_{i,s},
+$$
+
+where $D_{i,s}$ equals 1 when firm $i$ defaults in simulation $s$ and 0 otherwise. The code applies the same calculation.
+
+```{r}
+ead <- rep(10e6, 10)
+recovery <- rep(0.40, 10)
+lgd <- 1 - recovery
+
+losses <- defaults_5y %*% (ead * lgd)
+```
+
+The example below uses a homogeneous portfolio with 10 firms, total exposure of $100 million, $10 million exposure per firm, 40% recovery, and a 5-year cumulative PD of `r fmt_pct(pd_cum[5], 2)` for every firm. The recovery assumption implies an LGD of 60%.
+
+Expected loss can be understood before simulation.
+
+$$
+EL = \sum_{i=1}^{10} EAD_i \times LGD_i \times PD_i
+= 10 \times 10{,}000{,}000 \times 0.60 \times 0.15
+$$
+
+The last expression is `r fmt_num(loss_expected_theoretical / 1e6, 2)` million dollars.
+
+The simulation should produce an expected loss close to that value in every correlation scenario, because correlation leaves the marginal PDs fixed. The tail of the loss distribution is the object that changes.
+
+```{r}
+kable(
+  loss_summary_table,
+  caption = "Portfolio loss summary for a homogeneous ten-firm portfolio.",
+  escape = FALSE
+)
+```
+
+The table separates three ideas. Expected loss is the average credit cost implied by PD, EAD, and LGD. VaR is a high percentile of the simulated loss distribution. Economic capital is the difference between a tail loss measure and expected loss.
+
+The next figure shows the simulated loss distribution. Because the portfolio has equal exposures and equal recoveries, losses occur in steps of $6 million per default.
+
+```{r}
+#| label: fig-portfolio-loss-distribution
+#| fig-cap: "Portfolio loss distribution under different copula correlations."
+loss_steps <- 0:loss_n_firms
+loss_distribution_colors <- adjustcolor(
+  c("#2C7FB8", "#F39C12", "#C0392B"),
+  alpha.f = 0.78
+)
+matplot(
+  loss_steps * loss_ead[1] * loss_lgd[1] / 1e6,
+  loss_distribution_matrix,
+  type = "b",
+  pch = 19,
+  cex = 1.45,
+  lwd = 2.4,
+  lty = 1,
+  col = loss_distribution_colors,
+  xlab = "Portfolio loss ($ millions)",
+  ylab = "Simulated probability"
+)
+legend(
+  "topright",
+  legend = colnames(loss_distribution_matrix),
+  col = c("#2C7FB8", "#F39C12", "#C0392B"),
+  lty = 1,
+  pch = 19,
+  bty = "n"
+)
+```
+
+This is where the copula becomes a credit-risk tool. The marginal PD tells us the average loss. The dependence assumption tells us how much probability sits in the severe-loss states.

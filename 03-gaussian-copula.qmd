@@ -1,17 +1,31 @@
-# The Gaussian copula model
+# The Gaussian copula model for portfolio credit risk
 
 
 
-Copulas allow us to decompose a joint probability distribution into their marginals (which by definition have no correlation) and a function which couples (hence the name) them together and thus allows us to specify the correlation separately. The copula is that coupling function. Here, we introduce the simplest type of copulas into a very common problem in credit risk which is the time to default.  
+The previous chapters focused on one borrower at a time. A logistic model estimates an individual default probability from borrower characteristics. A tree-based model does the same with a more flexible prediction function. The Merton model links a firm's equity, assets, debt, volatility, and default probability. A lender, bank, or investor usually holds a portfolio, so portfolio credit risk asks a different question.
 
-The following sections develop the Gaussian-copula workflow from the normal-distribution mechanics to one-firm, two-firm, and ten-firm portfolio simulations.
+> Given individual default probabilities, exposures, recoveries, and a dependence structure, what is the distribution of portfolio defaults and credit losses?
+
+This chapter studies the Gaussian copula because it gives a practical answer to that portfolio question. The model starts with the marginal default probabilities of individual firms and combines them with a dependence structure. That combination lets us simulate which firms default together and how large the resulting portfolio loss can be. The final sections use a t-copula extension to show why tail dependence matters for capital.
+
+The starting point is Hull's discussion of default correlation in section 24.8, printed page 578 in the PDF used for this chapter. Hull's point is financial. Defaults tend to cluster because firms can share industries, countries, funding conditions, macroeconomic shocks, or direct business links. The Gaussian copula gives us a way to turn that idea into code.
+
+The chapter first rebuilds the inputs of Hull's Example 24.7 slowly. Cumulative default probabilities are converted into normal default thresholds. We then show why dependence matters with two firms, extend the simulation to ten firms, and connect correlated defaults to portfolio losses, tail risk, and credit capital.
 
 {{< include 03-gaussian-basics.qmd >}}
 
-{{< include 03-gaussian-example-246.qmd >}}
+{{< include 03-gaussian-example-247.qmd >}}
 
 {{< include 03-gaussian-one-firm.qmd >}}
 
 {{< include 03-gaussian-two-firms.qmd >}}
 
 {{< include 03-gaussian-ten-firms.qmd >}}
+
+{{< include 03-gaussian-portfolio-losses.qmd >}}
+
+{{< include 03-gaussian-concentration-risk.qmd >}}
+
+{{< include 03-gaussian-t-copula.qmd >}}
+
+{{< include 03-gaussian-credit-var-bridge.qmd >}}

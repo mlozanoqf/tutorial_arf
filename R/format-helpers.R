@@ -13,3 +13,7 @@ fmt_bps <- function(x, digits = 1) {
 fmt_int <- function(x) {
   format(round(x), big.mark = ",", scientific = FALSE, trim = TRUE)
 }
+
+fmt_musd <- function(x, digits = 2) {
+  paste0("$", fmt_num(x / 1e6, digits), "m")
+}

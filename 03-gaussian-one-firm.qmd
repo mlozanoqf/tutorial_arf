@@ -1,93 +1,106 @@
-## One firm
+## One firm and the marginal default rule
 
 ```{r gaussian-one-firm-setup, include=FALSE}
 source("R/gaussian-common.R")
-```
 
-Now let's introduce a simulation approach. This is, instead of generating continuous values of $x$ from $-4$ to $4$, we simulate many $x$ values (10,000 in this case) that follow a standard normal distribution function using the <tt>`rnorm()`</tt> function. The simulation approach is useful especially when we are interested in replicating what happens in real-life situations because we can artificially replicate the observed behavior many times and understand what may happen in the future. In other words, <tt>`x`</tt> was used before to characterize a *perfect* normal distribution. Now, we incorporate <tt>`x.sim`</tt> that behaves as a normal distribution and allows some randomness just as in real life situations.
+one_firm_sims <- 100000
+one_firm_horizon <- 5
+one_firm_threshold <- default_threshold[one_firm_horizon]
+one_firm_pd <- pd_cum[one_firm_horizon]
 
-See the difference between both approaches to generate $x$.
+set.seed(130575)
+one_firm_x <- rnorm(one_firm_sims)
+one_firm_default <- one_firm_x <= one_firm_threshold
+one_firm_sim_pd <- mean(one_firm_default)
 
-```{r}
-N <- 10000 # Number of simulated values.
-set.seed(130575) # Reproducibility.
-x.sim <- rnorm(N, 0, 1) # Simulation.
-kable(head(cbind(x.sim, x)))
-```
-
-```{r gaussian-one-firm-simulated-pd-setup, include=FALSE}
-prop <- function(x) {
-  length(x.sim[x.sim <= x]) / N
-}
-pd.sim <- mapply(prop, x.y)
-```
-
-Note that the probabilities of default per maturity in the simulated approach are close to the values of the previous section. In particular, $`r fmt_num(pd[1], 2)`$ is equivalent to $`r fmt_num(pd.sim[1], 4)`$, and $`r fmt_num(pd[2], 2)`$ is equivalent to $`r fmt_num(pd.sim[2], 4)`$. They do not match exactly simply because we are comparing theoretical versus simulated probabilities.
-
-
-```{r}
-# Function to calculate proportions that we understand as probabilities.
-prop <- function(x) {
-  ans <- length(x.sim[x.sim <= x]) / N
-  }
-pd.sim <- mapply(prop, x.y) # Apply the function.
-ans <- data.frame(x.y, pd, pd.sim)
-colnames(ans) <- c("x", "pd.theo", "pd.sim")
-rownames(ans) <- c("y1", "y2", "y3", "y4", "y5")
-kable(ans, caption = "Theoretic versus simulated probabilities of default.")
-```
-
-Let's view the results of the simulated approach. First in a histogram.
-
-```{r}
-#| label: fig-sgpdfsdwrttt
-#| fig-cap: "Simulated Gaussian probability distribution function. Somewhat different with respect to the theoretical."
-# Some parameters we need to plot.
-L <- c(-4, 4) # axis limits.
-colors2 <- c("blue", "red", "purple", "pink", "green")
-legend2 <- paste0(
-  "pd(", seq_along(pd.sim), "year",
-  ifelse(seq_along(pd.sim) == 1, "", "s"), ")=",
-  fmt_pct(pd.sim, 2), ": x<=", fmt_num(x.y, 6)
+one_firm_check <- data.frame(
+  Horizon = paste(one_firm_horizon, "years"),
+  Input_PD = fmt_pct(one_firm_pd, 2),
+  Default_threshold = fmt_num(one_firm_threshold, 6),
+  Simulated_PD = fmt_pct(one_firm_sim_pd, 2),
+  Difference = fmt_pct(one_firm_sim_pd - one_firm_pd, 2)
 )
-# The histogram.
-hist(x.sim, 500, xlim = L, ylim = c(0, 100), main = NULL, xlab = "x.sim")
-abline(h = 0, lty = 2)
-abline(v = x.y[1], lwd = 3, col = "blue")
-abline(v = x.y[2], lwd = 3, col = "red")
-abline(v = x.y[3], lwd = 3, col = "purple")
-abline(v = x.y[4], lwd = 3, col = "pink")
-abline(v = x.y[5], lwd = 3, col = "green")
-legend("topright", legend = legend2, bg = "transparent", 
-       text.col = colors2, cex = 0.9)
+names(one_firm_check) <- c(
+  "Horizon",
+  "Input PD",
+  "Default threshold",
+  "Simulated PD",
+  "Difference"
+)
 ```
 
-The area at the left hand side of each colored line represents the cumulative probability of default just as we explained before. In the same way, the area between two colored lines represents the probability of default in a specific period of time. 
+Before adding dependence across firms, it is useful to check the one-firm rule. For the 5-year horizon in Hull's Example 24.7, the cumulative PD is `r fmt_pct(one_firm_pd, 2)` and the default threshold is `r fmt_num(one_firm_threshold, 6)`.
 
-Now let's see all the simulated data at once.
+The equation is
+
+$$
+D_i(5)=1\{X_i \leq N^{-1}(0.15)\}.
+$$
+
+The R code applies the same rule.
 
 ```{r}
-#| label: fig-aav
-#| fig-cap: "An alternative view."
-plot(x.sim, ylab = "x.sim", pch = ".", ylim = c(-4, 4),
-     xlab = "Number of simulaltions")
-abline(h = x.y[1], lwd = 2, col = "blue")
-abline(h = x.y[2], lwd = 2, col = "red")
-abline(h = x.y[3], lwd = 2, col = "purple")
-abline(h = x.y[4], lwd = 2, col = "pink")
-abline(h = x.y[5], lwd = 2, col = "green")
-abline(v = 0, lty = 2)
-abline(v = 10000, lty = 2)
-# legend("topright", legend = legend2, bg = "white", 
-#        text.col = colors2, cex = 0.9)
+one_firm_sims <- 100000
+one_firm_threshold <- qnorm(0.15)
+
+set.seed(130575)
+one_firm_x <- rnorm(one_firm_sims)
+one_firm_default <- one_firm_x <= one_firm_threshold
+mean(one_firm_default)
 ```
 
-We normally conduct a simulation approach because we might adapt the distribution function parameters to match what we see in the real life situations. This is how we can reproduce what may happen in the future and at the same time allow for some randomness.
-
-In a different context, here we have an old video in which we drop 2,000 blue balls. Balls are dropped randomly given a normal distribution. Note how the bell-shape distribution is formed as we increase the number of balls. 
+With a finite number of random draws, the simulated PD lands close to `r fmt_pct(one_firm_pd, 2)`. That is the first sanity check. The simulation rule preserves the marginal PD before we ask it to model dependence.
 
 ```{r}
-embed_url("https://youtu.be/P1Ky6-a8DE0")
+kable(
+  one_firm_check,
+  caption = "One-firm simulation check for the 5-year marginal PD.",
+  escape = FALSE
+)
 ```
 
+Graphically, each simulated value of $X_i$ is a possible latent credit-quality state. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
 
+```{r}
+#| label: fig-one-firm-marginal-default-check
+#| fig-cap: "One-firm simulation check with threshold comparison."
+one_firm_hist <- hist(
+  one_firm_x,
+  breaks = 80,
+  probability = TRUE,
+  plot = FALSE
+)
+one_firm_bar_color <- ifelse(
+  one_firm_hist$mids <= one_firm_threshold,
+  adjustcolor("#E74C3C", alpha.f = 0.85),
+  "#D6EAF8"
+)
+plot(
+  one_firm_hist,
+  freq = FALSE,
+  col = one_firm_bar_color,
+  border = "white",
+  main = NULL,
+  ylab = "Density",
+  xlab = "Simulated latent credit-quality variable X"
+)
+lines(x, D, lwd = 3, col = "#2C3E50")
+abline(v = one_firm_threshold, lwd = 3, lty = 2, col = "#E74C3C")
+legend(
+  "topright",
+  legend = c(
+    "Default region",
+    paste0("Threshold = ", fmt_num(one_firm_threshold, 3)),
+    paste0("Simulated PD = ", fmt_pct(one_firm_sim_pd, 2))
+  ),
+  fill = c(adjustcolor("#E74C3C", alpha.f = 0.85), NA, NA),
+  border = c("white", NA, NA),
+  lty = c(NA, 2, NA),
+  lwd = c(NA, 3, NA),
+  col = c(NA, "#E74C3C", NA),
+  bty = "n",
+  text.col = c("#E74C3C", "#E74C3C", "#2C3E50")
+)
+```
+
+This one-firm check verifies the marginal default mechanism. The copula model begins when we simulate several latent variables together and allow them to be correlated.

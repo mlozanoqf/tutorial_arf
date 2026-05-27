@@ -1,0 +1,184 @@
+## Tail dependence with a t-copula
+
+```{r gaussian-t-copula-setup, include=FALSE}
+source("R/gaussian-common.R")
+
+tcopula_sims <- 100000
+tcopula_n_firms <- 10
+tcopula_rho <- hull_example_247_rho
+tcopula_pd <- pd_cum[5]
+tcopula_total_ead <- 100e6
+tcopula_ead <- rep(tcopula_total_ead / tcopula_n_firms, tcopula_n_firms)
+tcopula_recovery <- rep(0.40, tcopula_n_firms)
+
+tcopula_design <- data.frame(
+  copula = c("Gaussian", "t-copula", "t-copula"),
+  df = c(NA, 10, 4)
+)
+
+simulate_tail_dependence_case <- function(copula, df) {
+  if (copula == "Gaussian") {
+    latent <- simulate_latent_credit(
+      n_sims = tcopula_sims,
+      n_firms = tcopula_n_firms,
+      rho = tcopula_rho,
+      seed = 130575
+    )
+    threshold <- qnorm(tcopula_pd)
+  } else {
+    latent <- simulate_t_copula_credit(
+      n_sims = tcopula_sims,
+      n_firms = tcopula_n_firms,
+      rho = tcopula_rho,
+      df = df,
+      seed = 130575
+    )
+    threshold <- qt(tcopula_pd, df = df)
+  }
+
+  defaults <- make_default_matrix(latent, threshold)
+  losses <- portfolio_losses(defaults, tcopula_ead, tcopula_recovery)
+
+  list(
+    defaults = defaults,
+    default_count = rowSums(defaults),
+    losses = losses,
+    events = summarize_default_events(defaults),
+    loss_summary = loss_risk_summary(losses),
+    mean_pd = mean(defaults)
+  )
+}
+
+tcopula_results <- Map(
+  simulate_tail_dependence_case,
+  tcopula_design$copula,
+  tcopula_design$df
+)
+names(tcopula_results) <- c("Gaussian", "t df = 10", "t df = 4")
+
+tcopula_events <- do.call(rbind, lapply(tcopula_results, function(x) x$events))
+tcopula_losses <- do.call(rbind, lapply(tcopula_results, function(x) x$loss_summary))
+
+tcopula_df_label <- ifelse(is.na(tcopula_design$df), "-", fmt_int(tcopula_design$df))
+
+tcopula_default_table <- data.frame(
+  Copula = tcopula_design$copula,
+  df = tcopula_df_label,
+  Mean_PD = fmt_pct(sapply(tcopula_results, function(x) x$mean_pd), 2),
+  Expected_defaults = fmt_num(tcopula_events[, "expected_defaults"], 3),
+  P_three_or_more = fmt_pct(tcopula_events[, "three_or_more"], 2),
+  P_five_or_more = fmt_pct(tcopula_events[, "five_or_more"], 2),
+  P_all_ten = fmt_pct(tcopula_events[, "all_default"], 3)
+)
+names(tcopula_default_table) <- c(
+  "Copula",
+  "df",
+  "Mean PD",
+  "E[defaults]",
+  "P(>=3)",
+  "P(>=5)",
+  "P(10)"
+)
+
+tcopula_loss_table <- data.frame(
+  Copula = tcopula_design$copula,
+  df = tcopula_df_label,
+  EL = fmt_musd(tcopula_losses[, "expected_loss"]),
+  VaR_99 = fmt_musd(tcopula_losses[, "var_99"]),
+  VaR_99_9 = fmt_musd(tcopula_losses[, "var_999"]),
+  ES_99_9 = fmt_musd(tcopula_losses[, "es_999"]),
+  Capital_99_9 = fmt_musd(tcopula_losses[, "economic_capital_999"])
+)
+names(tcopula_loss_table) <- c(
+  "Copula",
+  "df",
+  "EL",
+  "VaR 99%",
+  "VaR 99.9%",
+  "ES 99.9%",
+  "Capital 99.9%"
+)
+
+tcopula_count_matrix <- sapply(tcopula_results, function(x) {
+  as.numeric(tabulate(x$default_count + 1, nbins = tcopula_n_firms + 1)) /
+    tcopula_sims
+})
+colnames(tcopula_count_matrix) <- names(tcopula_results)
+```
+
+The Gaussian copula uses normal latent variables. Correlation creates joint default clustering. The normal distribution controls the shape of the tails. A t-copula keeps the same threshold idea and changes the tail shape.
+
+For the Gaussian copula, one convenient one-factor representation is
+
+$$
+X_i^{G}=\sqrt{\rho}\,Z_0+\sqrt{1-\rho}\,Z_i.
+$$
+
+For the t-copula, use the same normal factor structure and divide by a random scale shock:
+
+$$
+X_i^{t}=
+\frac{\sqrt{\rho}\,Z_0+\sqrt{1-\rho}\,Z_i}
+{\sqrt{S/\nu}},
+\qquad S\sim\chi^2_{\nu}.
+$$
+
+The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavier tails. The default threshold changes from $N^{-1}(PD)$ to $t_{\nu}^{-1}(PD)$, so each firm keeps the same marginal PD.
+
+The comparison below keeps the 5-year PD at `r fmt_pct(tcopula_pd, 2)`, the copula correlation at `r fmt_num(tcopula_rho, 1)`, the same 10 firms, the same total exposure, and the same recovery rate. The only change is the copula tail shape.
+
+```{r}
+kable(
+  tcopula_default_table,
+  caption = "Default clustering under Gaussian and t-copulas.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+The average PD stays near `r fmt_pct(tcopula_pd, 2)`. The tail probabilities move because the t-copula gives more weight to joint stress states. This is the credit-risk reason to care about tail dependence.
+
+The same default simulations can be translated into losses using the portfolio loss formula from the previous section.
+
+```{r}
+kable(
+  tcopula_loss_table,
+  caption = "Portfolio loss measures under Gaussian and t-copulas.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+Expected loss remains anchored by PD, EAD, and LGD. Tail loss responds to the dependence model. This ten-firm portfolio has coarse $6 million loss steps, so VaR can land on the same step for two copulas. Expected shortfall is a useful companion because it averages the losses beyond the percentile.
+
+```{r}
+#| label: fig-gaussian-vs-t-default-counts
+#| fig-cap: "Default-count distribution under Gaussian and t-copulas."
+default_counts <- 0:tcopula_n_firms
+tcopula_count_colors <- adjustcolor(
+  c("#2C7FB8", "#F39C12", "#C0392B"),
+  alpha.f = 0.78
+)
+matplot(
+  default_counts,
+  tcopula_count_matrix,
+  type = "b",
+  pch = 19,
+  cex = 1.45,
+  lwd = 2.4,
+  lty = 1,
+  col = tcopula_count_colors,
+  xlab = "Number of defaults by year 5",
+  ylab = "Simulated probability"
+)
+legend(
+  "topright",
+  legend = colnames(tcopula_count_matrix),
+  col = c("#2C7FB8", "#F39C12", "#C0392B"),
+  lty = 1,
+  pch = 19,
+  bty = "n"
+)
+```
+
+This section gives the key model-risk message. A copula is more than a correlation input. It also chooses how much probability is assigned to joint tail events.

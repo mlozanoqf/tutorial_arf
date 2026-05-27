@@ -1,0 +1,157 @@
+## Hull Example 24.7 from cumulative PDs to thresholds
+
+```{r gaussian-example-247-setup, include=FALSE}
+source("R/gaussian-common.R")
+
+hull_threshold_table <- data.frame(
+  Horizon = paste(credit_horizons, ifelse(credit_horizons == 1, "year", "years")),
+  Cumulative_PD = fmt_pct(pd_cum, 2),
+  Incremental_PD = fmt_pct(pd_incremental, 2),
+  Default_threshold = fmt_num(default_threshold, 6),
+  Check_pnorm_threshold = fmt_pct(threshold_check, 2)
+)
+names(hull_threshold_table) <- c(
+  "Horizon",
+  "Cumulative PD",
+  "Incremental PD",
+  "Default threshold",
+  "pnorm(threshold) check"
+)
+
+hull_threshold_numeric <- data.frame(
+  horizon = credit_horizons,
+  pd_cum = pd_cum,
+  pd_incremental = pd_incremental,
+  threshold = default_threshold,
+  threshold_check = threshold_check
+)
+```
+
+The example that belongs to this chapter is Hull's Example 24.7. The example immediately before it, Example 24.6, is about CVA for a gold forward contract. The Gaussian-copula credit portfolio example starts after Hull motivates default correlation in section 24.8.
+
+Hull's Example 24.7 considers ten firms. Each firm has the same cumulative probabilities of default over five horizons.
+
+$$
+Q(1)=1\%,\quad Q(2)=3\%,\quad Q(3)=6\%,\quad Q(4)=10\%,\quad Q(5)=15\%.
+$$
+
+The word cumulative is important. A cumulative 5-year PD of 15% means default occurs sometime between today and year 5. A separate 15% default probability inside year 5 would describe a different object. The incremental probability for a specific year is obtained by differencing the cumulative curve. For example, the probability of default between year 4 and year 5 is
+
+$$
+Q(5)-Q(4)=15\%-10\%=5\%.
+$$
+
+The table below keeps both objects visible because they answer different questions. The cumulative PD is used to define the default threshold by horizon. The incremental PD tells us how much new default probability is added between two adjacent horizons.
+
+```{r}
+kable(
+  hull_threshold_table,
+  caption = "Hull Example 24.7 inputs and the corresponding Gaussian default thresholds.",
+  escape = FALSE
+)
+```
+
+The code below produces the two most important columns.
+
+```{r}
+pd_cum <- c(0.01, 0.03, 0.06, 0.10, 0.15)
+default_threshold <- qnorm(pd_cum)
+pnorm(default_threshold)
+```
+
+The financial meaning is longer than the code. `pd_cum` contains marginal default probabilities. The command `qnorm(pd_cum)` converts those probabilities into normal-scale default thresholds. The command `pnorm(default_threshold)` verifies that each threshold reproduces the original cumulative PD.
+
+For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its latent credit-quality variable is below that value.
+
+$$
+D_i(5)=1\{X_i \leq `r fmt_num(default_threshold[5], 6)`\}.
+$$
+
+Because $X_i$ is standard normal, this rule gives
+
+$$
+P(D_i(5)=1)=P(X_i \leq `r fmt_num(default_threshold[5], 6)`)=N(`r fmt_num(default_threshold[5], 6)`) = `r fmt_pct(pd_cum[5], 2)`.
+$$
+
+The figure below shows the same logic graphically for year 1 and year 5. The shaded area is the cumulative probability of default by that horizon.
+
+```{r}
+#| label: fig-hull-247-threshold-areas
+#| fig-cap: "Default thresholds implied by Hull Example 24.7 cumulative PDs."
+old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+
+plot_default_area <- function(horizon_index, fill_color) {
+  threshold <- default_threshold[horizon_index]
+  pd_value <- pd_cum[horizon_index]
+  plot(
+    x, D, type = "l", lwd = 3, col = "#2C3E50",
+    xlab = "Latent credit-quality variable X",
+    ylab = "Standard normal density",
+    main = paste0("Year ", horizon_index, " PD = ", fmt_pct(pd_value, 2))
+  )
+  abline(h = 0, lty = 2, col = "#777777")
+  abline(v = threshold, lty = 2, lwd = 2, col = fill_color)
+  polygon(
+    c(x[x <= threshold], threshold),
+    c(D[x <= threshold], 0),
+    col = fill_color,
+    border = NA
+  )
+  lines(x, D, lwd = 3, col = "#2C3E50")
+  legend(
+    "topright",
+    legend = paste0("z = ", fmt_num(threshold, 3)),
+    col = fill_color,
+    lwd = 2,
+    lty = 2,
+    bg = "white",
+    box.col = "#CCCCCC"
+  )
+}
+
+plot_default_area(1, "#5DADE2")
+plot_default_area(5, "#E74C3C")
+par(old_par)
+```
+
+A second view uses the cumulative normal distribution directly. In this graph, the vertical axis already is the cumulative probability. The points show that each default threshold maps back to the PD input that produced it.
+
+```{r}
+#| label: fig-hull-247-threshold-check
+#| fig-cap: "Checking that each Gaussian threshold reproduces the original cumulative PD."
+plot(
+  x, P, type = "l", lwd = 3, col = "#2C3E50",
+  xlab = "Latent credit-quality variable X",
+  ylab = "Cumulative probability N(X)"
+)
+abline(h = pd_cum, v = default_threshold, lty = 3, col = "#BBBBBB")
+points(default_threshold, pd_cum, pch = 19, cex = 1.3, col = colors2)
+text(
+  default_threshold, pd_cum,
+  labels = paste0("Y", credit_horizons),
+  pos = 4, cex = 0.85
+)
+```
+
+A zoomed version makes the relevant threshold region easier to inspect.
+
+```{r}
+#| label: fig-hull-247-threshold-check-zoom
+#| fig-cap: "Zoom: Gaussian thresholds and cumulative PDs between -3 and 0."
+plot(
+  x, P, type = "l", lwd = 3, col = "#2C3E50",
+  xlim = c(-3, 0),
+  ylim = c(0, 0.55),
+  xlab = "Latent credit-quality variable X",
+  ylab = "Cumulative probability N(X)"
+)
+abline(h = pd_cum, v = default_threshold, lty = 3, col = "#BBBBBB")
+points(default_threshold, pd_cum, pch = 19, cex = 1.45, col = colors2)
+text(
+  default_threshold, pd_cum,
+  labels = paste0("Y", credit_horizons),
+  pos = 4, cex = 0.9
+)
+```
+
+At this stage, the chapter has built marginal default rules for each firm. Portfolio dependence enters in the next step. We simulate the vector $(X_1,\ldots,X_{10})$ from a multivariate normal distribution with a common copula correlation of `r fmt_num(hull_example_247_rho, 1)`. That dependence assumption changes the probability of joint defaults while preserving the individual PDs shown in this section.

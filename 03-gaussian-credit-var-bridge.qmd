@@ -1,0 +1,404 @@
+## Credit VaR under copula model risk
+
+```{r gaussian-credit-var-bridge-setup, include=FALSE}
+source("R/gaussian-common.R")
+
+credit_var_inputs <- list(
+  ead = 100e6,
+  pd = 0.02,
+  recovery = 0.60,
+  rho = 0.10,
+  confidence = c(0.95, 0.99, 0.999)
+)
+
+vasicek_default_rate <- function(pd, rho, confidence) {
+  pnorm(
+    (qnorm(pd) + sqrt(rho) * qnorm(confidence)) /
+      sqrt(1 - rho)
+  )
+}
+
+vasicek_credit_var <- function(ead, pd, recovery, rho, confidence) {
+  ead * (1 - recovery) * vasicek_default_rate(pd, rho, confidence)
+}
+
+simulate_granular_gaussian_loss <- function(n_sims, n_names, ead, pd, recovery, rho, seed) {
+  set.seed(seed)
+  systematic_factor <- rnorm(n_sims)
+  conditional_pd <- pnorm(
+    (qnorm(pd) - sqrt(rho) * systematic_factor) / sqrt(1 - rho)
+  )
+  default_count <- rbinom(n_sims, n_names, conditional_pd)
+  default_count * (ead / n_names) * (1 - recovery)
+}
+
+simulate_granular_t_loss <- function(n_sims, n_names, ead, pd, recovery, rho, df, seed) {
+  set.seed(seed)
+  systematic_factor <- rnorm(n_sims)
+  scale_shock <- sqrt(rchisq(n_sims, df = df) / df)
+  conditional_pd <- pnorm(
+    (qt(pd, df = df) * scale_shock - sqrt(rho) * systematic_factor) /
+      sqrt(1 - rho)
+  )
+  default_count <- rbinom(n_sims, n_names, conditional_pd)
+  default_count * (ead / n_names) * (1 - recovery)
+}
+
+credit_var_rate <- vasicek_default_rate(
+  credit_var_inputs$pd,
+  credit_var_inputs$rho,
+  credit_var_inputs$confidence
+)
+
+credit_var_loss <- vasicek_credit_var(
+  credit_var_inputs$ead,
+  credit_var_inputs$pd,
+  credit_var_inputs$recovery,
+  credit_var_inputs$rho,
+  credit_var_inputs$confidence
+)
+
+credit_expected_loss <- credit_var_inputs$ead *
+  (1 - credit_var_inputs$recovery) *
+  credit_var_inputs$pd
+
+credit_var_focus <- length(credit_var_inputs$confidence)
+credit_var_q_pd <- qnorm(credit_var_inputs$pd)
+credit_var_q_conf <- qnorm(credit_var_inputs$confidence[credit_var_focus])
+credit_var_numerator <- credit_var_q_pd +
+  sqrt(credit_var_inputs$rho) * credit_var_q_conf
+credit_var_denominator <- sqrt(1 - credit_var_inputs$rho)
+credit_var_standardized <- credit_var_numerator / credit_var_denominator
+
+set.seed(130575)
+systematic_factor <- rnorm(200000)
+conditional_default_rate <- pnorm(
+  (qnorm(credit_var_inputs$pd) -
+     sqrt(credit_var_inputs$rho) * systematic_factor) /
+    sqrt(1 - credit_var_inputs$rho)
+)
+vasicek_loss <- credit_var_inputs$ead *
+  (1 - credit_var_inputs$recovery) *
+  conditional_default_rate
+
+simulated_var_loss <- as.numeric(
+  quantile(vasicek_loss, credit_var_inputs$confidence, type = 1)
+)
+simulated_es_loss <- sapply(simulated_var_loss, function(var_value) {
+  mean(vasicek_loss[vasicek_loss >= var_value])
+})
+
+credit_var_input_table <- data.frame(
+  Quantity = c(
+    "Total exposure",
+    "One-year PD",
+    "Recovery rate",
+    "LGD",
+    "Copula correlation"
+  ),
+  Value = c(
+    fmt_musd(credit_var_inputs$ead),
+    fmt_pct(credit_var_inputs$pd, 2),
+    fmt_pct(credit_var_inputs$recovery, 2),
+    fmt_pct(1 - credit_var_inputs$recovery, 2),
+    fmt_num(credit_var_inputs$rho, 2)
+  )
+)
+
+credit_var_summary_table <- data.frame(
+  Confidence = fmt_pct(credit_var_inputs$confidence, 1),
+  Tail_default_rate = fmt_pct(credit_var_rate, 2),
+  Credit_VaR = fmt_musd(credit_var_loss),
+  EL = fmt_musd(rep(credit_expected_loss, length(credit_var_loss))),
+  Capital = fmt_musd(credit_var_loss - credit_expected_loss),
+  ES = fmt_musd(simulated_es_loss)
+)
+names(credit_var_summary_table) <- c(
+  "Confidence",
+  "Tail default rate",
+  "Credit VaR",
+  "EL",
+  "Capital",
+  "ES"
+)
+
+credit_var_step_table <- data.frame(
+  Step = c(
+    "Default threshold",
+    "Tail quantile",
+    "Factor contribution",
+    "Numerator",
+    "Denominator",
+    "Standardized value",
+    "Tail default rate",
+    "Credit VaR"
+  ),
+  Calculation = c(
+    "$N^{-1}(Q(T))$",
+    "$N^{-1}(X)$",
+    "$\\sqrt{\\rho}\\,N^{-1}(X)$",
+    "$N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(X)$",
+    "$\\sqrt{1-\\rho}$",
+    "$\\frac{N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(X)}{\\sqrt{1-\\rho}}$",
+    "$N(\\cdot)$",
+    "$EAD\\times LGD\\times V(X,T)$"
+  ),
+  Value = c(
+    fmt_num(credit_var_q_pd, 4),
+    fmt_num(credit_var_q_conf, 4),
+    fmt_num(sqrt(credit_var_inputs$rho) * credit_var_q_conf, 4),
+    fmt_num(credit_var_numerator, 4),
+    fmt_num(credit_var_denominator, 4),
+    fmt_num(credit_var_standardized, 4),
+    fmt_pct(credit_var_rate[credit_var_focus], 2),
+    fmt_musd(credit_var_loss[credit_var_focus])
+  )
+)
+
+credit_var_999_table <- data.frame(
+  Quantity = c(
+    "Tail default rate at 99.9%",
+    "Credit VaR at 99.9%",
+    "Expected loss",
+    "Economic capital at 99.9%",
+    "Expected shortfall at 99.9%"
+  ),
+  Value = c(
+    fmt_pct(credit_var_rate[3], 2),
+    fmt_musd(credit_var_loss[3]),
+    fmt_musd(credit_expected_loss),
+    fmt_musd(credit_var_loss[3] - credit_expected_loss),
+    fmt_musd(simulated_es_loss[3])
+  )
+)
+
+credit_model_sims <- 200000
+credit_model_n_names <- 1000
+credit_gaussian_sim_loss <- simulate_granular_gaussian_loss(
+  n_sims = credit_model_sims,
+  n_names = credit_model_n_names,
+  ead = credit_var_inputs$ead,
+  pd = credit_var_inputs$pd,
+  recovery = credit_var_inputs$recovery,
+  rho = credit_var_inputs$rho,
+  seed = 130575
+)
+credit_t10_sim_loss <- simulate_granular_t_loss(
+  n_sims = credit_model_sims,
+  n_names = credit_model_n_names,
+  ead = credit_var_inputs$ead,
+  pd = credit_var_inputs$pd,
+  recovery = credit_var_inputs$recovery,
+  rho = credit_var_inputs$rho,
+  df = 10,
+  seed = 130575
+)
+credit_t4_sim_loss <- simulate_granular_t_loss(
+  n_sims = credit_model_sims,
+  n_names = credit_model_n_names,
+  ead = credit_var_inputs$ead,
+  pd = credit_var_inputs$pd,
+  recovery = credit_var_inputs$recovery,
+  rho = credit_var_inputs$rho,
+  df = 4,
+  seed = 130575
+)
+
+credit_model_loss_list <- list(
+  "Gaussian sim" = credit_gaussian_sim_loss,
+  "t df = 10" = credit_t10_sim_loss,
+  "t df = 4" = credit_t4_sim_loss
+)
+credit_model_summary <- do.call(
+  rbind,
+  lapply(credit_model_loss_list, loss_risk_summary)
+)
+
+credit_model_risk_table <- rbind(
+  data.frame(
+    Model = "Vasicek formula",
+    df = "-",
+    EL = fmt_musd(credit_expected_loss),
+    VaR_99 = fmt_musd(credit_var_loss[2]),
+    VaR_99_9 = fmt_musd(credit_var_loss[3]),
+    ES_99_9 = fmt_musd(simulated_es_loss[3]),
+    Capital_99_9 = fmt_musd(credit_var_loss[3] - credit_expected_loss)
+  ),
+  data.frame(
+    Model = c("Gaussian sim", "t-copula sim", "t-copula sim"),
+    df = c("-", "10", "4"),
+    EL = fmt_musd(credit_model_summary[, "expected_loss"]),
+    VaR_99 = fmt_musd(credit_model_summary[, "var_99"]),
+    VaR_99_9 = fmt_musd(credit_model_summary[, "var_999"]),
+    ES_99_9 = fmt_musd(credit_model_summary[, "es_999"]),
+    Capital_99_9 = fmt_musd(credit_model_summary[, "economic_capital_999"])
+  )
+)
+names(credit_model_risk_table) <- c(
+  "Model",
+  "df",
+  "EL",
+  "VaR 99%",
+  "VaR 99.9%",
+  "ES 99.9%",
+  "Capital 99.9%"
+)
+
+credit_tail_grid <- seq(
+  0,
+  max(sapply(credit_model_loss_list, quantile, probs = 0.9995, type = 1)),
+  length.out = 160
+)
+credit_tail_survival <- sapply(credit_model_loss_list, function(losses) {
+  sapply(credit_tail_grid, function(loss_cutoff) mean(losses >= loss_cutoff))
+})
+credit_tail_survival[credit_tail_survival == 0] <- NA
+
+credit_gaussian_capital <- credit_model_summary["Gaussian sim", "economic_capital_999"]
+credit_t4_capital <- credit_model_summary["t df = 4", "economic_capital_999"]
+```
+
+The chapter now has all the pieces needed to make Credit VaR concrete. We have individual PDs, a dependence model, exposures, recoveries, a loss distribution, and tail-risk measures. Hull's next step after the Gaussian copula discussion, on page 578 of the eleventh edition, gives a compact large-portfolio approximation.
+
+The approximation applies to a large homogeneous portfolio. Each loan has the same one-year PD, the same recovery rate, and the same pairwise copula correlation. In a highly granular portfolio, borrower-specific noise largely diversifies away. Conditional on the common credit factor, the realized default fraction is close to the conditional default probability.
+
+The large-portfolio formula compresses the same one-factor logic into a percentile calculation. It asks a practical question. When the common credit factor reaches the tail state associated with confidence level $X$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
+
+Under those assumptions, the worst-case default rate at confidence level $X$ is
+
+$$
+V(X,T)=
+N\left(
+\frac{N^{-1}(Q(T))+\sqrt{\rho}\,N^{-1}(X)}
+{\sqrt{1-\rho}}
+\right).
+$$
+
+The formula uses the same objects as the copula simulation. $Q(T)$ is the marginal cumulative PD. The parameter $\rho$ is the copula correlation. The confidence level $X$ selects the tail state. The output $V(X,T)$ is a tail default rate for a large homogeneous portfolio.
+
+The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $X$ corresponds to the factor quantile $N^{-1}(1-X)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-X)=N^{-1}(X)$.
+
+Hull's numerical example uses the following inputs.
+
+```{r}
+kable(
+  credit_var_input_table,
+  caption = "Inputs for the Vasicek-style Credit VaR approximation.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+The R function below is the equation written as code.
+
+```{r}
+vasicek_default_rate <- function(pd, rho, confidence) {
+  pnorm(
+    (qnorm(pd) + sqrt(rho) * qnorm(confidence)) /
+      sqrt(1 - rho)
+  )
+}
+
+vasicek_credit_var <- function(ead, pd, recovery, rho, confidence) {
+  ead * (1 - recovery) * vasicek_default_rate(pd, rho, confidence)
+}
+```
+
+For the 99.9% confidence level, the numerical substitution is visible line by line.
+
+```{r}
+kable(
+  credit_var_step_table,
+  caption = "Numerical substitution for the 99.9% Credit VaR calculation.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+The table below evaluates the formula at several confidence levels. Expected loss uses the average default rate, while Credit VaR uses a tail default rate.
+
+```{r}
+kable(
+  credit_var_summary_table,
+  caption = "Gaussian Vasicek Credit VaR, expected loss, capital, and expected shortfall.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+At the 99.9% confidence level, the tail default rate is `r fmt_pct(credit_var_rate[3], 2)`. With $100 million of exposure and 40% LGD, the Credit VaR is `r fmt_musd(credit_var_loss[3])`. Expected loss is much smaller at `r fmt_musd(credit_expected_loss)`. The difference, `r fmt_musd(credit_var_loss[3] - credit_expected_loss)`, is an estimate of economic capital.
+
+```{r}
+kable(
+  credit_var_999_table,
+  caption = "The 99.9% Gaussian Credit VaR calculation.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+Expected shortfall adds one more tail-risk measure. Credit VaR identifies a high percentile of losses. Expected shortfall averages the simulated losses that exceed that percentile. The number is larger than VaR because it looks inside the tail after the VaR threshold has been crossed.
+
+The simulation below uses the one-factor representation behind the approximation. A low value of the systematic factor represents a bad economy. Bad economies raise the conditional default rate and therefore raise portfolio loss.
+
+```{r}
+#| label: fig-vasicek-factor-loss
+#| fig-cap: "Systematic factor and conditional portfolio loss."
+plot(
+  systematic_factor,
+  vasicek_loss / 1e6,
+  pch = 19,
+  cex = 0.42,
+  col = adjustcolor("#566573", alpha.f = 0.22),
+  xlab = "Systematic credit factor",
+  ylab = "Conditional portfolio loss ($ millions)"
+)
+abline(h = credit_var_loss[3] / 1e6, col = "#C0392B", lty = 2, lwd = 3)
+legend(
+  "topright",
+  legend = paste0("99.9% Credit VaR ", fmt_musd(credit_var_loss[3])),
+  col = "#C0392B",
+  lwd = 3,
+  lty = 2,
+  bty = "n"
+)
+```
+
+The t-copula comparison turns this into a model-risk question. The Gaussian Vasicek formula is the analytical benchmark. The Gaussian simulation checks the same logic with a granular portfolio of `r fmt_int(credit_model_n_names)` equal loans. The t-copula simulations keep the same one-year PD, total exposure, recovery, and correlation parameter, then change the tail shape.
+
+```{r}
+kable(
+  credit_model_risk_table,
+  caption = "Credit VaR model risk under Gaussian and t-copula assumptions.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+The expected loss rows stay near `r fmt_musd(credit_expected_loss)` because every model uses the same average one-year PD, EAD, and LGD. The capital rows respond to joint tail behavior. In this run, the Gaussian simulation produces 99.9% capital of `r fmt_musd(credit_gaussian_capital)`. The t-copula with 4 degrees of freedom produces `r fmt_musd(credit_t4_capital)`.
+
+```{r}
+#| label: fig-credit-var-copula-tail
+#| fig-cap: "Loss-tail survival probabilities under Gaussian and t-copulas."
+matplot(
+  credit_tail_grid / 1e6,
+  credit_tail_survival,
+  type = "l",
+  lwd = 3,
+  lty = 1,
+  log = "y",
+  col = c("#2C7FB8", "#F39C12", "#C0392B"),
+  xlab = "Portfolio loss ($ millions)",
+  ylab = "P(loss >= x)"
+)
+legend(
+  "topright",
+  legend = colnames(credit_tail_survival),
+  col = c("#2C7FB8", "#F39C12", "#C0392B"),
+  lwd = 3,
+  lty = 1,
+  bty = "n"
+)
+```
+
+This completes the chapter's credit-risk problem. PDs give average default risk. Copulas shape joint defaults. Exposures and recoveries transform defaults into losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the loss distribution. The final comparison shows why the copula is also a capital assumption.
