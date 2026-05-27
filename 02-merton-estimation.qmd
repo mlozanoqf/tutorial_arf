@@ -1,45 +1,124 @@
-## The estimation
+## Estimating asset value and risk-neutral PD
 
 ```{r merton-estimation-setup, include=FALSE}
 source("R/merton-packages.R")
+source("R/format-helpers.R")
 ```
 
-Let's follow the example 24.3 in [@Hull]. We have five parameters: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, $D=10$ that lead to an estimate of the value of the assets today $V_0$ and the volatility of the assets $\sigma_V$. With these seven parameters we can estimate the Merton risk-neutral probability of default $pd$ among other interesting results.
+::: {.merton-subhead}
+Inputs and Hull equations
+:::
+
+Let's follow the example 24.3 in [@Hull]. We observe five inputs: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, and $D=10$. Here, $D$ is the promised debt payment due at maturity, not the current market value of debt. Using these inputs, we estimate the value of the assets today, $V_0$, and the volatility of the assets, $\sigma_V$. We then use those estimated asset quantities to calculate the Merton risk-neutral probability of default $pd$, among other results.
 
 The risk-free rate appears here because equation 24.3 is a valuation equation. We are not assuming that the firm's assets truly earn the risk-free rate in the real world. We are valuing equity under the risk-neutral measure, which is the same logic used to price a European call option. In that artificial valuation world, default is still the event $V_T < D$. After estimating $V_0$ and $\sigma_V$, we will write the risk-neutral probability of that event as $N(-d_2)$.
+
+Therefore, whenever this section says probability of default, it means the model-implied risk-neutral default probability unless we explicitly say otherwise.
 
 These are the known parameters.
 
 ```{r}
 # List of known parameters.
-E0 <- 3 # Value of the equity as today, this is market capitalization.
+E0 <- 3 # Value of equity today; this is market capitalization.
 se <- 0.8 # Stock return volatility.
 rf <- 0.05 # Risk-free rate.
 TT <- 1 # Maturity.
-D <- 10 # Value of the debt. The Bloomberg function DDIS is useful.
+D <- 10 # Promised debt payment due at maturity. The Bloomberg function DDIS is useful.
 ```
-We need equations 24.3 and 24.4 to estimate $V_0$ and $\sigma_V$.
+
+The reason $V_0$ and $\sigma_V$ are difficult is that neither is directly observed. Hull's example uses two observable equity quantities, $E_0$ and $\sigma_E$, to infer them. We therefore replicate equations 24.3 and 24.4 from [@Hull] before translating them into R.
+
+Equation 24.3 values equity as a European call option on the firm's assets:
+
+$$
+E_0 = V_0N(d_1)-De^{-rT}N(d_2).
+\tag{24.3}
+$$
+
+The terms $d_1$ and $d_2$ are:
+
+$$
+d_1 =
+\frac{\ln(V_0/D)+\left(r+\sigma_V^2/2\right)T}
+{\sigma_V\sqrt{T}},
+\qquad
+d_2=d_1-\sigma_V\sqrt{T}.
+$$
+
+Here $N(\cdot)$ is the cumulative standard normal distribution. In the code, Hull's $r$ is our `rf`. This equation says: given an asset value $V_0$ and asset volatility $\sigma_V$, the option-pricing formula must reproduce the observed equity value $E_0$.
+
+Hull obtains equation 24.4 from Ito's lemma. It links the observed equity volatility to the unobserved asset volatility:
+
+$$
+\sigma_E E_0
+=
+\frac{\partial E}{\partial V}\sigma_V V_0
+=
+N(d_1)\sigma_V V_0.
+\tag{24.4}
+$$
+
+This equation matters because equity is levered. Equity volatility is usually higher than asset volatility, and the scaling depends on the option delta $N(d_1)$ and on the ratio between asset value and equity value. Together, equations 24.3 and 24.4 give two conditions for the two unknowns, $V_0$ and $\sigma_V$. The code below writes each condition as an error. The numerical solution is the pair $(V_0,\sigma_V)$ that makes both errors as close to zero as possible.
+
+The numerical search also needs starting values. These starting values do not impose the answer; they only give the algorithm an economically sensible place to begin. For $V_0$, we start with equity value plus the risk-free present value of the promised debt payment, $E_0+De^{-rfT}$. This does not assume that debt is risk-free. It only gives a reasonable starting scale for the unobserved asset value. For $\sigma_V$, we use a simple deleveraging guess, $\sigma_E E_0/(E_0+De^{-rfT})$, because asset volatility is usually lower than equity volatility when equity is levered.
+
+::: {.merton-subhead}
+Solving the two Merton equations
+:::
+
+The optimizer is then run with `L-BFGS-B` and positive lower bounds. This keeps both $V_0$ and $\sigma_V$ in economically meaningful territory during the search. Because $V_0$ is measured in units of value while $\sigma_V$ is a decimal volatility, the code also gives `optim()` scale information for the numerical search.
 
 ```{r}
+start_V0 <- E0 + D * exp(-rf * TT)
+start_sv <- se * E0 / start_V0
+
+d1_merton <- function(V0, sv) {
+  (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
+}
+
+d2_merton <- function(V0, sv) {
+  d1_merton(V0, sv) - sv * sqrt(TT)
+}
+
 eq24.3 <- function(V0, sv) { 
-  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) -
-  D * exp(-rf * TT) * pnorm(((log(V0 / D) +
-  (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - sv * sqrt(TT)) - E0)) }
+  V0 * pnorm(d1_merton(V0, sv)) -
+    D * exp(-rf * TT) * pnorm(d2_merton(V0, sv)) -
+    E0
+}
+
 eq24.4 <- function(V0, sv) { 
-  ((pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) *
-      sv * V0 - se * E0)) }
+  pnorm(d1_merton(V0, sv)) * sv * V0 - se * E0
+}
+
 # Footnote 10 indicates that we should minimize F(x,y)^2+G(x,y)^2
 min.footnote10 <- function(x) 
   (eq24.3(x[1], x[2]))^2 + (eq24.4(x[1], x[2]))^2
 # The minimization leads to the values of V0 and sv.
-V0_sv <- optim(c(1, 1), min.footnote10)
+V0_sv <- optim(
+  par = c(V0 = start_V0, sv = start_sv),
+  fn = min.footnote10,
+  method = "L-BFGS-B",
+  lower = c(V0 = 1e-6, sv = 1e-6),
+  control = list(
+    parscale = c(V0 = 10, sv = 0.2),
+    ndeps = c(V0 = 1e-6, sv = 1e-8)
+  )
+)
 # Define the values as parameters.
-V0 <- V0_sv$par[1]
-sv <- V0_sv$par[2]
+V0 <- unname(V0_sv$par["V0"])
+sv <- unname(V0_sv$par["sv"])
 kable(data.frame("Market value" = V0, 
                  "Volatility" = sv), 
       caption = "Assets.")
 ```
+
+In this example, those formulas give starting values of about `r fmt_num(start_V0, 4)` for $V_0$ and `r fmt_num(start_sv, 4)` for $\sigma_V$. The final estimates are allowed to move away from those starting values.
+
+These two estimates are the bridge to the rest of the section. First, $V_0$ and $\sigma_V$ determine the risk-neutral default weight $N(-d_2)$. Then they imply the market value of debt, which lets us infer the Merton-implied bond yield spread.
+
+::: {.merton-subhead}
+From d2 to the risk-neutral PD
+:::
 
 Calculate the Merton risk-neutral probability of default as a function of $V_0$ and $\sigma_V$. In Hull's notation, this probability is $N(-d_2)$. The next paragraphs unpack what that notation means.
 
@@ -51,38 +130,38 @@ PD <- function(V0, sv) {
 pd <- PD(V0, sv)
 pd
 ```
-The risk-neutral probability of default is 12.69396%. This number is market-implied by the option-pricing structure of the model. It should not be read as a direct historical frequency unless we add a separate calibration from risk-neutral probabilities to real-world probabilities.
+The risk-neutral probability of default is `r fmt_num(pd, 7)`, or `r fmt_pct(pd, 4)`. This number is market-implied by the option-pricing structure of the model. It answers a pricing question: under the risk-neutral distribution used to value equity, how much weight is assigned to default states? A direct historical or real-world default probability would require a separate calibration from risk-neutral probabilities to real-world probabilities.
 
 Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
 
 ```{r}
 # Inspect the role of d and N(d).
-d1 <- (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
-d2 <- d1 - sv * sqrt(TT)
+d1 <- d1_merton(V0, sv)
+d2 <- d2_merton(V0, sv)
 Nd1 <- pnorm(d1)
 Nd2 <- pnorm(d2)
 ans <- data.frame(d1, Nd1, d2, Nd2)
 ans
 ```
 
-Before connecting this result with the figure, unpack the notation. The symbol $N(\cdot)$ means the cumulative standard normal distribution. In plain words, $N(x)$ is the area to the left of $x$ under the standard normal curve. The value $d_2$ comes from the Black-Scholes-Merton formula. In this chapter, we do not need to treat $d_2$ as mysterious: it is the cutoff that separates survival from default after the model writes future asset values in standard normal units.
+Before connecting this result with the figure, unpack the notation. The symbol $N(\cdot)$ means the cumulative standard normal distribution. In plain words, $N(x)$ is the area to the left of $x$ under the standard normal curve. The value $d_2$ comes from the Black-Scholes-Merton formula. In this chapter, $d_2$ has a concrete role: it is the cutoff that separates survival from default after the model writes future asset values in standard normal units.
 
 The red default area will be $N(-d_2)$, the area to the left of $-d_2$. The green survival area is the rest of the curve. Because the standard normal distribution is symmetric, that survival area is $1-N(-d_2)=N(d_2)$.
 
-Now we can bring back the generic risk-neutral example. In the simple one-period example, the artificial probability $q=0.80$ was the pricing weight of the survival branch, and $1-q=0.20$ was the pricing weight of the default branch. In the Merton model, there are not only two branches. There is a continuous distribution of possible future asset values $V_T$. The numbers are different because this is now the Hull/Merton example, but the interpretation is the same:
+Now we can bring back the generic risk-neutral example. In the simple one-period example, the artificial probability $q=0.80$ was the pricing weight of the survival branch, and $1-q=0.20$ was the pricing weight of the default branch. In the Merton model, a continuous distribution of possible future asset values $V_T$ replaces the two branches. The numbers are different because this is now the Hull/Merton example, but the interpretation is the same:
 
 | One-period example | Merton model |
 |---|---|
 | Survival branch | Region where $V_T>D$ |
 | Default branch | Region where $V_T<D$ |
-| Survival pricing weight: $q=0.80$ | Survival pricing weight: $N(d_2)=0.8730604$ |
-| Default pricing weight: $1-q=0.20$ | Default pricing weight: $N(-d_2)=0.1269396$ |
+| Survival pricing weight: $q=0.80$ | Survival pricing weight: $N(d_2)$ = `r fmt_num(Nd2, 7)` |
+| Default pricing weight: $1-q=0.20$ | Default pricing weight: $N(-d_2)$ = `r fmt_num(pd, 7)` |
 
-This is why the 12.69396% probability should be read as a risk-neutral default weight. It is the continuous-model version of the bad branch in the generic example.
+This is why the `r fmt_pct(pd, 4)` probability should be read as a risk-neutral default weight, not as an empirical default frequency. It is the continuous-model version of the bad branch in the generic example.
 
 Now, let's illustrate how $N(-d_2)$ leads to the risk-neutral probability of default given the properties of a standard normal distribution.
 
-This is the continuous version of the one-period example. In the one-period example, there was only one default branch, so the risk-neutral probability of default was simply $1-q$. In Merton, there is not just one bad branch. There is a full range of possible values for $V_T$, and every value below $D$ is a default state.
+This is the continuous version of the one-period example. In the one-period example, there was one default branch, so the risk-neutral probability of default was simply $1-q$. In Merton, there is a full range of possible values for $V_T$, and every value below $D$ is a default state.
 
 The model converts the default condition into standard normal units. In asset-value terms, default is:
 
@@ -115,11 +194,12 @@ plot(xseq, densities, xlab = "d values (-d_2 is the dotted line)",
 abline(h = 0)
 polygon(c(xseq[xseq >= -d2], -d2), c(densities[xseq >= -d2], 0), col = "green")
 polygon(c(xseq[xseq < -d2], -d2), c(densities[xseq < -d2], 0), col = "red")
-legend("topleft", legend = c("N(d_2)=0.8730604 
-in green and
-N(-d_2)=0.1269396 in red.
-
-N(d_2)+N(-d_2)=1."),
+legend_text <- paste0(
+  "N(d_2)=", round(Nd2, 7),
+  "\nin green and\nN(-d_2)=", round(pd, 7),
+  " in red.\n\nN(d_2)+N(-d_2)=1."
+)
+legend("topleft", legend = legend_text,
 bg = "white", bty = "n", cex = 0.9)
 abline(v = -d2, lty = 2, lwd = 3)
 ```
@@ -130,7 +210,11 @@ Here you can find an alternative explanation about $N(-d_2)$:
 embed_url("https://youtu.be/lV0ytJYbVzc")
 ```
 
-Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. We do not have an analytic math expressions (closed form) to calculate $V_0$ and $\sigma_V$, instead we have approximate values or estimates given the minimization of equations 24.3 and 24.4 in [@Hull]. In order to see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_v$. This value is supposed to be positive as both $F(x,y)$ and $G(x,y)$ functions are squared, so we expect a positive number close to zero when evaluated at $x=V_0$ and $y=\sigma_v$.
+::: {.merton-subhead}
+Checking the numerical solution
+:::
+
+Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. Equations 24.3 and 24.4 in [@Hull] are solved numerically in this implementation, so $V_0$ and $\sigma_V$ come from minimizing the squared pricing errors. To see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_V$. This objective function is positive because both $F(x,y)$ and $G(x,y)$ are squared, so a good solution should produce a value close to zero.
 
 ```{r}
 # Evaluate how good is the minimization.
@@ -138,9 +222,9 @@ min.footnote10(x = c(V0, sv))
 round(min.footnote10(x = c(V0, sv)), 6)
 ```
 
-The minimization conducted in the function <tt>`min.footnote10()`</tt> above worked fairly well as the value is zero in practical terms.
+The constrained optimization above worked well: the objective function is zero in practical terms.
 
-There is another way to approach how the minimization work. We can propose a graphical analysis. In particular, we can verify whether $V_0=12.39578$ and $\sigma_V=0.2123041$ minimizes the objective function. To illustrate this in two axis, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
+There is another way to see how the minimization works. We can propose a graphical analysis. In particular, we can verify whether the estimated values of $V_0$ and $\sigma_V$ minimize the objective function. To illustrate this on two axes, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
 
 ```{r}
 # Fix sv and evaluate different values of V0.
@@ -171,7 +255,7 @@ Clearly, the minimization worked well here. For the sake of completeness, now we
 #| label: fig-hwftvotaatzactvota
 #| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
 # Now fix V0, and evaluate different sv values.
-sv.seq <- seq(0, 0.6, length.out = 100)
+sv.seq <- seq(0.001, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
 # Evaluate the function with these parameters.
 FG.sv <- mapply(FG, V0.rep, sv.seq)
@@ -206,80 +290,87 @@ contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])),
 points(V0, sv, pch = 19, col = "blue", cex = 2)
 ```
 
-The following plot cannot be seen in a PDF output, but it can be seen in a browser as an interactive plot. This green plot is nice but it is not interactive. We could plot interactive three-dimension plots with other R packages like <tt>`plotly`</tt> and show them in a html context or java environment. 
+The following plot is useful in HTML because it can be shown as an interactive surface. The previous `persp()` plot is static; `plotly` gives a browser-based version that can be rotated.
 
 
 ```{r}
 #| label: fig-motfaiv
 #| fig-cap: "Minimization of the function: an interactive view."
 plot_ly(type = "surface" , x = sv.seq, y = V0.seq , z = z ) %>%
-layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
-       scene = list(xaxis = list(title = "Assets volatility"), 
+layout(scene = list(xaxis = list(title = "Assets volatility"), 
                     yaxis = list(title = "Assets", 
                     zaxis = list(title = "f=F^2+G^2"))))  %>%
 hide_colorbar()
-#add_markers(y = 12.3957765, x = 0.2123041, z = 0, inherit = TRUE)
 ```
 
-The Merton model allows us to calculate more values in this credit risk assessment. 
+::: {.merton-subhead}
+Model-implied debt value and spread
+:::
+
+The fitted Merton model also implies additional debt-related quantities. These are not new observed inputs. They are computed from the estimated asset value, the observed equity value, and the promised debt payment due at maturity.
 
 ```{r}
-# Other results in the Merton's model.
+# Model-implied debt quantities.
 market_value_debt <- V0 - E0
 pv_promised_payment_debt <- D * exp(-rf * TT)
-Expected_Loss <- (pv_promised_payment_debt - market_value_debt) /
+implied_loss_rate <- (pv_promised_payment_debt - market_value_debt) /
   pv_promised_payment_debt
-recovery_rate <- 1 - (Expected_Loss / pd)
-ans <- data.frame(market_value_debt, pv_promised_payment_debt, 
-                  Expected_Loss, recovery_rate, pd)
-kable(t(ans), caption = "Other results in the Merton's model.")
+implied_recovery_rate <- 1 - (implied_loss_rate / pd)
+ans <- data.frame(
+  model_implied_debt_value = market_value_debt,
+  risk_free_debt_value = pv_promised_payment_debt,
+  implied_loss_rate = implied_loss_rate,
+  implied_recovery_rate = implied_recovery_rate,
+  risk_neutral_pd = pd
+)
+kable(t(ans), caption = "Model-implied additional quantities.")
 ```
 
-Could we figure out the implied bond yield spread? It would be similar to the fair interest rate that this firm has to pay given its model-implied default risk and recovery rate. Take Hull's equation 24.2 as a reference: $\lambda(T)=S(T)/(1-R)$ and solve for $S(T)$: $S(T)=\lambda(T)\times(1-R)$, so $S(T)=(0.12693963)\times(1-0.90350393)$. This is 122.4918 basis points more than the risk-free rate. Then, with five parameters we can calculate (among other things) the firm's risk-neutral probability of default and the correspondent yield spread of this firm's bond. It would be interesting to compare this value with the market yield spread and evaluate whether the market yield is over or underestimated according to our theoretical value. 
+The risk-free debt value is the value that the promised payment $D$ would have if it were certain. The lower model-implied debt value reflects the credit-risk discount inside the Merton balance sheet.
 
-This is the spread function.
+Could we figure out the bond yield spread implied by the Merton model? Yes. The cleanest way to do it here is to use the model-implied market value of debt directly.
+
+The Merton model gives the asset value $V_0$ and we observe the equity value $E_0$. Since the firm's assets are split between equity and debt claims, the model-implied market value of debt is:
+
+$$
+B_0=V_0-E_0.
+$$
+
+In this simplified Merton setup, debt is treated like a zero-coupon promise to pay $D$ at maturity $T$. The continuously compounded yield $y$ on that debt is the value that satisfies:
+
+$$
+B_0=De^{-yT}.
+$$
+
+Solving for $y$ gives:
+
+$$
+y=\frac{1}{T}\log\left(\frac{D}{B_0}\right).
+$$
+
+The Merton-implied credit spread is then the difference between this implied debt yield and the risk-free rate:
+
+$$
+s=y-rf.
+$$
+
+Let's calculate these quantities.
 
 ```{r}
-spread <- function(E0, se, rf, TT, D) { 
-  eq24.3 <- function(V0, sv) { 
-  ((V0 * pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - 
-      D * exp(-rf * TT) * pnorm(((log(V0 / D) +
-  (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) - sv * sqrt(TT)) - E0)) }
-eq24.4 <- function(V0, sv) { 
-  ((pnorm((log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))) *
-      sv * V0 - se * E0)) }
-  min.footnote10 <- function(x) 
-  (eq24.3(x[1], x[2]))^2 + (eq24.4(x[1], x[2]))^2
-V0_sv <- optim(c(1, 1), min.footnote10)
-V0 <- V0_sv$par[1]
-sv <- V0_sv$par[2]
-pd <- pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) /
-          (sv * sqrt(TT))) - sv * sqrt(TT)))
-
-market_value_debt <- V0 - E0
-pv_promised_payment_debt <- D * exp(-rf * TT)
-Expected_Loss <- (pv_promised_payment_debt - market_value_debt) /
-  pv_promised_payment_debt
-recovery_rate <- 1 - (Expected_Loss / pd)
-spread <- pd * (1-recovery_rate)
-spread
-}
+merton_implied_debt_yield <- (1 / TT) * log(D / market_value_debt)
+merton_implied_spread <- merton_implied_debt_yield - rf
+ans <- data.frame(
+  market_value_debt = market_value_debt,
+  promised_debt_payment = D,
+  risk_free_rate = rf,
+  implied_debt_yield = merton_implied_debt_yield,
+  merton_implied_spread = merton_implied_spread,
+  spread_bps = 10000 * merton_implied_spread
+)
+kable(t(ans), caption = "Merton-implied bond yield spread.")
 ```
 
-Let's evaluate the spread function.
+Numerically, the model-implied market value of debt is `r fmt_num(market_value_debt, 4)`. Since the promised debt payment is `r fmt_num(D, 0)` and maturity is `r fmt_num(TT, 0)` in this example, the implied debt yield is `r fmt_pct(merton_implied_debt_yield, 4)`. With a risk-free rate of `r fmt_pct(rf, 2)`, the Merton-implied spread is `r fmt_pct(merton_implied_spread, 4)`, or about `r fmt_num(10000 * merton_implied_spread, 1)` basis points.
 
-```{r}
-spread(E0 = 3, se = 0.8, rf = 0.05, TT = 1, D = 10)
-```
-
-
-```{r eval=FALSE, include=FALSE}
-x.T <- seq(0.5, 10, 0.5)
-spread.T <- mapply(spread, E0 = 3, se = 0.8, rf = 0.05, x.T, D = 10)
-```
-
-
-```{r eval=FALSE, include=FALSE}
-data.frame(x.T, spread.T)
-```
+This is a model-implied benchmark, not a market quote and not a complete corporate bond pricing model. It is the spread that makes the model-implied value of debt consistent with the promised debt payment at maturity. In practice, an observed corporate bond spread can differ from this benchmark because of liquidity, taxes, seniority, covenants, multiple debt maturities, and broader risk-premium effects. Still, the comparison is useful: if the market spread is much higher than the Merton-implied spread, the bond is paying more compensation than this structural default model suggests; if it is much lower, the bond is paying less.
 

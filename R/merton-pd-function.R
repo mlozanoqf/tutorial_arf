@@ -20,9 +20,21 @@ pd <- function(E0, se, rf, TT, D) {
     (eq24.3(x[1], x[2]))^2 + (eq24.4(x[1], x[2]))^2
   }
 
-  V0_sv <- optim(c(1, 1), min.footnote10)
-  V0 <- V0_sv$par[1]
-  sv <- V0_sv$par[2]
+  start_V0 <- E0 + D * exp(-rf * TT)
+  start_sv <- se * E0 / start_V0
+
+  V0_sv <- optim(
+    par = c(V0 = start_V0, sv = start_sv),
+    fn = min.footnote10,
+    method = "L-BFGS-B",
+    lower = c(V0 = 1e-6, sv = 1e-6),
+    control = list(
+      parscale = c(V0 = 10, sv = 0.2),
+      ndeps = c(V0 = 1e-6, sv = 1e-8)
+    )
+  )
+  V0 <- unname(V0_sv$par["V0"])
+  sv <- unname(V0_sv$par["sv"])
 
   # Merton risk-neutral/implied probability: P_Q(V_T < D) = N(-d2).
   pnorm(-(((log(V0 / D) + (rf + sv^2 / 2) * TT) /

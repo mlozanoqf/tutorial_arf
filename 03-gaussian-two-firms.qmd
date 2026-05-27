@@ -28,13 +28,13 @@ x2 <- data.frame(x2)
 colnames(x2) <- c("f1", "f2")
 ```
 
-The matrix <tt>`x2`</tt> length is 10,000 for each firm. In other words, we have 10,000 observations of the performance measure or $z$-score for two firms that are related. This matrix is big, but we can visualize the header (the first six observations).
+The matrix <tt>`x2`</tt> length is `r format(n, big.mark = ",")` for each firm. In other words, we have `r format(n, big.mark = ",")` observations of the performance measure or $z$-score for two firms that are related. This matrix is big, but we can visualize the header (the first six observations).
 
 ```{r}
 kable(head(x2), caption = "Firms' performance x2.", row.names = TRUE)
 ```
 
-Remember the cumulative probabilities of default are 1%, 3%, 6%, 10% and 15% for the maturities of 1, 2, 3, 4 and 5 years respectively. How do we extract those cases in which both firms will default in 5 years? In rows 15, 53, 61 and so on both firms default at the same time. Note that in all cases the $x$ values are indeed below -1.036433.
+Remember the cumulative probabilities of default are `r paste(fmt_pct(pd, 0), collapse = ", ")` for the maturities of 1, 2, 3, 4 and 5 years respectively. How do we extract those cases in which both firms will default in 5 years? We first identify the simulated rows in which both firms default at the same time. Note that in all such cases the $x$ values are indeed below `r fmt_num(x.y[5], 6)`.
 
 ```{r}
 # These names are going to be useful later.
@@ -71,9 +71,9 @@ colnames(both) <- n.f
 kable(head(both), caption = "Cases in which both firms default in 5 years.", 
       row.names = TRUE)
 ```
-In total, we have 343 cases in which both firms default at the same time. The first case is number 15, the second 53, the third 61 and so on. It is easy to know the total cases if we count the number of rows.
+In total, we have `r nrow(both)` cases in which both firms default at the same time. The first simulated row numbers are `r paste(head(rownames(both), 3), collapse = ", ")`, and so on. It is easy to know the total cases if we count the number of rows.
 
-How do we extract those cases in which any firm will default in 5 years? This is, only firm 1, only firm 2, or both at the same time. This is a less strict condition so we would expect to have more cases to match this new criteria compared with <tt>`both`</tt>. Note that in all cases at least one one firm is indeed below -1.036433. In row 1, 2 and 10 firm 2 defaults. In row 15 both firms default. In row 18 and 20 firm 1 and firm 2 default respectively.
+How do we extract those cases in which any firm will default in 5 years? This is, only firm 1, only firm 2, or both at the same time. This is a less strict condition so we would expect to have more cases to match this new criteria compared with <tt>`both`</tt>. Note that in all cases at least one firm is indeed below `r fmt_num(x.y[5], 6)`. The table below shows the first simulated rows that satisfy this condition.
 
 
 ```{r}
@@ -83,7 +83,7 @@ kable(head(any), caption = "Cases in which at least one firm default.",
       row.names = TRUE)
 ```
 
-Now we have 2,660 cases. Considerably more as the <tt>`|`</tt> restriction is less strict than the <tt>`&`</tt>. Let's see the cases in which only firm 1 defaults.
+Now we have `r format(nrow(any), big.mark = ",")` cases. Considerably more as the <tt>`|`</tt> restriction is less strict than the <tt>`&`</tt>. Let's see the cases in which only firm 1 defaults.
 
 ```{r}
 onlyf1 <- data.frame(X[["onlyf1", 5]], X[["onlyf1", 5]] < x.y[5])
@@ -124,6 +124,10 @@ onlyf1.pd <- t(data.frame(X["onlyf1.pd",]))
 onlyf2.pd <- t(data.frame(X["onlyf2.pd",]))
 one.pd <- t(data.frame(X["one.pd",]))
 none.pd <- t(data.frame(X["none.pd",]))
+firm1.pd <- onlyf1.pd + both.pd
+firm2.pd <- onlyf2.pd + both.pd
+one_from_only <- onlyf1.pd[5] + onlyf2.pd[5]
+one_from_any_both <- any.pd[5] - both.pd[5]
 ans <- data.frame(both.pd, any.pd, onlyf1.pd, onlyf2.pd, 
                  one.pd, none.pd)
 rownames(ans) <- n.year
@@ -132,15 +136,15 @@ kable(ans, caption = "Probabilities of default.")
 
 So interesting. 
 
-Note that 15% is the theoretical probability that one firm will default in 5 years. Here, this 15% is 12.1% for firm 1 and 11.07% for firm 2 when the data is simulated. 
+Note that `r fmt_pct(pd[5], 0)` is the theoretical probability that one firm will default in 5 years. Here, this `r fmt_pct(pd[5], 0)` is `r fmt_pct(firm1.pd[5], 2)` for firm 1 and `r fmt_pct(firm2.pd[5], 2)` for firm 2 when the data is simulated. 
 
-We can perform a simple test to verify that everything is alright. For example, this equation must hold: <tt>`onlyf1+onlyf2=one`</tt>. Substituting for the year 5: $0.121+0.1107=0.2317$. As you can see, everything is alright. This equation must hold as well: <tt>`any-both=one`</tt>. Substituting for the year 5: $0.266-0.0343=0.2317$.
+We can perform a simple test to verify that everything is alright. For example, this equation must hold: <tt>`onlyf1+onlyf2=one`</tt>. Substituting for the year 5: $`r fmt_num(onlyf1.pd[5], 4)`+`r fmt_num(onlyf2.pd[5], 4)`=`r fmt_num(one_from_only, 4)`$. As you can see, everything is alright. This equation must hold as well: <tt>`any-both=one`</tt>. Substituting for the year 5: $`r fmt_num(any.pd[5], 4)`-`r fmt_num(both.pd[5], 4)`=`r fmt_num(one_from_any_both, 4)`$.
 
-Let's visualize all 10,000 cases. Each dot represents a couple of Firm 1 and Firm 2 $x$ values and the dotted lines the threshold that represents the probability of default in 5 years.
+Let's visualize all `r format(nrow(x2), big.mark = ",")` cases. Each dot represents a couple of Firm 1 and Firm 2 $x$ values and the dotted lines the threshold that represents the probability of default in 5 years.
 
 ```{r}
 #| label: fig-a1sc
-#| fig-cap: "All 10,000 simulated cases."
+#| fig-cap: "All simulated cases."
 par(pty = "s") # Figures are shown in a perfect square (not a rectangle).
 plot(x2, pch = ".", cex = 1) 
 abline(v = x.y[5], lty = 2)
@@ -148,12 +152,12 @@ abline(h = x.y[5], lty = 2)
 legend("bottomright", legend = c(paste(nrow(x2))), bty = "n")
 ```
 
-These 10,000 observations are highly concentrated around the mean which is very close to zero. This can be also easily seen in the following density plot.
+These `r format(nrow(x2), big.mark = ",")` observations are highly concentrated around the mean which is very close to zero. This can be also easily seen in the following density plot.
 
 
 ```{r}
 #| label: fig-a1scadv
-#| fig-cap: "All 10,000 simulated cases: A density view."
+#| fig-cap: "All simulated cases: A density view."
 ggplot(x2, aes(x = f1, y = f2) ) +
   stat_density_2d(aes(fill = ..level..), geom = "polygon", 
                   colour = "white") +
@@ -249,7 +253,7 @@ abline(h = x.y[5], lty = 2)
 legend("topright", legend = c(paste(both.pd[5]*n)), bty = "n")
 ```
 
-The values within the plot represent the number of cases. Here, we have 343 times (out of 10,000) in which both firms default at the same time in 5 years. Note that this is a cumulative probability of default.
+The values within the plot represent the number of cases. Here, we have `r nrow(X[["both", 5]])` times (out of `r format(n, big.mark = ",")`) in which both firms default at the same time in 5 years. Note that this is a cumulative probability of default.
 
 Now, the case in which any firm defaults in 5 years.
 

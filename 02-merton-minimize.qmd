@@ -2,9 +2,10 @@
 
 ```{r merton-minimize-setup, include=FALSE}
 source("R/merton-packages.R")
+source("R/format-helpers.R")
 ```
 
-The estimation of the credit risk Merton's model requires a minimization of a function. In this section, we show a simple minimization example. Here are some useful online resources for further references.
+The estimation of the credit-risk Merton model requires minimizing a function. In this section, we show a simple minimization example. Here are some useful online resources for further references.
 
 * [FRM: How d2 in Black-Scholes becomes PD in Merton model.](https://youtu.be/lV0ytJYbVzc)
 * [Normal Probability Distribution Graph. Interactive.](https://www.intmath.com/counting-probability/normal-distribution-graph-interactive.php)
@@ -43,7 +44,7 @@ ans <- data.frame(a, b, f)
 kable(ans, caption = "Minimization results f(a,b).")
 ```
 
-The minimization result is represented by a line, and the line is characterized by an intercept equal to $-1.266846$ and a slope equal to $2.02862$. 
+The minimization result is represented by a line, and the line is characterized by an intercept equal to $`r fmt_num(a, 6)`$ and a slope equal to $`r fmt_num(b, 5)`$. 
 
 We can plot it and verify that this is indeed the right answer.
 

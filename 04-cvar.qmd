@@ -2,6 +2,7 @@
 
 ```{r include=FALSE}
 library(ggplot2)
+source("R/format-helpers.R")
 ```
 
 This chapter replicates @Hull example 24.7.
@@ -42,8 +43,9 @@ Now, visually:
 hist(Loss, 100, xlim = c(0, 7), xlab = "Losses in millions", main = NULL)
 abline(v = CVaR.999, lty = 2, col = "red", lwd = 2)
 abline(v = CVaR.99, lty = 2, col = "blue", lwd = 2)
-legend("topright", legend = c("1-year 99% credit VaR is 3.294271", 
-         "1-year 99.9% credit VaR is 5.129484"),
+legend("topright", legend = c(
+  paste0("1-year 99% credit VaR is ", fmt_num(CVaR.99, 6)),
+  paste0("1-year 99.9% credit VaR is ", fmt_num(CVaR.999, 6))),
 col = c("blue", "red"), lwd = 2, lty = 2, bg = "white", cex = 0.8)
 ```
 

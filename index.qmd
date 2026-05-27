@@ -20,8 +20,6 @@ xfun::file_string("contact.html")
 write_book_dates()
 ```
 
-# Credit Risk with R {.unnumbered}
-
 ## Preface {.unnumbered}
 
 ::: {.home-panel}
@@ -31,3 +29,10 @@ The style is deliberately explicit. Credit risk work depends on many small choic
 
 The organizing principle follows the literate programming spirit of @knuth1984literate: the goal is to explain to human beings what we want a computer to do. The book remains under active revision, with the emphasis on clarity, reproducibility, and practical interpretation.
 :::
+
+## What's new in this edition {.unnumbered}
+
+- **Reproducible numbers:** calculated outputs are pulled more consistently from R objects and inline code.
+- **Merton chapter:** clearer path from risk-neutral valuation to equity as a contingent claim.
+- **Hull implementation:** equations 24.3 and 24.4 are introduced before the R code.
+- **Credit-risk interpretation:** debt due at maturity, model-implied spreads, and capital-structure scenarios are stated more directly.

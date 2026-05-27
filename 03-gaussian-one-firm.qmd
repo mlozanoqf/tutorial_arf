@@ -15,7 +15,14 @@ x.sim <- rnorm(N, 0, 1) # Simulation.
 kable(head(cbind(x.sim, x)))
 ```
 
-Note that the probabilities of default per maturity in the simulated approach are close to the values of the previous section. In particular, $0.01$ is equivalent to $0.0102$, and $0.03$ is equivalent to $0.0307$. They do not match exactly simply because we are comparing theoretical versus simulated probabilities.
+```{r gaussian-one-firm-simulated-pd-setup, include=FALSE}
+prop <- function(x) {
+  length(x.sim[x.sim <= x]) / N
+}
+pd.sim <- mapply(prop, x.y)
+```
+
+Note that the probabilities of default per maturity in the simulated approach are close to the values of the previous section. In particular, $`r fmt_num(pd[1], 2)`$ is equivalent to $`r fmt_num(pd.sim[1], 4)`$, and $`r fmt_num(pd[2], 2)`$ is equivalent to $`r fmt_num(pd.sim[2], 4)`$. They do not match exactly simply because we are comparing theoretical versus simulated probabilities.
 
 
 ```{r}
@@ -38,9 +45,11 @@ Let's view the results of the simulated approach. First in a histogram.
 # Some parameters we need to plot.
 L <- c(-4, 4) # axis limits.
 colors2 <- c("blue", "red", "purple", "pink", "green")
-legend2 = c("pd(1year)=1.02%: x<=-2.326348", 
-"pd(2years)=3.07%: x<=-1.880794", "pd(3years)=6.29%: x<=-1.554774",
-"pd(4years)=10.08%: x<=-1.281552", "pd(5years)=14.8%: x<=-1.036433")
+legend2 <- paste0(
+  "pd(", seq_along(pd.sim), "year",
+  ifelse(seq_along(pd.sim) == 1, "", "s"), ")=",
+  fmt_pct(pd.sim, 2), ": x<=", fmt_num(x.y, 6)
+)
 # The histogram.
 hist(x.sim, 500, xlim = L, ylim = c(0, 100), main = NULL, xlab = "x.sim")
 abline(h = 0, lty = 2)

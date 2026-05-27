@@ -39,14 +39,14 @@ polygon(c(x[x < x.y[5]], x.y[5]),
         c(D[x < x.y[5]], 0), col = "green")
 
 legend("topright", legend=c(
-"pd(5years)=15%
+paste0("pd(5years)=", fmt_pct(pd[5], 0), "
 
 The left green area
-represents 15% of the
+represents ", fmt_pct(pd[5], 0), " of the
 whole bell-shape.
 
-N^-1(0.15)=-1.036433
-N(-1.036433)=0.15"),
+N^-1(", fmt_num(pd[5], 2), ")=", fmt_num(x.y[5], 6), "
+N(", fmt_num(x.y[5], 6), ")=", fmt_num(pnorm(x.y[5]), 2))),
 bg = "white", pch = 19, cex = 0.8, bty = "n", col = "green")
 ```
 
@@ -65,12 +65,12 @@ lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2),
       col = "green", lwd = 3)
 lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
       col = "green", lwd = 3)
-points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
+points(x.y[5], pd[5], pch = 19, col = "green", cex = 2)
 legend("right", legend=c(
-"pd(5years)=15%
+paste0("pd(5years)=", fmt_pct(pd[5], 0), "
 
-N^-1(0.15)=-1.036433
-N(-1.036433)=0.15"),
+N^-1(", fmt_num(pd[5], 2), ")=", fmt_num(x.y[5], 6), "
+N(", fmt_num(x.y[5], 6), ")=", fmt_num(pnorm(x.y[5]), 2))),
 bg = "white", pch = 19, cex = 1, bty = "n", col = "green")
 ```
 
@@ -92,10 +92,13 @@ lines(seq(-5, x.y[5], length.out = 2), rep(pnorm(x.y[5]), 2),
       col = "green", lwd = 3, lty = 2)
 lines(rep(x.y[5], 2), seq(0, pnorm(x.y[5]), length.out = 2), 
       col = "green", lwd = 3, lty = 2)
-points(x.y[3], 0.06, pch = 19, col = "purple", cex = 2)
-points(x.y[5], 0.15, pch = 19, col = "green", cex = 2)
-legend("topleft", legend=c("pd(5years)=15%: N(-1.036433)=0.15",
-                           "pd(3years)=6%: N(-1.554774)=0.06"),
+points(x.y[3], pd[3], pch = 19, col = "purple", cex = 2)
+points(x.y[5], pd[5], pch = 19, col = "green", cex = 2)
+legend("topleft", legend=c(
+  paste0("pd(5years)=", fmt_pct(pd[5], 0), ": N(",
+         fmt_num(x.y[5], 6), ")=", fmt_num(pnorm(x.y[5]), 2)),
+  paste0("pd(3years)=", fmt_pct(pd[3], 0), ": N(",
+         fmt_num(x.y[3], 6), ")=", fmt_num(pnorm(x.y[3]), 2))),
 pch = 19, col = c("green", "purple"), bg = "white", cex = 1, bty = "n")
 ```
 

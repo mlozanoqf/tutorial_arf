@@ -103,7 +103,7 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
   theme(legend.position = "none") +
   scale_color_identity() +  # Use the colors directly without adding them to the legend
   scale_x_continuous(breaks = c(0, 0.65, 0.8, 1)) +
-  scale_y_continuous(breaks = c(0, 0.0371, 0.0576, 0.1093))
+  scale_y_continuous(breaks = sort(unique(c(0, round(highlight_lines$bad_rate, 4)))))
 ```
 
 
@@ -230,13 +230,15 @@ The area under the ROC curve (AUC) quantifies the model's ability to discriminat
 # Calculate ROC curves
 ROC_logi_full <- roc(test$loan_st, pred_logi_full)
 ROC_logi_age <- roc(test$loan_st, pred_logi_age)
+auc_logi_full <- as.numeric(auc(ROC_logi_full))
+auc_logi_age <- as.numeric(auc(ROC_logi_age))
 
 # Draw the ROC curves on one plot
 plot(ROC_logi_full, col = "blue", lwd = 3)
 lines(ROC_logi_age, col = "orange", lwd = 3)
 legend("bottomright", 
-       legend = c("Full model AUC: 0.8213", 
-                  "Age model AUC: 0.5301"), 
+       legend = c(paste0("Full model AUC: ", fmt_num(auc_logi_full, 4)),
+                  paste0("Age model AUC: ", fmt_num(auc_logi_age, 4))), 
        col = c("blue", "orange"), 
        lwd = 3)
 ```
@@ -245,11 +247,11 @@ As expected, in @fig-fmibamio the area under the curve (AUC) is higher for the b
 
 ```{r AUC good and bad model}
 # Compute the AUCs:
-auc(ROC_logi_full)
-auc(ROC_logi_age)
+auc_logi_full
+auc_logi_age
 ```
 
-Note that the <tt>`logi_age`</tt> has an AUC of 0.5301. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule.
+Note that the <tt>`logi_age`</tt> has an AUC of `r fmt_num(auc_logi_age, 4)`. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule.
 
 The AUC is useful, but it does not answer every question. In particular, AUC evaluates discrimination or ranking: whether applicants who default tend to receive higher predicted probabilities than applicants who do not default. It does not tell us whether the predicted probabilities are well calibrated. Calibration is a different question. If the model assigns a group of applicants an average predicted probability of default of 20%, do about 20% of those applicants actually default?
 

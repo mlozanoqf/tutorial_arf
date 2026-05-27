@@ -1,4 +1,5 @@
 source("R/gaussian-packages.R")
+source("R/format-helpers.R")
 
 x <- seq(-4, 4, 0.001)
 D <- dnorm(x)
@@ -13,9 +14,9 @@ n.pd <- c("pd.y1", "pd.y2", "pd.y3", "pd.y4", "pd.y5")
 L <- c(-4, 4)
 colors2 <- c("blue", "red", "purple", "pink", "green")
 legend2 <- c(
-  "pd(1year)=1.02%: x<=-2.326348",
-  "pd(2years)=3.07%: x<=-1.880794",
-  "pd(3years)=6.29%: x<=-1.554774",
-  "pd(4years)=10.08%: x<=-1.281552",
-  "pd(5years)=14.8%: x<=-1.036433"
+  paste0("pd(1year)=", fmt_pct(pd[1], 2), ": x<=", fmt_num(x.y[1], 6)),
+  paste0("pd(2years)=", fmt_pct(pd[2], 2), ": x<=", fmt_num(x.y[2], 6)),
+  paste0("pd(3years)=", fmt_pct(pd[3], 2), ": x<=", fmt_num(x.y[3], 6)),
+  paste0("pd(4years)=", fmt_pct(pd[4], 2), ": x<=", fmt_num(x.y[4], 6)),
+  paste0("pd(5years)=", fmt_pct(pd[5], 1), ": x<=", fmt_num(x.y[5], 6))
 )

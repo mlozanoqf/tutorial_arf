@@ -47,11 +47,13 @@ saveRDS(dat, "loan_data_ARF.rds")
 
 ```{r Load the modified database}
 dat <- readRDS("loan_data_ARF.rds")
+initial_n <- nrow(dat)
+initial_p <- ncol(dat)
 str(dat)
 ```
 
 
-This dataset could represent a typical collection of data from a financial institution, such as a bank or a company that uses credit channels to sell its products or services. It contains 29,092 observations across 10 variables. Each observation corresponds to the personal and loan characteristics of an individual loan. 
+This dataset could represent a typical collection of data from a financial institution, such as a bank or a company that uses credit channels to sell its products or services. It contains `r format(initial_n, big.mark = ",")` observations across `r initial_p` variables. Each observation corresponds to the personal and loan characteristics of an individual loan. 
 
 A key variable, our dependent variable, is `loan_st`, which indicates loan status. A value of 0 represents no default, while a value of 1 represents default. A default occurs when a borrower fails to make timely payments, misses payments, or ceases payments on the interest or principal owed. The definition of default can vary depending on the goals and interests of the analysis. For the purposes of this study, we classify loans simply as either default or no default. 
 
@@ -70,7 +72,7 @@ data.frame(old_names, "new_names" = colnames(dat))
 
 New variable names have now been assigned. 
 
-We can take a look at the information in different ways. For example, look at the first 10 rows out of 29,092.
+We can take a look at the information in different ways. For example, look at the first 10 rows out of `r format(initial_n, big.mark = ",")`.
 
 ```{r First 10 rows of loan data}
 head(dat, 10)
@@ -112,21 +114,22 @@ ggplot(dat, aes(income)) +
        x = "Annual income") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
-The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (6,000,000). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these observations should remain in the analysis or whether they distort the visual and statistical summary of the rest of the sample.
+The @fig-aib above appears suspicious. The horizontal axis shows a very large annual income value (`r format(max(dat$income), big.mark = ",")`). Additionally, there are only a few individuals with extremely high incomes. We should investigate further to determine whether these observations should remain in the analysis or whether they distort the visual and statistical summary of the rest of the sample.
 
 ```{r Extract the row of the high income individuals}
 high_income <- dat[(dat$income > 1000000), ]
 high_income
 ```
 
-One individual (ID 19486) is not only extremely wealthy but also 144 years old. The age value is not credible, and the income values are extreme relative to the rest of the sample. In this book we continue with an analysis without these extreme observations. This is a discretionary cleaning criterion rather than a universal rule: in an applied project, we would document the decision and usually compare results with and without these observations.
+One individual (ID `r rownames(high_income)[which.max(high_income$age)]`) is not only extremely wealthy but also `r max(high_income$age)` years old. The age value is not credible, and the income values are extreme relative to the rest of the sample. In this book we continue with an analysis without these extreme observations. This is a discretionary cleaning criterion rather than a universal rule: in an applied project, we would document the decision and usually compare results with and without these observations.
 
 ```{r}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))
 dat <- dat[-high_income_index$value,]
+clean_n <- nrow(dat)
 ```
 
-Remember, the original dataset contains 29,092 rows. After removing 9 observations, we are left with 29,083 rows. Let's take a look at the result.
+Remember, the original dataset contains `r format(initial_n, big.mark = ",")` rows. After removing `r nrow(high_income_index)` observations, we are left with `r format(clean_n, big.mark = ",")` rows. Let's take a look at the result.
 
 ```{r}
 #| label: fig-aiwev

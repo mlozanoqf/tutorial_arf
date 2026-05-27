@@ -18,19 +18,21 @@ x[ind] <- t(x)[ind]
 diag(x) = 1
 kable(x, caption = "Correlation matrix 0.2.")
 ```
-Now, we can simulate the multivariate normal distribution. The variable <tt>`X10`</tt> length is 1,000,000 for each firm. We choose a higher number of simulations because otherwise the most restrictive constraints would not lead to any observations.
+Now, we can simulate the multivariate normal distribution. The variable <tt>`X10`</tt> length is `r fmt_int(n)` for each firm. We choose a higher number of simulations because otherwise the most restrictive constraints would not lead to any observations.
 
 ```{r}
 # Create the simulated cases.
 set.seed(130575) # Reproducibility.
 X10 <- mvrnorm(n, mu = rep(0, m), Sigma = x)
-X10 <- data.frame(X10) # 10,000,000 observations.
+X10 <- data.frame(X10) # n simulated observations for 10 firms.
 colnames(X10) <- c("f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10")
-kable(head(X10), caption = "10 firms' performance, 1,000,000 simulations.",
+kable(head(X10),
+      caption = paste0("10 firms' performance, ",
+                       fmt_int(n), " simulations."),
       digits = 3)
 ```
 
-How do we extract those cases in which all 10 firms will default in 5 years (at the same time)? Here are the first 6 of those cases. Note that in all cases the <tt>`X10`</tt> values are lower than $-1.036433$.
+How do we extract those cases in which all 10 firms will default in 5 years (at the same time)? Here are the first 6 of those cases. Note that in all cases the <tt>`X10`</tt> values are lower than $`r fmt_num(x.y[5], 6)`$.
 
 ```{r}
 # Given that we have 10 firms, it is easier to use filter_all function.
@@ -59,16 +61,16 @@ How many cases are there?
 ```{r}
 nrow(y5.all.2)
 ```
-Which are those 72 cases?
+Which are those `r nrow(y5.all.2)` cases?
 
 ```{r}
 # Here, I compare only firm 1 as if firm 1 defaults, then the rest default.
 kable(matrix(which(X10[,1] %in% y5.all.2[,1]), 6, 9), 
-      caption = "Which of the 1,000,000 cases represent a default of all 
-      firms in five years?")
+      caption = paste0("Which of the ", fmt_int(n),
+                       " cases represent a default of all firms in five years?"))
 ```
 
-In total, we only have 72 cases. This is, the 10 firms will default at the same time in 5 years in 72 out of 1,000,000 total cases. For the rest of the years, the cases are less frequent, in fact we have zero cases for year 1, 2 and 3.
+In total, we only have `r nrow(y5.all.2)` cases. This is, the 10 firms will default at the same time in 5 years in `r nrow(y5.all.2)` out of `r fmt_int(n)` total cases. For the rest of the years, the cases are less frequent, in fact we have `r nrow(y1.all.2)` cases for year 1, `r nrow(y2.all.2)` for year 2, and `r nrow(y3.all.2)` for year 3.
 
 How do we extract those cases in which at least one of the 10 firms will default? 
 
@@ -97,7 +99,7 @@ How many cases are these?
 nrow(y5.any.2)
 ```
 
-In total, we have 682,148 cases. This is, at least one of 10 firms will default in 5 years in 682,148 of 1,000,000 cases. 
+In total, we have `r fmt_int(nrow(y5.any.2))` cases. This is, at least one of 10 firms will default in 5 years in `r fmt_int(nrow(y5.any.2))` of `r fmt_int(n)` cases. 
 
 And how to convert them into probabilities?
 
@@ -152,7 +154,7 @@ Xr.y4.any <- filter_all(Xr, any_vars(. < x.y[4]))
 Xr.y5.any <- filter_all(Xr, any_vars(. < x.y[5]))
 ```
 
-All firms default in 5,935 cases out of 1,000,000.
+All firms default in `r fmt_int(nrow(Xr.y5.all))` cases out of `r fmt_int(n)`.
 
 ```{r}
 nrow(Xr.y5.all)
@@ -171,7 +173,7 @@ Verify that those cases default.
 kable((head(Xr.y5.all) < x.y[5]), caption = "Check if all of them default.")
 ```
 
-At least one firm default in 497,987 out of 1,000,000.
+At least one firm default in `r fmt_int(nrow(Xr.y5.any))` out of `r fmt_int(n)`.
 
 ```{r}
 nrow(Xr.y5.any)

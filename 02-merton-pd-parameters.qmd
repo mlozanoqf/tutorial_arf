@@ -1,12 +1,12 @@
-## The risk-neutral probability of default as a function of some parameters
+## Model-implied PD sensitivity analyses
 
 ```{r merton-pd-parameters-setup, include=FALSE}
 source("R/merton-pd-function.R")
 ```
 
-Now we have a convenient function: $pd = f(E_0, \sigma_E, rf, T, D)$. Remember these five parameters are required to estimate $V_0$ and $\sigma_V$ before calculating $pd$.
+Now we have a convenient function: $pd = f(E_0, \sigma_E, rf, T, D)$. Remember these five observable inputs are used to estimate $V_0$ and $\sigma_V$ before calculating $pd$.
 
-Throughout this section, $pd$ means the Merton risk-neutral/implied probability of default. The function changes one or two observable inputs, solves again for the unobservable $V_0$ and $\sigma_V$, and then recomputes $N(-d_2)$ under the risk-neutral distribution.
+Throughout this section, $pd$ means the Merton risk-neutral/implied probability of default. The exercises below are model-implied sensitivity analyses. We do not hold all model quantities fixed. Instead, we change one or two observable inputs, keep the remaining observable inputs and model assumptions fixed, solve again for the unobservable $V_0$ and $\sigma_V$, and then recompute $N(-d_2)$ under the risk-neutral distribution. Thus, $V_0$ and $\sigma_V$ are not held fixed; they are part of the new Merton solution at each point.
 
 ```{r}
 # Evaluate the case of the textbook example.
@@ -14,16 +14,16 @@ pd1 <- pd(3, 0.8, 0.05, 1, 10)
 pd1
 ```
 
-Now, we create vectors of parameters and evaluate the <tt>`pd`</tt> function.
+Now we create vectors of parameters and evaluate the `pd` function.
 
 ```{r}
 l = 50 # Vectors of length 50.
 # Create vectors of the parameters.
 x.E <- seq(from = 1, to = 20, length.out = l)
-x.rf <- seq(0, 4, length.out = l)
+x.rf <- seq(0, 0.20, length.out = l)
 x.D <- seq(1, 20, length.out = l)
 x.T <- seq(0.5, 20, length.out = l)
-x.se <- seq(0, 3, length.out = l)
+x.se <- seq(0.01, 3, length.out = l)
 # Evaluate the pd at different values.
 pd.E <- mapply(pd, x.E, se, rf, TT, D)
 pd.rf <- mapply(pd, E0, se, x.rf, TT, D)
@@ -32,8 +32,13 @@ pd.T <- mapply(pd, E0, se, rf, x.T, D)
 pd.se <- mapply(pd, E0, x.se, rf, TT, D)
 ```
 
+The risk-free-rate grid ranges from 0% to 20%. This keeps the plot focused on a moderate range around the textbook example, rather than on extreme interest-rate environments.
 
-Let's plot the risk-neutral probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as the $E_0$ has 50 values from 1 to 20. By doing this, we end up with 50 values of the risk-neutral probability of default. 
+::: {.merton-subhead}
+One-input sensitivity curves
+:::
+
+Let's plot the risk-neutral probability of default as a function of equity. What we are doing here is to evaluate the probability of default function 50 times, as $E_0$ has 50 values from 1 to 20. At each value of $E_0$, the code re-estimates $V_0$ and $\sigma_V$ and then computes a new risk-neutral probability of default.
 
 ```{r}
 #| label: fig-tpodaafoteaatz
@@ -46,7 +51,7 @@ abline(h = pd1, lty = 2)
 points(E0, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-These relationships between the parameters and the risk-neutral probability of default are all non-linear. This is interesting because according to the model, the current levels of the parameters are important when deciding which parameter might lead to a high or low impact over the model-implied probability of default.
+These relationships between the observable inputs and the risk-neutral probability of default are all non-linear. This is interesting because, according to the model, the current levels of the inputs are important when deciding which change might have a high or low impact on the model-implied probability of default.
 
 ```{r}
 #| label: fig-tpodaafotrfr
@@ -59,24 +64,24 @@ abline(h = pd1, lty = 2)
 points(rf, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Risk-neutral probability of default as a function of debt. Note that adding 1 or subtracting 1 unit of debt has different impact over the probability of default.
+Risk-neutral probability of default as a function of the promised debt payment due at maturity, $D$. Note that increasing or decreasing $D$ by 1 unit has a different impact on the model-implied probability of default.
 
 ```{r}
 #| label: fig-tpodaafotd
-#| fig-cap: "The risk-neutral probability of default as a function of the debt."
+#| fig-cap: "The risk-neutral probability of default as a function of the promised debt payment due at maturity."
 plot(x.D, pd.D, type = "l", ylab = "Risk-neutral PD", 
-     xlab = "Debt", lwd = 3, ylim = c(0, 0.15))
+     xlab = "Promised debt payment at maturity", lwd = 3, ylim = c(0, 0.15))
 abline(h = 0, lty = 2)
 abline(v = D, lty = 2)
 abline(h = pd1, lty = 2)
 points(D, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Risk-neutral probability of default as a function of maturity. Note that asking for a higher debt maturity (as in a negotiation), do not lead to a lower probability of default if we keep the rest of the parameters unchanged in our firm. Imagine we arrange a meeting with the bank manager and we ask for more time to pay our debt. The bank manager should not (in principle) extend the debt maturity as long as we commit to do some changes in the firm. For example, we can negotiate a longer maturity and promise to increase the firm's equity.
+Risk-neutral probability of default as a function of maturity. In this model-implied sensitivity exercise, changing maturity also triggers a new solution for $V_0$ and $\sigma_V$. The curve should therefore be read as: for each maturity value on the horizontal axis, the remaining observable inputs are kept fixed, the unobserved asset quantities are re-estimated, and the risk-neutral PD is recomputed. This is a model comparison, not a standalone recommendation about debt negotiation. A real negotiation would also depend on cash flows, covenants, recovery, refinancing risk, and the bank's required spread.
 
 ```{r}
 #| label: fig-tpodaafotdm
-#| fig-cap: "The risk-neutral probability of default as a function of the debt's maturity."
+#| fig-cap: "The risk-neutral probability of default as a function of debt maturity."
 plot(x.T, pd.T, type = "l", ylab = "Risk-neutral PD", 
      xlab = "Maturity", lwd = 3)
 abline(h = 0, lty = 2)
@@ -99,9 +104,13 @@ points(se, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
 
-In the previous plots we evaluate the probability of default function by changing one of the following parameters: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these five parameters. Note that $V_0$ and $\sigma_V$ do not remain fixed because they are at the same time a function of $E_0$, $\sigma_E$, $rf$, $T$ and $D$. Now, let's start by plotting the risk-neutral probability of default as a function of $E_0$ and $\sigma_E$.
+::: {.merton-subhead}
+Two-input views
+:::
 
-One alternative is to evaluate the probability of default function 50 times by taking the 50 pairs of values of $E_0$ and $\sigma_E$. By doing that, we will end with three vectors of size 50 that we can plot as a three dimension scatter plot.
+In the previous plots we evaluated the probability of default function by changing one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ do not remain fixed because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated. Now, let's plot the risk-neutral probability of default as a function of $E_0$ and $\sigma_E$.
+
+One alternative is to evaluate the probability of default function 50 times by taking the 50 pairs of values of $E_0$ and $\sigma_E$. By doing that, we will end with three vectors of size 50 that we can plot as a three-dimensional scatter plot.
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoe
@@ -114,7 +123,7 @@ p.ED <- scatterplot3d(x.E, x.se, ED, pch = 16, type = "h", color = 1:50,
 p.ED$points3d(E0, se, pd1, type = "h", col = "red", pch = 20, cex = 3)  
 ```
 
-The red point represent the case of the original textbook example in which $pd = f(E_0=3, \sigma_E=0.8,rf=0.05,T=1,D=10)=0.1269396$. Note that the red point is not part of the 50 plotted observations simply because there is no case in which the probability of default function is evaluated in $E_0=3, \sigma_E=0.8$. Although the plot above is not incorrect, it might be incomplete as we are not showing all possible values of the risk-neutral probability of default. One alternative to show a more complete plot is to evaluate all possible combinations of $E_0$ and $\sigma_E$ to evaluate the probability of default function. If we do that, we will have 50 values for $E_0$ and $\sigma_E$ that represent the $x$ and $y$ axis, and a $50 \times 50$ matrix containing the risk-neutral probability of default. This allows us to plot a surface plot and a contour plot.
+The red point represents the original textbook example, where $pd = f(E_0=3, \sigma_E=0.8,rf=0.05,T=1,D=10)$ equals `r fmt_num(pd1, 7)`. Note that the red point is not part of the 50 plotted observations simply because there is no case in which the probability of default function is evaluated in $E_0=3, \sigma_E=0.8$. Although the plot above is not incorrect, it might be incomplete as we are not showing all possible values of the risk-neutral probability of default. One alternative to show a more complete plot is to evaluate all possible combinations of $E_0$ and $\sigma_E$ to evaluate the probability of default function. If we do that, we will have 50 values for $E_0$ and $\sigma_E$ that represent the $x$ and $y$ axis, and a $50 \times 50$ matrix containing the risk-neutral probability of default. This allows us to plot a surface plot and a contour plot.
 
 ```{r}
 # Create the empty matrix.
@@ -140,7 +149,7 @@ p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd",
 points(trans3d(E0, se, pd1, p.ED1), cex = 2, pch = 19, col = "blue")
 ```
 
-Now the plot becomes a plane. A contour plot simplify the reading of a three dimension plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the risk-neutral probability of default is represented by the contour lines. 
+Now the plot becomes a surface. A contour plot simplifies the reading of a three-dimensional plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the risk-neutral probability of default is represented by the contour lines. 
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoeacv
@@ -150,10 +159,10 @@ contour(x.E, x.se, p_E_se, xlab = "Equity at time zero",
 points(E0, se, pch = 19, col = "blue", cex = 2)
 ```      
 
-The blue point is the original case. Note that the value is slightly higher than 0.1, which is consistent with the $pd=0.1269396$.
+The blue point is the original case. Note that the value is slightly higher than 0.1, which is consistent with $pd=`r fmt_num(pd1, 7)`$.
 
 ```{r}
-l = 40 # Vectors of length 50.
+l = 40 # Vectors of length 40.
 # Create vectors of the parameters.
 x.E <- seq(from = 2, to = 4, length.out = l)
 x.se <- seq(0.2, 1.5, length.out = l)
@@ -169,11 +178,9 @@ for(i in 1 : l){ # Is there an easier way to do this?
 #| label: fig-tpodaafoteatzatvoeaiv
 #| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: An interactive view."
 plot_ly(type = "surface" , x = x.se, y = x.E , z = p_E_se ) %>%
-layout(#title = "Minimization of f at V0=12.395 an sv=0.212",
-       scene = list(xaxis = list(title = "Volatility of equity"), 
+layout(scene = list(xaxis = list(title = "Volatility of equity"), 
                     yaxis = list(title = "Market value of equity"), 
                     zaxis = list(title = "Risk-neutral PD")))  %>%
   hide_colorbar()
-#add_markers(y = 3, x = 0.8, z = 0.1269396, inherit = TRUE)
 ```
 

@@ -1,18 +1,37 @@
-## GoT: capital structure
+## Capital-structure scenarios
 
 ```{r merton-pd-setup, include=FALSE}
 source("R/merton-pd-function.R")
 ```
 
-The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. Surprisingly, the firm data corresponds exactly as the data in the example 24.3 ([@Hull]). She is planning to ask the Iron Bank of Braavos for a loan using the peaceful civilized way (without dragons). However, she would like to reduce the model-implied probability of default of the firm first, in that way she might negotiate better credit conditions. Daenerys has some understanding about very basic finance because she knows that she could either reduce the debt, or increase the capital in order to reduce the model-implied probability of default. Doing both alternatives at the same time is clearly more expensive so she is not very keen about it.
+The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. The firm's inputs are exactly the same as in Hull's example 24.3 [@Hull]. She is planning to ask the Iron Bank of Braavos for a loan, but she would like to reduce the firm's model-implied probability of default before negotiating credit conditions. Basic finance gives her two possible levers: reduce the promised debt payment $D$, or increase the market value of equity $E_0$ through a capital injection. Doing both at the same time would be more expensive, so she wants to compare the alternatives one at a time.
 
 In this section, probability of default means the Merton risk-neutral/implied probability of default. The scenarios are useful for understanding how the model reacts to changes in capital structure; they are not historical forecasts of how often firms like this default.
 
-What is the best strategy to reduce the model-implied probability of default? Reduce the debt by 2 or increase the capital by 2?
+These are model-implied sensitivity scenarios. In each scenario, we change one observed input while keeping the remaining observed inputs and model assumptions fixed. The unobserved asset value $V_0$ and asset volatility $\sigma_V$ are then re-estimated by the Merton equations, so they are not held fixed. The resulting probability of default is the new risk-neutral PD implied by the full Merton solution.
+
+::: {.merton-subhead}
+Scenario 1: reduce debt or inject equity
+:::
+
+Which action produces the lower model-implied probability of default: reduce the promised debt payment $D$ by 2, or increase the equity value $E_0$ by 2 through a capital injection?
 
 ```{r}
-D.seq <- seq(from = 0, to = 13, by = 0.1)
-# Evaluate pd function: E0 changes from 1 to 5; debt goes from 0 to 13.
+D.seq <- seq(from = 0.1, to = 13, by = 0.1)
+pd_initial <- pd1
+pd_scenario_2_initial <- pd(2, se, rf, TT, 2)
+pd_scenario_3_initial <- pd(E0, se, rf, 1.5, 6)
+scenario1_reduce_D <- pd(E0, se, rf, TT, D - 2)
+scenario1_raise_E <- pd(E0 + 2, se, rf, TT, D)
+scenario2_E0 <- 2
+scenario2_D <- 2
+scenario2_reduce_D <- pd(scenario2_E0, se, rf, TT, scenario2_D - 1)
+scenario2_raise_E <- pd(scenario2_E0 + 1, se, rf, TT, scenario2_D)
+scenario3_T <- 1.5
+scenario3_D <- 6
+scenario3_more_debt <- pd(E0, se, rf, scenario3_T, scenario3_D + 2)
+scenario3_more_time <- pd(E0, se, rf, scenario3_T + 0.5, scenario3_D)
+# Evaluate pd function: E0 changes from 1 to 5; D goes from 0.1 to 13.
 E1 <- mapply(pd, 1, se, rf, TT, D.seq)
 E2 <- mapply(pd, 2, se, rf, TT, D.seq)
 E3 <- mapply(pd, 3, se, rf, TT, D.seq)
@@ -30,44 +49,50 @@ colors <- c("green", "purple", "black", "blue", "red")
 leg <- c("E0=1", "E0=2", "E0=3 (initial value)", "E0=4", "E0=5")
 # Plot.
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=10",
-     ylab = "Risk-neutral PD. Initially PD=12.69%")
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)))
 lines(D.seq, E2, col = "purple", lwd = 3)
 lines(D.seq, E3, col = "black", lwd = 3)
 lines(D.seq, E4, col = "blue", lwd = 3)
 lines(D.seq, E5, col = "red", lwd = 3)
 abline(v = D, lty = 2)
-abline(h = pd1, lty = 2)
+abline(h = pd_initial, lty = 2)
 legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
        bg = "white")
-points(D, pd1, pch = 19, cex = 2)
+points(D, pd_initial, pch = 19, cex = 2)
 ```
 
-Let's illustrate the alternatives as clear as possible.
+Let's illustrate the alternatives as clearly as possible.
 
 ```{r}
 #| label: fig-gspodacs
 #| fig-cap: "GoT solution. Risk-neutral probability of default and capital structure."
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=10",
-     ylab = "Risk-neutral PD. Initially PD=12.69%")
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)))
 lines(D.seq, E2, col = "purple", lwd = 3)
 lines(D.seq, E3, col = "black", lwd = 3)
 lines(D.seq, E4, col = "blue", lwd = 3)
 lines(D.seq, E5, col = "red", lwd = 3)
 abline(v = D, lty = 2)
-abline(v = 8, lty = 2)
-abline(h = pd1, lty = 2)
-abline(h = pd(E0, se, rf, TT, 8), lty = 2)
-abline(h = pd(5, se, rf, TT, D), lty = 2)
+abline(v = D - 2, lty = 2)
+abline(h = pd_initial, lty = 2)
+abline(h = scenario1_reduce_D, lty = 2)
+abline(h = scenario1_raise_E, lty = 2)
 legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
        bg = "white")
-points(D, pd1, pch = 19, cex = 2)
-points(D, pd(5, se, rf, TT, D), pch = 19, cex = 2, col = "red")
-points(8, pd(3, se, rf, TT, 8), pch = 19, cex = 2, col = "yellow")
+points(D, pd_initial, pch = 19, cex = 2)
+points(D, scenario1_raise_E, pch = 19, cex = 2, col = "red")
+points(D - 2, scenario1_reduce_D, pch = 19, cex = 2, col = "yellow")
 ```
 
-Consider a different initial situation. Now, $E_0=2$ and $D=2$ and the rest remains the same. In this case, the risk-neutral probability of default is now 7.13%. What is the best strategy to reduce the model-implied probability of default? Reduce the debt by 1 or increase the capital by 1?
+In the first scenario, reducing the promised debt payment from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_raise_E, 2)`. Under this model-implied comparison, the lower PD comes from `r ifelse(scenario1_reduce_D < scenario1_raise_E, "reducing the promised debt payment", "increasing the equity value")`. This statement is conditional on the Merton setup: the remaining observed inputs stay fixed, while $V_0$ and $\sigma_V$ are re-estimated in each alternative.
+
+::: {.merton-subhead}
+Scenario 2: a different starting balance sheet
+:::
+
+Consider a different initial situation. Now, $E_0=2$ and $D=2$ while the remaining observed inputs are unchanged. In this case, the risk-neutral probability of default is `r fmt_pct(pd_scenario_2_initial, 2)`. Which action produces the lower model-implied probability of default: reduce the promised debt payment $D$ by 1, or increase the equity value $E_0$ by 1?
 
 ```{r}
 #| label: fig-gp2podacs
@@ -75,18 +100,18 @@ Consider a different initial situation. Now, $E_0=2$ and $D=2$ and the rest rema
 leg2 <- c("E0=1", "E0=2 (initial value)", "E0=3", "E0=4", "E0=5")
 
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=2",
-     ylab = "Risk-neutral PD. Initially PD=7.13%", 
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario2_D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_2_initial, 2)), 
      xlim = c(0, 2.5), ylim = c(0, 0.08))
 lines(D.seq, E2, col = "purple", lwd = 3)
 lines(D.seq, E3, col = "black", lwd = 3)
 lines(D.seq, E4, col = "blue", lwd = 3)
 lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = 2, lty = 2)
-abline(h = pd(2, se, rf, TT, 2), lty = 2)
+abline(v = scenario2_D, lty = 2)
+abline(h = pd_scenario_2_initial, lty = 2)
 legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
        bg = "white", cex = 0.6)
-points(2, pd(2, se, rf, TT, 2), pch = 19, cex = 2, col = "purple")
+points(scenario2_D, pd_scenario_2_initial, pch = 19, cex = 2, col = "purple")
 ```
 
 The solution can be illustrated as follows:
@@ -95,28 +120,32 @@ The solution can be illustrated as follows:
 #| label: fig-gs2podacs
 #| fig-cap: "GoT solution 2. Risk-neutral probability of default and capital structure."
 plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=2",
-     ylab = "Risk-neutral PD. Initially PD=7.13%", 
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario2_D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_2_initial, 2)), 
      xlim = c(0, 2.5), ylim = c(0, 0.08))
 lines(D.seq, E2, col = "purple", lwd = 3)
 lines(D.seq, E3, col = "black", lwd = 3)
 lines(D.seq, E4, col = "blue", lwd = 3)
 lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = 2, lty = 2)
-abline(v = 1, lty = 2)
-abline(h = pd(2, se, rf, TT, 2), lty = 2)
-abline(h = pd(2, se, rf, TT, 1), lty = 2)
-abline(h = pd(E0, se, rf, TT, 2), lty = 2)
+abline(v = scenario2_D, lty = 2)
+abline(v = scenario2_D - 1, lty = 2)
+abline(h = pd_scenario_2_initial, lty = 2)
+abline(h = scenario2_reduce_D, lty = 2)
+abline(h = scenario2_raise_E, lty = 2)
 legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
        bg = "white", cex = 0.6)
-points(2, pd(2, se, rf, TT, 2), pch = 19, cex = 2, col = "purple")
-points(1, pd(2, se, rf, TT, 1), pch = 19, cex = 2, col = "yellow")
-points(2, pd(E0, se, rf, TT, 2), pch = 19, cex = 2)
+points(scenario2_D, pd_scenario_2_initial, pch = 19, cex = 2, col = "purple")
+points(scenario2_D - 1, scenario2_reduce_D, pch = 19, cex = 2, col = "yellow")
+points(scenario2_D, scenario2_raise_E, pch = 19, cex = 2)
 ```
 
-Interesting.
+In the second scenario, reducing the promised debt payment from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_raise_E, 2)`. The lower PD comes from `r ifelse(scenario2_reduce_D < scenario2_raise_E, "reducing the promised debt payment", "increasing the equity value")`. The point is not that this action is universally better, but that the model's nonlinear response depends on the starting balance-sheet position.
 
-Consider a third problem. In a parallel universe, Daenerys Targaryen's firm has some liquidity short-term troubles. She needs either more cash now or some more time to pay her current debt. She would like to know which alternative leads to the lowest increase of the risk-neutral probability of default. Add $2 more to her current debt, or ask for a half year more time to pay her current debt? 
+::: {.merton-subhead}
+Scenario 3: more debt or more time
+:::
+
+Consider a third scenario. Daenerys Targaryen's firm has some short-term liquidity troubles. She needs either more cash now or more time to pay the promised debt payment. In the model, more borrowing is represented as a higher promised payment $D$ at maturity. She would like to know which alternative leads to the lowest increase in the risk-neutral probability of default: increase $D$ by 2, or ask for a half year more time to pay the promised debt payment?
 
 ```{r}
 T1 <- mapply(pd, E0, se, rf, 0.5, D.seq)
@@ -128,46 +157,45 @@ T5 <- mapply(pd, E0, se, rf, 2.5, D.seq)
 
 ```{r}
 #| label: fig-gp3mdolm
-#| fig-cap: "GoT problem 3. More debt or longer maturity?"
+#| fig-cap: "GoT problem 3. Higher promised debt payment or longer maturity?"
 leg3 <- c("T=2.5", "T=2", "T=1.5", "T=1", "T=0.5")
 
 plot(D.seq, T5, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=6",
-     ylab = "Risk-neutral PD. Initially PD=20.33%")
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario3_D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_3_initial, 2)))
 lines(D.seq, T4, col = "purple", lwd = 3)
 lines(D.seq, T3, col = "black", lwd = 3)
 lines(D.seq, T2, col = "blue", lwd = 3)
 lines(D.seq, T1, col = "red", lwd = 3)
-abline(v = 6, lty = 2)
-abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
+abline(v = scenario3_D, lty = 2)
+abline(h = pd_scenario_3_initial, lty = 2)
 legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
        bg = "white")
-points(6, pd(E0, se, rf, 1.5, 6), pch = 19, cex = 2)
+points(scenario3_D, pd_scenario_3_initial, pch = 19, cex = 2)
 ```
 
 Let's visualize the result.
 
 ```{r}
 #| label: fig-ga3mdolm
-#| fig-cap: "GoT answer 3. More debt or longer maturity?"
+#| fig-cap: "GoT answer 3. Higher promised debt payment or longer maturity?"
 plot(D.seq, T5, type = "l", col = "green", lwd = 3,
-     xlab = "Debt value. Initially, D=6",
-     ylab = "Risk-neutral PD. Initially PD=20.33%")
+     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario3_D, 0)),
+     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_3_initial, 2)))
 lines(D.seq, T4, col = "purple", lwd = 3)
 lines(D.seq, T3, col = "black", lwd = 3)
 lines(D.seq, T2, col = "blue", lwd = 3)
 lines(D.seq, T1, col = "red", lwd = 3)
-abline(v = 6, lty = 2)
-abline(v = 8, lty = 2)
-abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
-abline(h = pd(E0, se, rf, 2, 6), lty = 2)
-abline(h = pd(E0, se, rf, 1.5, 6), lty = 2)
-abline(h = pd(E0, se, rf, 1.5, 8), lty = 2)
+abline(v = scenario3_D, lty = 2)
+abline(v = scenario3_D + 2, lty = 2)
+abline(h = pd_scenario_3_initial, lty = 2)
+abline(h = scenario3_more_time, lty = 2)
+abline(h = scenario3_more_debt, lty = 2)
 legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
        bg = "white")
-points(6, pd(E0, se, rf, 1.5, 6), pch = 19, cex = 2)
-points(8, pd(E0, se, rf, 1.5, 8), pch = 19, cex = 2, col = "yellow")
-points(6, pd(E0, se, rf, 2, 6), pch = 19, cex = 2, col = "purple")
+points(scenario3_D, pd_scenario_3_initial, pch = 19, cex = 2)
+points(scenario3_D + 2, scenario3_more_debt, pch = 19, cex = 2, col = "yellow")
+points(scenario3_D, scenario3_more_time, pch = 19, cex = 2, col = "purple")
 ```
 
-Nice.
+In the third scenario, increasing the promised debt payment from $D=`r fmt_num(scenario3_D, 0)`$ to $D=`r fmt_num(scenario3_D + 2, 0)`$ while keeping maturity at $T=`r fmt_num(scenario3_T, 1)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_debt, 2)`. Extending maturity from $T=`r fmt_num(scenario3_T, 1)`$ to $T=`r fmt_num(scenario3_T + 0.5, 1)`$ while keeping $D=`r fmt_num(scenario3_D, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_time, 2)`. Both alternatives increase the PD relative to the initial `r fmt_pct(pd_scenario_3_initial, 2)`. The smaller increase comes from `r ifelse(scenario3_more_debt < scenario3_more_time, "increasing the promised debt payment", "extending maturity")`. This does not mean that higher debt improves credit risk; it means that, in this particular Merton configuration, increasing the promised payment is less adverse than extending maturity. This is a structural-model result, not a complete financing recommendation; a real decision would also require cash-flow projections, funding spreads, covenants, and business constraints.

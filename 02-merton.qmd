@@ -2,88 +2,109 @@
 
 
 
-The Merton model is useful when we are interested in evaluating the credit risk of public firms. In short, it evaluates how likely it is, under the model, that the value of the firm's assets at debt maturity falls below the debt payment due at that date. By doing that, the model is able to estimate a probability of default among other results. The model can be used as a tool to propose changes (for example) in the balance sheet to reduce the credit risk exposure of a firm.
+The Merton model is useful when we are interested in evaluating the credit risk of public firms. Let $T$ denote the debt maturity date, $D$ the promised debt payment due at that date, and $V_T$ the value of the firm's assets at maturity. In Merton, default occurs at $T$ if the firm does not have enough asset value to cover the promised debt payment:
 
-The philosophy of these models goes back to @black1973pricing, @merton1973theory and @merton1974pricing, they consider corporate liabilities as contingent claims on the assets of the firm.
+$$
+V_T<D.
+$$
+
+Here, $D$ is the promised debt payment due at maturity, not the current market value of debt. This distinction matters because $D$ is the default boundary: it is the amount the firm must be able to pay at $T$. The market value of debt today is a different object. In Merton, it can be inferred after valuing the firm's claims, for example as the difference between the asset value $V_0$ and the equity value $E_0$.
+
+The model estimates how likely that event is, under the model assumptions, and it also produces other credit-risk quantities. The relevant object is a probability assigned to a future event, not a repeated historical frequency for the same firm. In this setting, a single firm defaults once or survives over the horizon, so Merton treats default as a future event and asks how much probability the model assigns to $V_T<D$. The model can be used as a tool to evaluate changes in the firm's balance sheet and to understand how those changes affect credit risk.
+
+The philosophy of these models goes back to @black1973pricing, @merton1973theory and @merton1974pricing. They treat the firm's financial claims, especially equity and debt, as contingent claims written on the assets of the firm. A contingent claim is a financial claim whose payoff depends on what happens to an underlying variable. In Merton, the underlying variable is the future value of the firm's assets, $V_T$. The assets are the underlying source of value; equity and debt are the claims whose payoffs depend on whether $V_T$ is above or below the promised debt payment $D$.
 
 ## Why risk-neutral valuation works here
 
-Before estimating the Merton model, we need to be clear about what the model is trying to value. In Merton, equity is treated as the residual claim on the firm's assets. At maturity, equity is worth:
+The Merton model links today, $t=0$, with debt maturity, $t=T$. At $t=0$, market values such as equity value are observed. At $t=T$, the firm either repays the promised debt payment $D$ or defaults. The key future variable is the value of the firm's assets at maturity, $V_T$.
+
+At maturity, equity is the residual claim on the firm's assets.
 
 $$
 E_T=\max(V_T-D,0).
 $$
 
-This single expression contains the two ideas we care about. If $V_T>D$, the firm can repay the debt and equity holders receive what is left: $V_T-D$. If $V_T<D$, the firm cannot repay the debt in full and equity is worth zero. So the model is not first asking an abstract pricing question. It is asking a credit-risk question through the value of equity: which future states leave equity with value, and which future states correspond to default?
+This payoff rule is the credit-risk logic of the model. If $V_T>D$, the firm can repay the debt and equity holders receive $V_T-D$. If $V_T<D$, the firm cannot repay the debt in full and equity is worth zero. Therefore, survival corresponds to $E_T>0$, and default corresponds to $E_T=0$.
 
-To estimate the model, we use the observed value of equity today, $E_0$, and ask which asset value $V_0$ and asset volatility $\sigma_V$ make the model consistent with that observed equity value. This is why valuation enters the default problem. We value today's equity by looking at its possible payoff at maturity, and the default probability comes from the same future states in which that payoff is zero.
+At $t=0$, $V_T$ and $E_T$ are future random variables. The information available today is current market information. In the full Merton implementation, the observed equity value $E_0$ and equity volatility $\sigma_E$ help us infer the unobserved asset value $V_0$ and asset volatility $\sigma_V$. Those inferred asset quantities then determine the model-implied probability of the future default event $V_T<D$. That full estimation workflow is what the rest of the chapter develops.
 
-One answer would be: use real-world probabilities for those future states and then discount with a risky required return. That is intuitive, but it requires two difficult objects: the real probability of each state and the correct risky discount rate for equity. Risk-neutral valuation uses a different route. It chooses artificial probabilities that reproduce today's price when expected payoffs are discounted at the risk-free rate.
+::: {.merton-subhead}
+A two-state pricing example
+:::
 
-The name can sound strange. It may seem to say that the result is valid only in a world without risk, but that is not the idea. The world is still risky. Investors can still require compensation for risk. Risk-neutral valuation is a pricing device: it changes the probabilities used for valuation, not the real-world nature of risk.
+The one-period example in this section is simpler. It takes $V_0=100$ as the known value of the firm's assets today. Instead of estimating asset volatility $\sigma_V$, the example represents uncertainty about the future asset value with only two possible maturity values: $V_u=110$ and $V_d=85$. The spread between these two values is the toy version of asset risk. This lets us focus only on the valuation logic.
 
-Before using the numbers from Hull's Merton example, it is better to see the idea with a generic one-period example. To keep the arithmetic simple, this example uses a one-period risk-free rate $R=5\%$. Later, in the Merton model, we use continuous compounding with $e^{-rfT}$, but the logic is the same.
+Because this is only a teaching device, we choose the two maturity asset values by hand. The full Merton model will replace these two outcomes with a continuous distribution for $V_T$.
 
-Suppose that an asset is worth $V_0=100$ today. At the end of one period, it can have only two possible values:
+There are two ways to value the future equity payoff $E_T$ today. A real-world valuation would use real-world probabilities and a risky discount rate. That route can be useful for a forecasting question. For pricing, however, each payoff needs a discount rate that matches its own risk. The example below will show why that discount rate becomes payoff-specific.
 
-| State | Asset value at maturity |
-|---|---:|
-| Good state | $V_u=110$ |
-| Bad state | $V_d=85$ |
+Risk-neutral valuation uses a pricing method based on no-arbitrage. It replaces the real-world probabilities with pricing probabilities, denoted here by $q$ and $1-q$, chosen so that the current value of the firm's assets, $V_0$, is reproduced when expected future asset values are discounted at the risk-free rate. In this one-period example, that current asset value is $V_0=100$. The real world remains risky; the adjustment for risk is moved into the probabilities used for pricing.
 
-Now suppose that we want to value a claim that behaves like equity in the Merton model. The firm has debt $D=100$. Equity receives what is left after debt is paid, but equity cannot be negative:
+To see the mechanics, suppose the firm has debt $D=100$. The table shows the two possible asset values at maturity and the corresponding equity value.
 
-| State | Asset value at maturity | Equity payoff |
-|---|---:|---:|
-| Good state | $V_u=110$ | $E_u=\max(110-100,0)=10$ |
-| Bad state | $V_d=85$ | $E_d=\max(85-100,0)=0$ |
+<table class="caption-top table merton-state-table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 21%">
+<col style="width: 34%">
+<col style="width: 36%">
+</colgroup>
+<thead>
+<tr>
+<th style="text-align: center;">State</th>
+<th style="text-align: center;"><span class="math inline">\\(V_T\\)</span></th>
+<th style="text-align: center;"><span class="math inline">\\(E_T\\)</span></th>
+<th style="text-align: center;">Credit state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">Good</td>
+<td style="text-align: center;"><span class="math inline">\\(V_u=110\\)</span></td>
+<td style="text-align: center;"><span class="math inline">\\(E_u=\\max(110-100,0)=10\\)</span></td>
+<td style="text-align: center;">Survival if <span class="math inline">\\(V_u>D\\)</span></td>
+</tr>
+<tr>
+<td style="text-align: center;">Bad</td>
+<td style="text-align: center;"><span class="math inline">\\(V_d=85\\)</span></td>
+<td style="text-align: center;"><span class="math inline">\\(E_d=\\max(85-100,0)=0\\)</span></td>
+<td style="text-align: center;">Default if <span class="math inline">\\(V_d<D\\)</span></td>
+</tr>
+</tbody>
+</table>
 
-The bad state is a default state because assets are below the debt payment: $V_d<D$. The good state is a survival state because $V_u>D$.
+At this point, the asset values in the example are known: $V_0=100$, $V_u=110$, and $V_d=85$. Now set the one-period risk-free rate to $R=5\%$. The only unknown in the pricing equation is $q$, the risk-neutral probability of the good state.
 
-Now imagine that we try to value the equity using the real probability of the good state. Call that probability $p$. We do not observe $p$ directly. Even if we had an estimate of $p$, we would still need a discount rate that compensates equity investors for risk. In other words, a real-world valuation would have two hard pieces at the same time: the real probability and the required risky discount rate.
-
-Risk-neutral valuation takes a different route. It asks: is there an artificial probability $q$ that makes the asset value today equal to the discounted expected asset value at maturity?
+We choose $q$ so that the known asset value today, $V_0=100$, is equal to the risk-free discounted expected asset value at maturity:
 
 $$
 V_0=\frac{qV_u+(1-q)V_d}{1+R}.
 $$
 
-Now solve this equation for $q$. First, multiply both sides by $1+R$:
+Now substitute the known values $V_0=100$, $V_u=110$, $V_d=85$, and $R=5\%$:
+
+$$
+100=\frac{q(110)+(1-q)(85)}{1.05}.
+$$
+
+Now $q$ is the only unknown. Multiply both sides by 1.05:
+
+$$
+100(1.05)=q(110)+(1-q)(85).
+$$
+
+Then solve for $q$:
 
 $$
 \begin{aligned}
-V_0 &= \frac{qV_u+(1-q)V_d}{1+R} \\
-V_0(1+R) &= qV_u+(1-q)V_d.
+105 &= 110q+85-85q \\
+105 &= 85+25q \\
+20 &= 25q \\
+q &= 0.80.
 \end{aligned}
 $$
 
-Then expand the right-hand side:
-
-$$
-\begin{aligned}
-V_0(1+R) &= qV_u+V_d-qV_d \\
-         &= V_d+q(V_u-V_d).
-\end{aligned}
-$$
-
-Now isolate $q$:
-
-$$
-q=\frac{V_0(1+R)-V_d}{V_u-V_d}.
-$$
-
-Substituting the numbers:
-
-$$
-\begin{aligned}
-q
-&=\frac{100(1.05)-85}{110-85} \\
-&=\frac{20}{25} \\
-&=0.80.
-\end{aligned}
-$$
-
-Therefore:
+Therefore,
 
 $$
 q=0.80,
@@ -91,58 +112,135 @@ q=0.80,
 1-q=0.20.
 $$
 
-This $q$ is not a historical probability. It is not saying that the good state will really happen 80% of the time. It is a pricing probability: the probability that makes today's asset price consistent with the two possible future asset values and the risk-free discount rate.
+Using these pricing probabilities, the expected asset value at maturity is
 
-Once we have this pricing probability, we use the same $q$ to value the equity payoff:
+$$
+E^Q[V_T]=0.80(110)+0.20(85)=105.
+$$
+
+This also equals $100(1.05)$ by construction. Under the risk-neutral probability, the expected asset return is the risk-free rate, but this does not mean that the future asset value is known with certainty.
+
+The future asset value itself is still state-dependent. It is 110 in the good state and 85 in the bad state. The number 105 is not a third possible value for $V_T$; it is only the expected asset value under the pricing probability. That is where the risk remains. If the asset payoff were risk-free, $V_T$ would be known in advance. Here, $V_T$ is uncertain, even though its risk-neutral expected value is determined by $V_0(1+R)$.
+
+The probability $q=0.80$ is a pricing probability. It is determined by the current asset value, the two possible future asset values, and the risk-free rate inside this example. A physical or real-world probability would ask about the actual chance of the good state.
+
+Once $q$ prices the assets, the same $q$ can price equity because equity is a payoff written on those assets.
 
 $$
 E_0=\frac{qE_u+(1-q)E_d}{1+R}.
 $$
 
-Substituting the numbers:
+Substituting the numbers gives
 
 $$
 E_0=\frac{0.80(10)+0.20(0)}{1.05}=7.6190.
 $$
 
-This is the key point. We did not assume that the real world has no risk. We used an artificial probability that reproduces today's asset price, and then used that same probability to price the equity payoff. Risk-neutral valuation is valid in a risky world because it is a no-arbitrage pricing method, not because the world is actually risk-neutral.
+This is the no-arbitrage value today of equity in the one-period example: $E_0=7.6190$. We can verify this directly by constructing a portfolio that reproduces the equity payoff. Let $\Delta$ be the number of units of the firm's assets held today, and let $C$ be the cash position invested in the risk-free asset. If $C<0$, the portfolio borrows at the risk-free rate.
 
-The bridge between the artificial probability and the risky real world is the price today. For example, the real probability of the good state could be 90%. If that were the case, the real expected asset value would be:
+To match the equity payoff in both states, the portfolio must satisfy
+
+$$
+\begin{aligned}
+110\Delta+1.05C &= 10, \\
+85\Delta+1.05C &= 0.
+\end{aligned}
+$$
+
+Subtracting the second equation from the first gives
+
+$$
+25\Delta=10
+\Rightarrow
+\Delta=0.40.
+$$
+
+Using the bad-state equation,
+
+$$
+85(0.40)+1.05C=0
+\Rightarrow
+C=-32.3810.
+$$
+
+The negative cash position means that the portfolio borrows 32.3810 today. The cost of this replicating portfolio today is therefore
+
+$$
+0.40(100)+(-32.3810)=7.6190.
+$$
+
+At maturity, the portfolio pays $0.40(110)-32.3810(1.05)=10$ in the good state and $0.40(85)-32.3810(1.05)=0$ in the bad state. Since it reproduces the equity payoff exactly, its current cost must equal the no-arbitrage equity value.
+
+::: {.merton-subhead}
+Why real-world probabilities are not enough for pricing
+:::
+
+Could we use a real-world probability and a risky discount rate instead? Yes, if the objective were to estimate a real-world expected return or a real-world default frequency. That is a valid empirical question, but it is not the same as the pricing question Merton is answering here.
+
+For example, suppose for illustration that the real-world probability of the good state is $p=0.90$. The real-world expected asset value would be
 
 $$
 0.90(110)+0.10(85)=107.50.
 $$
 
-That real expected value is larger than $100(1.05)=105$, so the asset has a positive risk premium. There is nothing risk-neutral about the real-world expectation. But for pricing, we can represent the same current price in another way:
+If the correct expected return on the assets were 7.5%, this would also recover the current asset value.
 
 $$
-100=\frac{0.80(110)+0.20(85)}{1.05}.
+100=\frac{107.50}{1.075}.
 $$
 
-The real-world description says: risky asset, real probabilities, risky expected return. The risk-neutral description says: adjusted probabilities, risk-free discounting. They are not the same story about what will happen. They are two ways to represent the same price today.
+This works for the asset itself because the 7.5% return was chosen for the asset payoff. But equity is a different payoff. With $p=0.90$, the real-world expected equity payoff would be
 
-So the risk-neutral probability of default does not mean: "the firm will default with this historical frequency." It means: "given today's price and the model structure, default states receive this risk-neutral weight in the valuation." This is why the number is meaningful in the real risky market without being a real-world default frequency.
+$$
+E^P[E_T]=0.90(10)+0.10(0)=9.
+$$
 
-The distinction is:
+There are two tempting mistakes here. The first mistake would be to treat this expected future payoff as the value of equity today. That would set $E_0=9$. But 9 is not an arbitrage-free price. The replicating portfolio above costs 7.6190 and produces exactly the same future payoff as equity. If equity traded for 9, one could sell equity for 9 and buy the replicating portfolio for 7.6190. The cash flow today would be
+
+$$
+9-7.6190=1.3810.
+$$
+
+At maturity, the replicating portfolio pays exactly what is needed to cover the short equity position: 10 in the good state and 0 in the bad state. The future cash flow is zero in both states, so the 1.3810 received today is an arbitrage profit.
+
+The second mistake would be to discount the equity payoff at 7.5%, because 7.5% was the expected return on the asset, not on equity. Equity is more levered and riskier than the asset. If we used 7.5% anyway, we would get
+
+$$
+\frac{9}{1.075}=8.3721,
+$$
+
+which is still not the no-arbitrage equity value obtained above, $E_0=7.6190$. To value equity with real-world probabilities, we would need the correct risky discount rate for the equity payoff itself. In this toy example, once we already know the no-arbitrage equity value $E_0=7.6190$, we can infer that rate:
+
+$$
+r_E=\frac{E^P[E_T]}{E_0}-1
+=\frac{9}{7.6190}-1
+=18.125\%.
+$$
+
+But this is an implied rate obtained after knowing the no-arbitrage price, $E_0=7.6190$. It is not an independent input we had before valuing equity. If we wanted to use real-world probabilities as the starting point, we would need to estimate this equity discount rate first.
+
+This is the practical advantage of the risk-neutral route for pricing. It does not claim that $q=0.80$ is the real probability of the good state. Instead, it gives pricing probabilities that are consistent with today's asset value and the risk-free rate. In this two-state complete-market example, once those probabilities price the asset, they can also price the equity payoff written on that asset by discounting at the risk-free rate. More generally, the Merton model uses the same no-arbitrage logic under its model assumptions. For real-world default forecasting, a real-world probability may be the better object. For market-implied valuation and the Merton default probability used in this chapter, the risk-neutral probability is the relevant object.
+
+This distinction gives us two different probabilities.
 
 | Question | Probability | Interpretation |
 |---|---|---|
-| How should we value the risky payoff today? | $P^Q(V_T<D)$ | Risk-neutral or pricing probability |
-| How often do we expect default to happen in actual data? | $P^P(V_T<D)$ | Real-world, physical, or historical probability |
+| Which probability weights default states when valuing equity today? | $P^Q(V_T<D)$ | Risk-neutral or pricing probability |
+| Which probability describes the firm's real-world default event by $T$? | $P^P(V_T<D)$ | Real-world, physical, or historical probability |
 
-The Merton model in this chapter answers the first question. It is designed for valuation and market-implied credit risk. To answer the second question, we would need an additional empirical step.
+The Merton model in this chapter is designed for the first question. In practice, $E_0$ can be read as the firm's market capitalization. Together with observed equity volatility $\sigma_E$, the promised debt payment $D$, maturity $T$, the risk-free rate, and the model assumptions, $E_0$ helps us solve for $V_0$ and $\sigma_V$. From those asset quantities, the model gives the risk-neutral probability $P^Q(V_T<D)$. Its practical advantage is that it is tied to current market prices through the model, so it does not require us to estimate a separate real-world default frequency and a separate risky discount rate for equity.
 
-In this generic one-period example, the risk-neutral probability of default is the risk-neutral probability of the bad state:
+The real-world probability $P^P(V_T<D)$ asks a different empirical question. One way to estimate it would be to use historical data on many firms over many years, match the current firm to firms with similar risk characteristics, and estimate how often comparable firms defaulted over similar horizons. The matching variables could include leverage, asset or equity volatility, firm size, rating, sector, maturity structure, and macroeconomic conditions. Another route would be to estimate the real-world asset return process directly. Both approaches introduce estimation error, while the risk-neutral probability is implied by observed market prices once the model assumptions are accepted.
+
+In the one-period example, the risk-neutral probability of default is the pricing probability of the bad state.
 
 $$
 P^Q(V_T<D)=1-q=0.20.
 $$
 
-This is the interpretation we need for Merton's model. Merton does not use only two possible future asset values. It uses a continuous risk-neutral distribution for $V_T$. But the logic is the same: equity is valued as a call option on the firm's assets, default happens when $V_T<D$, and the model gives a risk-neutral, market-implied default probability. It is useful for valuation, bond pricing, and credit spreads. It is not automatically the same as a real-world or historical probability of default. A real-world probability would be written as $P^P(V_T<D)$ and would require historical data, a real expected asset return, or an additional empirical calibration.
+Merton uses a continuous risk-neutral distribution for $V_T$ rather than only two future asset values, but the logic is the same. Equity is valued as a call option on the firm's assets, default happens when $V_T<D$, and the model gives a risk-neutral, market-implied default probability. In this chapter, unless explicitly stated otherwise, `pd` means the Merton risk-neutral/implied probability of default.
 
-In this chapter, unless explicitly stated otherwise, `pd` means the Merton risk-neutral/implied probability of default.
-
-After estimating the Merton model, we will return to this idea with the actual numbers from Hull's example. At that point, we will introduce the notation $N(-d_2)$. For now, the important idea is simpler: in the generic one-period example, the risk-neutral default probability is the pricing weight of the bad branch, $1-q=0.20$.
+After estimating the Merton model, we will return to this idea with the actual numbers from Hull's example. At that point, we will introduce the notation $N(-d_2)$. For now, the important idea is simpler. In the generic one-period example, the risk-neutral default probability is the pricing weight of the bad branch, $1-q=0.20$.
 
 The following sections develop the structural credit-risk workflow from risk-neutral valuation to Merton-model estimation, default probabilities, and capital-structure scenarios.
 
