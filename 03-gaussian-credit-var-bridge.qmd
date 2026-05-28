@@ -63,6 +63,7 @@ credit_expected_loss <- credit_var_inputs$ead *
   credit_var_inputs$pd
 
 credit_var_focus <- length(credit_var_inputs$confidence)
+credit_var_focus_alpha <- credit_var_inputs$confidence[credit_var_focus]
 credit_var_q_pd <- qnorm(credit_var_inputs$pd)
 credit_var_q_conf <- qnorm(credit_var_inputs$confidence[credit_var_focus])
 credit_var_numerator <- credit_var_q_pd +
@@ -135,13 +136,13 @@ credit_var_step_table <- data.frame(
   ),
   Calculation = c(
     "$N^{-1}(Q(T))$",
-    "$N^{-1}(X)$",
-    "$\\sqrt{\\rho}\\,N^{-1}(X)$",
-    "$N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(X)$",
+    "$N^{-1}(\\alpha)$",
+    "$\\sqrt{\\rho}\\,N^{-1}(\\alpha)$",
+    "$N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(\\alpha)$",
     "$\\sqrt{1-\\rho}$",
-    "$\\frac{N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(X)}{\\sqrt{1-\\rho}}$",
+    "$\\frac{N^{-1}(Q(T))+\\sqrt{\\rho}\\,N^{-1}(\\alpha)}{\\sqrt{1-\\rho}}$",
     "$N(\\cdot)$",
-    "$EAD\\times LGD\\times V(X,T)$"
+    "$EAD\\times LGD\\times V(\\alpha,T)$"
   ),
   Value = c(
     fmt_num(credit_var_q_pd, 4),
@@ -258,25 +259,31 @@ credit_gaussian_capital <- credit_model_summary["Gaussian sim", "economic_capita
 credit_t4_capital <- credit_model_summary["t df = 4", "economic_capital_999"]
 ```
 
-The chapter now has all the pieces needed to make Credit VaR concrete. We have individual PDs, a dependence model, exposures, recoveries, a loss distribution, and tail-risk measures. Hull's Credit VaR section, section 24.9 of [@Hull], gives a compact large-portfolio approximation.
+The chapter now has all the pieces needed to make Credit VaR concrete. We have individual PDs, a co-default model, exposures, recoveries, a loss distribution, and tail-risk measures. Hull's Credit VaR section, section 24.9 of [@Hull], gives a compact large-portfolio approximation.
+
+The numerical setting changes in this section. Earlier we used Hull's ten-firm, 5-year default example to learn how the copula creates co-default scenarios. Hull's Credit VaR example uses a large homogeneous portfolio, a one-year PD of `r fmt_pct(credit_var_inputs$pd, 2)`, total exposure of `r fmt_musd(credit_var_inputs$ead)`, recovery of `r fmt_pct(credit_var_inputs$recovery, 2)`, and copula correlation of `r fmt_num(credit_var_inputs$rho, 2)`. The financial question also changes. We now ask how much capital is needed to absorb rare losses caused by a bad common credit factor.
 
 The approximation applies to a large homogeneous portfolio. Each loan has the same one-year PD, the same recovery rate, and the same pairwise copula correlation. In a highly granular portfolio, borrower-specific noise largely diversifies away. Conditional on the common credit factor, the realized default fraction is close to the conditional default probability.
 
-The large-portfolio formula compresses the same one-factor logic into a percentile calculation. It asks a practical question. When the common credit factor reaches the tail state associated with confidence level $X$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
+In the ten-firm simulations, the outcome was a default count from 0 to 10. In the large-portfolio approximation, the outcome is a default rate. Multiplying that rate by EAD and LGD turns the rate into a dollar loss.
 
-Under those assumptions, the worst-case default rate at confidence level $X$ is
+The large-portfolio formula compresses the same one-factor logic into a percentile calculation. We use $\alpha$ for the confidence level, leaving $X_i$ for the credit-state score of firm $i$. The question is practical: when the common credit factor reaches the bad tail state associated with confidence level $\alpha$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
+
+Under those assumptions, the worst-case default rate at confidence level $\alpha$ is
 
 $$
-V(X,T)=
+V(\alpha,T)=
 N\left(
-\frac{N^{-1}(Q(T))+\sqrt{\rho}\,N^{-1}(X)}
+\frac{N^{-1}(Q(T))+\sqrt{\rho}\,N^{-1}(\alpha)}
 {\sqrt{1-\rho}}
 \right).
 $$
 
-The formula uses the same objects as the copula simulation. $Q(T)$ is the marginal cumulative PD. The parameter $\rho$ is the copula correlation. The confidence level $X$ selects the tail state. The output $V(X,T)$ is a tail default rate for a large homogeneous portfolio.
+The formula uses the same objects as the copula simulation. $Q(T)$ is the marginal cumulative PD. The parameter $\rho$ controls the strength of the common credit factor. The confidence level $\alpha$ selects how far into the bad tail we look. The output $V(\alpha,T)$ is a tail default rate for a large homogeneous portfolio.
 
-The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $X$ corresponds to the factor quantile $N^{-1}(1-X)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-X)=N^{-1}(X)$.
+The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $\alpha$ corresponds to the factor quantile $N^{-1}(1-\alpha)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-\alpha)=N^{-1}(\alpha)$.
+
+At $\alpha=`r fmt_pct(credit_var_focus_alpha, 1)`$, the bad common-factor quantile is $N^{-1}(1-\alpha)=`r fmt_num(qnorm(1 - credit_var_focus_alpha), 4)`$. Its opposite is `r fmt_num(credit_var_q_conf, 4)`, which is the tail quantile used in the table below.
 
 Hull's Example 24.8 uses the following inputs.
 
@@ -344,27 +351,35 @@ The simulation below uses the one-factor representation behind the approximation
 ```{r}
 #| label: fig-vasicek-factor-loss
 #| fig-cap: "Systematic factor and conditional portfolio loss."
-plot(
-  systematic_factor,
-  vasicek_loss / 1e6,
-  pch = 19,
-  cex = 0.42,
-  col = adjustcolor("#566573", alpha.f = 0.22),
-  xlab = "Systematic credit factor",
-  ylab = "Conditional portfolio loss ($ millions)"
+vasicek_factor_plot_data <- data.frame(
+  Systematic_factor = systematic_factor,
+  Loss = vasicek_loss / 1e6
 )
-abline(h = credit_var_loss[3] / 1e6, col = "#C0392B", lty = 2, lwd = 3)
-legend(
-  "topright",
-  legend = paste0("99.9% Credit VaR ", fmt_musd(credit_var_loss[3])),
-  col = "#C0392B",
-  lwd = 3,
-  lty = 2,
-  bty = "n"
-)
+
+ggplot(vasicek_factor_plot_data, aes(x = Systematic_factor, y = Loss)) +
+  geom_point(size = 1.55, alpha = 0.12, color = "#566573") +
+  geom_hline(yintercept = credit_var_loss[3] / 1e6, color = "#C0392B", linetype = "dashed", linewidth = 1) +
+  annotate(
+    "label",
+    x = quantile(systematic_factor, 0.96),
+    y = credit_var_loss[3] / 1e6,
+    label = paste0("99.9% Credit VaR ", fmt_musd(credit_var_loss[3])),
+    hjust = 1,
+    vjust = -0.25,
+    size = 3.4,
+    fill = "white",
+    label.size = 0.2,
+    color = "#7B241C"
+  ) +
+  labs(
+    x = "Systematic credit factor",
+    y = "Conditional portfolio loss ($ millions)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
 ```
 
-The t-copula comparison turns this into a model-risk question. The Gaussian Vasicek formula is the analytical benchmark. The Gaussian simulation checks the same logic with a granular portfolio of `r fmt_int(credit_model_n_names)` equal loans. The t-copula simulations keep the same one-year PD, total exposure, recovery, and correlation parameter, then change the tail shape.
+The t-copula comparison turns this into a model-risk question. The Gaussian Vasicek formula is the analytical benchmark. The Gaussian simulation checks the same logic with a granular portfolio of `r fmt_int(credit_model_n_names)` equal loans. The t-copula simulations keep the same one-year PD, total exposure, recovery, and correlation parameter, then change the tail shape of the credit-state scores.
 
 ```{r}
 kable(
@@ -380,25 +395,32 @@ The expected loss rows stay near `r fmt_musd(credit_expected_loss)` because ever
 ```{r}
 #| label: fig-credit-var-copula-tail
 #| fig-cap: "Loss-tail survival probabilities under Gaussian and t-copulas."
-matplot(
-  credit_tail_grid / 1e6,
-  credit_tail_survival,
-  type = "l",
-  lwd = 3,
-  lty = 1,
-  log = "y",
-  col = c("#2C7FB8", "#F39C12", "#C0392B"),
-  xlab = "Portfolio loss ($ millions)",
-  ylab = "P(loss >= x)"
+credit_tail_plot_data <- data.frame(
+  Loss = rep(credit_tail_grid / 1e6, times = ncol(credit_tail_survival)),
+  Survival = as.vector(credit_tail_survival),
+  Model = factor(
+    rep(colnames(credit_tail_survival), each = length(credit_tail_grid)),
+    levels = colnames(credit_tail_survival)
+  )
 )
-legend(
-  "topright",
-  legend = colnames(credit_tail_survival),
-  col = c("#2C7FB8", "#F39C12", "#C0392B"),
-  lwd = 3,
-  lty = 1,
-  bty = "n"
-)
+
+ggplot(
+  subset(credit_tail_plot_data, !is.na(Survival) & Survival > 0),
+  aes(x = Loss, y = Survival, color = Model)
+) +
+  geom_line(linewidth = 1.1, alpha = 0.9) +
+  scale_color_manual(values = c("#2C7FB8", "#F39C12", "#C0392B")) +
+  scale_y_log10(labels = function(x) fmt_pct(x, 2)) +
+  labs(
+    x = "Portfolio loss ($ millions)",
+    y = "P(loss >= x)",
+    color = "Model"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
 ```
 
-This completes the chapter's credit-risk problem. PDs give average default risk. Copulas shape joint defaults. Exposures and recoveries transform defaults into losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the loss distribution. The final comparison shows why the copula is also a capital assumption.
+This completes the chapter's credit-risk problem. PDs give average default risk. Copulas shape co-default scenarios. Exposures and recoveries transform defaults into losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the loss distribution. The final comparison shows why the copula is also a capital assumption.

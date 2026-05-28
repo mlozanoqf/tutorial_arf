@@ -106,7 +106,7 @@ tcopula_count_matrix <- sapply(tcopula_results, function(x) {
 colnames(tcopula_count_matrix) <- names(tcopula_results)
 ```
 
-The Gaussian copula uses normal latent variables. Correlation creates joint default clustering. The normal distribution controls the shape of the tails. A t-copula keeps the same threshold idea and changes the tail shape.
+The Gaussian copula uses normal credit-state scores. The correlation parameter makes weak credit states arrive together more often. The normal distribution controls how much probability sits in extreme credit states. A t-copula keeps the same threshold idea and changes the tail shape.
 
 For the Gaussian copula, one convenient one-factor representation is
 
@@ -123,7 +123,9 @@ X_i^{t}=
 \qquad S\sim\chi^2_{\nu}.
 $$
 
-The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavier tails. The default threshold changes from $N^{-1}(PD)$ to $t_{\nu}^{-1}(PD)$, so each firm keeps the same marginal PD.
+The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavier tails, so extreme credit states occur more often. The default threshold changes from $N^{-1}(PD)$ to $t_{\nu}^{-1}(PD)$, so each firm keeps the same marginal PD.
+
+The scale shock is shared by all firms in a scenario. When $S/\nu$ is small, the denominator is small and the scenario becomes more extreme for the whole portfolio. Negative credit shocks are pushed further into the left tail, which creates more scenarios where several firms cross their default thresholds together.
 
 The comparison below keeps the 5-year PD at `r fmt_pct(tcopula_pd, 2)`, the copula correlation at `r fmt_num(tcopula_rho, 1)`, the same 10 firms, the same total exposure, and the same recovery rate. The only change is the copula tail shape.
 
@@ -136,7 +138,9 @@ kable(
 )
 ```
 
-The average PD stays near `r fmt_pct(tcopula_pd, 2)`. The tail probabilities move because the t-copula gives more weight to joint stress states. This is the credit-risk reason to care about tail dependence.
+The average PD stays near `r fmt_pct(tcopula_pd, 2)`. The tail probabilities move because the t-copula gives more weight to scenarios where many firms experience weak credit states together. This is the credit-risk reason to care about tail dependence.
+
+For example, the probability of five or more defaults rises from `r fmt_pct(tcopula_events["Gaussian", "five_or_more"], 2)` under the Gaussian copula to `r fmt_pct(tcopula_events["t df = 4", "five_or_more"], 2)` under the heavier-tailed t-copula. The probability that all ten firms default rises from `r fmt_pct(tcopula_events["Gaussian", "all_default"], 3)` to `r fmt_pct(tcopula_events["t df = 4", "all_default"], 3)`. The marginal PD remains anchored near 15%, so the difference is coming from joint-tail behavior.
 
 The same default simulations can be translated into losses using the portfolio loss formula from the previous section.
 
@@ -149,36 +153,45 @@ kable(
 )
 ```
 
-Expected loss remains anchored by PD, EAD, and LGD. Tail loss responds to the dependence model. This ten-firm portfolio has coarse $6 million loss steps, so VaR can land on the same step for two copulas. Expected shortfall is a useful companion because it averages the losses beyond the percentile.
+Expected loss remains anchored by PD, EAD, and LGD. Tail loss responds to the co-default model. This ten-firm portfolio has coarse $6 million loss steps, so VaR can land on the same step for two copulas. Expected shortfall is a useful companion because it averages the losses beyond the percentile.
 
 ```{r}
 #| label: fig-gaussian-vs-t-default-counts
 #| fig-cap: "Default-count distribution under Gaussian and t-copulas."
 default_counts <- 0:tcopula_n_firms
-tcopula_count_colors <- adjustcolor(
-  c("#2C7FB8", "#F39C12", "#C0392B"),
-  alpha.f = 0.78
+tcopula_count_colors <- c("#2C7FB8", "#F39C12", "#C0392B")
+tcopula_count_plot_data <- data.frame(
+  Defaults = rep(default_counts, times = ncol(tcopula_count_matrix)),
+  Probability = as.vector(tcopula_count_matrix),
+  Copula = factor(
+    rep(colnames(tcopula_count_matrix), each = length(default_counts)),
+    levels = colnames(tcopula_count_matrix)
+  )
 )
-matplot(
-  default_counts,
-  tcopula_count_matrix,
-  type = "b",
-  pch = 19,
-  cex = 1.45,
-  lwd = 2.4,
-  lty = 1,
-  col = tcopula_count_colors,
-  xlab = "Number of defaults by year 5",
-  ylab = "Simulated probability"
-)
-legend(
-  "topright",
-  legend = colnames(tcopula_count_matrix),
-  col = c("#2C7FB8", "#F39C12", "#C0392B"),
-  lty = 1,
-  pch = 19,
-  bty = "n"
-)
+
+ggplot(
+  tcopula_count_plot_data,
+  aes(x = Defaults, y = Probability, color = Copula, group = Copula)
+) +
+  geom_line(linewidth = 1.1, alpha = 0.85) +
+  geom_point(size = 3.2, alpha = 0.82) +
+  scale_color_manual(values = tcopula_count_colors) +
+  scale_x_continuous(breaks = default_counts) +
+  scale_y_continuous(
+    labels = function(x) fmt_pct(x, 1),
+    expand = expansion(mult = c(0.02, 0.08))
+  ) +
+  labs(
+    x = "Number of defaults by year 5",
+    y = "Simulated probability",
+    color = "Copula"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(5.5, 12, 5.5, 5.5)
+  )
 ```
 
 This section gives the key model-risk message. A copula is more than a correlation input. It also chooses how much probability is assigned to joint tail events.

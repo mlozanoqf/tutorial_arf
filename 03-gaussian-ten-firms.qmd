@@ -66,7 +66,7 @@ count_probability_matrix <- sapply(default_scenarios, function(x) {
 colnames(count_probability_matrix) <- paste0("rho = ", fmt_num(rho_scenarios, 1))
 ```
 
-Hull's Example 24.7 moves from three ingredients to a portfolio simulation. The ingredients are ten firms, the same cumulative PD curve for every firm, and a common copula correlation of `r fmt_num(hull_rho, 1)` between every pair of latent variables.
+Hull's Example 24.7 moves from three ingredients to a portfolio simulation. The ingredients are ten firms, the same cumulative PD curve for every firm, and a common copula correlation of `r fmt_num(hull_rho, 1)` between every pair of credit-state scores.
 
 The correlation matrix is therefore exchangeable.
 
@@ -89,25 +89,25 @@ kable(
 )
 ```
 
-The simulation then creates one row per scenario and one column per firm.
+The simulation then creates one row per scenario and one column per firm. Each cell is a simulated credit-state score. The threshold rule converts those scores into defaults.
 
 ```{r}
 portfolio_sims <- 100000
 
 set.seed(130575)
-latent <- MASS::mvrnorm(
+credit_state <- MASS::mvrnorm(
   n = portfolio_sims,
   mu = rep(0, n_firms_hull),
   Sigma = sigma
 )
 
 threshold_5y <- qnorm(0.15)
-defaults_5y <- latent <= threshold_5y
+defaults_5y <- credit_state <= threshold_5y
 default_count_5y <- rowSums(defaults_5y)
 head(default_count_5y)
 ```
 
-The object `defaults_5y` is the key credit-risk object. It is a matrix of TRUE/FALSE default indicators. A row is one simulated state of the world. A column is one firm. The sum across a row is the number of defaults in that simulated portfolio state.
+The object `defaults_5y` is the key credit-risk object. It is a matrix of TRUE/FALSE binary default variables. A row is one simulated credit scenario. A column is one firm. The sum across a row is the number of defaults in that portfolio scenario.
 
 For the Hull correlation case $\rho=`r fmt_num(hull_rho, 1)`$, the simulated distribution of the number of defaults by year 5 is shown below.
 
@@ -127,7 +127,7 @@ kable(
 
 This table gives more information than the individual PD. The 5-year PD of each firm is still `r fmt_pct(hull_pd, 2)`, while the portfolio manager also sees the probability of no defaults, one default, several defaults, and a cluster of defaults.
 
-The next table compares different dependence assumptions while keeping the individual PD fixed.
+The next table compares different common-shock correlations while keeping the individual PD fixed.
 
 ```{r}
 kable(
@@ -140,36 +140,54 @@ kable(
 
 In the table, $P(\ge k)$ means the probability of $k$ or more defaults by year 5.
 
-The expected number of defaults is close to `r fmt_num(n_firms_hull * hull_pd, 2)` in every scenario because each firm still has a `r fmt_pct(hull_pd, 2)` marginal PD. Correlation changes the shape of the distribution. Higher correlation increases the probability of very quiet portfolios and also the probability of severe default clusters. It reduces the middle cases where diversification works smoothly.
+The expected number of defaults is close to `r fmt_num(n_firms_hull * hull_pd, 2)` in every scenario because each firm still has a `r fmt_pct(hull_pd, 2)` marginal PD:
+
+$$
+E[N_{\text{defaults}}]
+=P(D_1=1)+\cdots+P(D_{10}=1)
+=10\times 0.15
+=1.50.
+$$
+
+Linearity of expectation gives the same average under independence, weak correlation, or high correlation. Correlation changes the shape of the distribution. Higher correlation increases the probability of very quiet portfolios and also the probability of severe default clusters. It reduces the middle cases where diversification works smoothly.
 
 ```{r}
 #| label: fig-ten-firm-default-count-distribution
 #| fig-cap: "Distribution of the number of defaults by year 5 under different copula correlations."
 default_counts <- 0:n_firms_hull
-default_count_colors <- adjustcolor(
-  c("#2C7FB8", "#F39C12", "#C0392B"),
-  alpha.f = 0.78
+default_count_colors <- c("#2C7FB8", "#F39C12", "#C0392B")
+default_count_plot_data <- data.frame(
+  Defaults = rep(default_counts, times = ncol(count_probability_matrix)),
+  Probability = as.vector(count_probability_matrix),
+  Correlation = factor(
+    rep(colnames(count_probability_matrix), each = length(default_counts)),
+    levels = colnames(count_probability_matrix)
+  )
 )
-matplot(
-  default_counts,
-  count_probability_matrix,
-  type = "b",
-  pch = 19,
-  cex = 1.45,
-  lwd = 2.4,
-  lty = 1,
-  col = default_count_colors,
-  xlab = "Number of defaults by year 5",
-  ylab = "Simulated probability"
-)
-legend(
-  "topright",
-  legend = colnames(count_probability_matrix),
-  col = c("#2C7FB8", "#F39C12", "#C0392B"),
-  lty = 1,
-  pch = 19,
-  bty = "n"
-)
+
+ggplot(
+  default_count_plot_data,
+  aes(x = Defaults, y = Probability, color = Correlation, group = Correlation)
+) +
+  geom_line(linewidth = 1.1, alpha = 0.85) +
+  geom_point(size = 3.2, alpha = 0.82) +
+  scale_color_manual(values = default_count_colors) +
+  scale_x_continuous(breaks = default_counts) +
+  scale_y_continuous(
+    labels = function(x) fmt_pct(x, 1),
+    expand = expansion(mult = c(0.02, 0.08))
+  ) +
+  labs(
+    x = "Number of defaults by year 5",
+    y = "Simulated probability",
+    color = "Copula correlation"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(5.5, 12, 5.5, 5.5)
+  )
 ```
 
-This is the main lesson of the Gaussian copula in a portfolio. Individual PDs determine the average default rate. Dependence determines how much probability mass moves into joint-default states.
+This is the main lesson of the Gaussian copula in a portfolio. Individual PDs determine the average default rate. The common-shock correlation determines how much probability mass moves into joint-default states.

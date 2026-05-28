@@ -31,6 +31,8 @@ loss_scenarios <- setNames(
 )
 
 loss_summary_numeric <- do.call(rbind, lapply(loss_scenarios, function(x) x$summary))
+loss_focus_rho_index <- which(loss_rhos == 0.2)
+loss_focus_summary <- loss_summary_numeric[loss_focus_rho_index, ]
 loss_summary_table <- data.frame(
   Copula_correlation = fmt_num(loss_rhos, 1),
   Expected_loss = fmt_musd(loss_summary_numeric[, "expected_loss"]),
@@ -58,13 +60,13 @@ loss_distribution_matrix <- sapply(loss_scenarios, function(x) {
 colnames(loss_distribution_matrix) <- paste0("rho = ", fmt_num(loss_rhos, 1))
 ```
 
-Defaults become financially useful when we attach exposures and recoveries. In one simulation state $s$, portfolio loss is
+Defaults become financially useful when we attach exposures and recoveries. In one simulated credit scenario $s$, portfolio loss is
 
 $$
 L_s=\sum_{i=1}^n EAD_i \times LGD_i \times D_{i,s},
 $$
 
-where $D_{i,s}$ equals 1 when firm $i$ defaults in simulation $s$ and 0 otherwise. The code applies the same calculation.
+where $D_{i,s}$ equals 1 when firm $i$ defaults in scenario $s$ and 0 otherwise. The code applies the same calculation.
 
 ```{r}
 ead <- rep(10e6, 10)
@@ -76,7 +78,7 @@ losses <- defaults_5y %*% (ead * lgd)
 
 The example below uses a homogeneous portfolio with 10 firms, total exposure of $100 million, $10 million exposure per firm, 40% recovery, and a 5-year cumulative PD of `r fmt_pct(pd_cum[5], 2)` for every firm. The recovery assumption implies an LGD of 60%.
 
-Expected loss can be understood before simulation.
+Expected loss can be understood before running the portfolio scenarios.
 
 $$
 EL = \sum_{i=1}^{10} EAD_i \times LGD_i \times PD_i
@@ -85,7 +87,7 @@ $$
 
 The last expression is `r fmt_num(loss_expected_theoretical / 1e6, 2)` million dollars.
 
-The simulation should produce an expected loss close to that value in every correlation scenario, because correlation leaves the marginal PDs fixed. The tail of the loss distribution is the object that changes.
+The simulation should produce an expected loss close to that value in every correlation scenario, because the threshold rule keeps each firm's marginal PD fixed. The tail of the loss distribution is the object that changes when shared shocks make default clusters more or less likely.
 
 ```{r}
 kable(
@@ -97,36 +99,47 @@ kable(
 
 The table separates three ideas. Expected loss is the average credit cost implied by PD, EAD, and LGD. VaR is a high percentile of the simulated loss distribution. Economic capital is the difference between a tail loss measure and expected loss.
 
+For the Hull correlation case $\rho=`r fmt_num(loss_rhos[loss_focus_rho_index], 1)`$, the expected loss is `r fmt_musd(loss_focus_summary["expected_loss"])`, while the 99.9% VaR is `r fmt_musd(loss_focus_summary["var_999"])`. The economic-capital number, `r fmt_musd(loss_focus_summary["economic_capital_999"])`, is the extra loss buffer above expected loss at that confidence level. This is the practical reason the tail matters: two portfolios can have similar expected loss and very different capital needs.
+
 The next figure shows the simulated loss distribution. Because the portfolio has equal exposures and equal recoveries, losses occur in steps of $6 million per default.
 
 ```{r}
 #| label: fig-portfolio-loss-distribution
 #| fig-cap: "Portfolio loss distribution under different copula correlations."
 loss_steps <- 0:loss_n_firms
-loss_distribution_colors <- adjustcolor(
-  c("#2C7FB8", "#F39C12", "#C0392B"),
-  alpha.f = 0.78
+loss_distribution_colors <- c("#2C7FB8", "#F39C12", "#C0392B")
+loss_distribution_plot_data <- data.frame(
+  Loss = rep(loss_steps * loss_ead[1] * loss_lgd[1] / 1e6, times = ncol(loss_distribution_matrix)),
+  Probability = as.vector(loss_distribution_matrix),
+  Correlation = factor(
+    rep(colnames(loss_distribution_matrix), each = length(loss_steps)),
+    levels = colnames(loss_distribution_matrix)
+  )
 )
-matplot(
-  loss_steps * loss_ead[1] * loss_lgd[1] / 1e6,
-  loss_distribution_matrix,
-  type = "b",
-  pch = 19,
-  cex = 1.45,
-  lwd = 2.4,
-  lty = 1,
-  col = loss_distribution_colors,
-  xlab = "Portfolio loss ($ millions)",
-  ylab = "Simulated probability"
-)
-legend(
-  "topright",
-  legend = colnames(loss_distribution_matrix),
-  col = c("#2C7FB8", "#F39C12", "#C0392B"),
-  lty = 1,
-  pch = 19,
-  bty = "n"
-)
+
+ggplot(
+  loss_distribution_plot_data,
+  aes(x = Loss, y = Probability, color = Correlation, group = Correlation)
+) +
+  geom_line(linewidth = 1.1, alpha = 0.85) +
+  geom_point(size = 3.2, alpha = 0.82) +
+  scale_color_manual(values = loss_distribution_colors) +
+  scale_x_continuous(breaks = loss_steps * loss_ead[1] * loss_lgd[1] / 1e6) +
+  scale_y_continuous(
+    labels = function(x) fmt_pct(x, 1),
+    expand = expansion(mult = c(0.02, 0.08))
+  ) +
+  labs(
+    x = "Portfolio loss ($ millions)",
+    y = "Simulated probability",
+    color = "Copula correlation"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(5.5, 12, 5.5, 5.5)
+  )
 ```
 
-This is where the copula becomes a credit-risk tool. The marginal PD tells us the average loss. The dependence assumption tells us how much probability sits in the severe-loss states.
+This is where the copula becomes a credit-risk tool. The marginal PD tells us the average loss. The common-shock correlation tells us how much probability sits in the severe-loss states.

@@ -31,6 +31,8 @@ The example that belongs to this chapter is Hull's Example 24.7. The example imm
 
 Hull's Example 24.7 considers ten firms. Each firm has the same cumulative probabilities of default over five horizons.
 
+In this example, the cumulative PDs are inputs. In practice, they would have to be estimated before using the copula. They could come from an internal credit-scoring model like the models in Chapters 1 and 2, from a structural model such as Merton for public firms, from historical default rates for comparable rating or industry groups, or from market-implied credit information. The copula starts after these marginal PDs are available. Its job is to combine the individual default probabilities with a dependence assumption so we can simulate which firms default together.
+
 $$
 Q(1)=1\%,\quad Q(2)=3\%,\quad Q(3)=6\%,\quad Q(4)=10\%,\quad Q(5)=15\%.
 $$
@@ -41,7 +43,7 @@ $$
 Q(5)-Q(4)=15\%-10\%=5\%.
 $$
 
-The table below keeps both objects visible because they answer different questions. The cumulative PD is used to define the default threshold by horizon. The incremental PD tells us how much new default probability is added between two adjacent horizons. The last column is a check. It applies $N(\cdot)$ back to the threshold, so it should reproduce the cumulative PD exactly apart from rounding. In other words, the cumulative PD is the input, the default threshold is the normal-scale version of that input, and the recovered PD confirms that the transformation did not change the marginal default probability.
+The table below keeps both objects visible because they answer different questions. The cumulative PD is used to define the default threshold by horizon. The incremental PD tells us how much new default probability is added between two adjacent horizons. The last column is a check. It applies $N(\cdot)$ back to the threshold, so it should reproduce the cumulative PD exactly apart from rounding. In other words, the cumulative PD is the input, the default threshold is the normal-scale version of that input, and the recovered PD confirms that the transformation preserves the marginal default probability.
 
 ```{r}
 kable(
@@ -59,13 +61,19 @@ default_threshold <- qnorm(pd_cum)
 pnorm(default_threshold)
 ```
 
-The financial meaning is longer than the code. `pd_cum` contains marginal cumulative default probabilities. The command `qnorm(pd_cum)` converts those probabilities into normal-scale default thresholds. The command `pnorm(default_threshold)` walks back from the threshold to the probability scale. It gives the same numerical values as `pd_cum` by construction, and that equality is useful because it proves that the threshold rule preserves the individual default probabilities before we add dependence across firms.
+The financial meaning is longer than the code. `pd_cum` contains marginal cumulative default probabilities. The command `qnorm(pd_cum)` converts those probabilities into normal-scale default thresholds. The command `pnorm(default_threshold)` walks back from the threshold to the probability scale. It gives the same numerical values as `pd_cum` by construction, and that equality is useful because it proves that the threshold rule preserves the individual default probabilities before we link firms through shared shocks.
 
-For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its default driver is below that value.
+For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its credit-state score is below that value.
 
 $$
-D_i(5)=1\{X_i \leq `r fmt_num(default_threshold[5], 6)`\}.
+D_i(5)=
+\begin{cases}
+1, & \text{if } X_i \leq `r fmt_num(default_threshold[5], 6)`,\\
+0, & \text{if } X_i > `r fmt_num(default_threshold[5], 6)`.
+\end{cases}
 $$
+
+$D_i(5)$ is therefore a binary default variable. It equals 1 when firm $i$ defaults by year 5 and equals 0 when the firm survives through year 5. The cutoff rule is simple: values of $X_i$ below the threshold are counted as defaults, and values above the threshold are counted as survival.
 
 Because $X_i$ is standard normal, this rule gives
 
@@ -78,40 +86,71 @@ The figure below shows the same logic graphically for year 1 and year 5. The sha
 ```{r}
 #| label: fig-hull-247-threshold-areas
 #| fig-cap: "Default thresholds implied by Hull Example 24.7 cumulative PDs."
-old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+#| fig-width: 8
+#| fig-height: 4
+threshold_area_horizons <- c(1, 5)
+threshold_area_labels <- paste0(
+  "Year ", threshold_area_horizons,
+  " PD = ", fmt_pct(pd_cum[threshold_area_horizons], 2)
+)
+threshold_area_colors <- c("#5DADE2", "#E74C3C")
+names(threshold_area_colors) <- threshold_area_labels
 
-plot_default_area <- function(horizon_index, fill_color) {
-  threshold <- default_threshold[horizon_index]
-  pd_value <- pd_cum[horizon_index]
-  plot(
-    x, D, type = "l", lwd = 3, col = "#2C3E50",
-    xlab = "Latent credit-quality variable X",
-    ylab = "Standard normal density",
-    main = paste0("Year ", horizon_index, " PD = ", fmt_pct(pd_value, 2))
+threshold_area_data <- do.call(rbind, lapply(seq_along(threshold_area_horizons), function(j) {
+  horizon_index <- threshold_area_horizons[j]
+  data.frame(
+    Horizon = threshold_area_labels[j],
+    x = x,
+    Density = D,
+    Threshold = default_threshold[horizon_index],
+    Shade = x <= default_threshold[horizon_index]
   )
-  abline(h = 0, lty = 2, col = "#777777")
-  abline(v = threshold, lty = 2, lwd = 2, col = fill_color)
-  polygon(
-    c(x[x <= threshold], threshold),
-    c(D[x <= threshold], 0),
-    col = fill_color,
-    border = NA
-  )
-  lines(x, D, lwd = 3, col = "#2C3E50")
-  legend(
-    "topright",
-    legend = paste0("z = ", fmt_num(threshold, 3)),
-    col = fill_color,
-    lwd = 2,
-    lty = 2,
-    bg = "white",
-    box.col = "#CCCCCC"
-  )
-}
+}))
+threshold_area_data$Horizon <- factor(threshold_area_data$Horizon, levels = threshold_area_labels)
 
-plot_default_area(1, "#5DADE2")
-plot_default_area(5, "#E74C3C")
-par(old_par)
+threshold_label_data <- data.frame(
+  Horizon = factor(threshold_area_labels, levels = threshold_area_labels),
+  x = -3.75,
+  y = 0.375,
+  label = paste0("z = ", fmt_num(default_threshold[threshold_area_horizons], 3))
+)
+
+ggplot(threshold_area_data, aes(x = x, y = Density)) +
+  geom_area(
+    data = subset(threshold_area_data, Shade),
+    aes(fill = Horizon),
+    alpha = 0.88
+  ) +
+  geom_line(linewidth = 1.1, color = "#2C3E50") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "#777777") +
+  geom_vline(
+    aes(xintercept = Threshold, color = Horizon),
+    linetype = "dashed",
+    linewidth = 0.9
+  ) +
+  geom_label(
+    data = threshold_label_data,
+    aes(x = x, y = y, label = label, color = Horizon),
+    inherit.aes = FALSE,
+    hjust = 0,
+    size = 3.1,
+    label.size = 0.2,
+    fill = "white"
+  ) +
+  facet_wrap(~Horizon, nrow = 1) +
+  scale_fill_manual(values = threshold_area_colors, guide = "none") +
+  scale_color_manual(values = threshold_area_colors, guide = "none") +
+  coord_cartesian(xlim = c(-4, 4), ylim = c(0, 0.42)) +
+  labs(
+    x = "Credit-state score X",
+    y = "Standard normal density"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    aspect.ratio = 1,
+    strip.text = element_text(face = "bold", size = 14),
+    panel.grid.minor = element_blank()
+  )
 ```
 
 A second view uses the cumulative normal distribution directly. In this graph, the vertical axis already is the cumulative probability. The points show that each default threshold maps back to the PD input that produced it.
@@ -119,39 +158,49 @@ A second view uses the cumulative normal distribution directly. In this graph, t
 ```{r}
 #| label: fig-hull-247-threshold-check
 #| fig-cap: "Checking that each Gaussian threshold reproduces the original cumulative PD."
-plot(
-  x, P, type = "l", lwd = 3, col = "#2C3E50",
-  xlab = "Latent credit-quality variable X",
-  ylab = "Cumulative probability N(X)"
+threshold_curve_data <- data.frame(x = x, Probability = P)
+threshold_points <- data.frame(
+  Threshold = default_threshold,
+  Cumulative_PD = pd_cum,
+  Horizon = paste0("Y", credit_horizons)
 )
-abline(h = pd_cum, v = default_threshold, lty = 3, col = "#BBBBBB")
-points(default_threshold, pd_cum, pch = 19, cex = 1.3, col = colors2)
-text(
-  default_threshold, pd_cum,
-  labels = paste0("Y", credit_horizons),
-  pos = 4, cex = 0.85
-)
+
+ggplot(threshold_curve_data, aes(x = x, y = Probability)) +
+  geom_line(linewidth = 1.1, color = "#2C3E50") +
+  geom_hline(data = threshold_points, aes(yintercept = Cumulative_PD), linetype = "dotted", color = "#BBBBBB") +
+  geom_vline(data = threshold_points, aes(xintercept = Threshold), linetype = "dotted", color = "#BBBBBB") +
+  geom_point(data = threshold_points, aes(x = Threshold, y = Cumulative_PD, color = Horizon), size = 3) +
+  geom_text(data = threshold_points, aes(x = Threshold, y = Cumulative_PD, label = Horizon), nudge_x = 0.12, size = 3.4) +
+  scale_color_manual(values = colors2, guide = "none") +
+  scale_y_continuous(labels = function(x) fmt_pct(x, 0)) +
+  labs(
+    x = "Credit-state score X",
+    y = "Cumulative probability N(X)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
 ```
 
 A zoomed version makes the relevant threshold region easier to inspect.
 
 ```{r}
 #| label: fig-hull-247-threshold-check-zoom
-#| fig-cap: "Zoom: Gaussian thresholds and cumulative PDs between -3 and 0."
-plot(
-  x, P, type = "l", lwd = 3, col = "#2C3E50",
-  xlim = c(-3, 0),
-  ylim = c(0, 0.55),
-  xlab = "Latent credit-quality variable X",
-  ylab = "Cumulative probability N(X)"
-)
-abline(h = pd_cum, v = default_threshold, lty = 3, col = "#BBBBBB")
-points(default_threshold, pd_cum, pch = 19, cex = 1.45, col = colors2)
-text(
-  default_threshold, pd_cum,
-  labels = paste0("Y", credit_horizons),
-  pos = 4, cex = 0.9
-)
+#| fig-cap: "Zoom: Gaussian thresholds and cumulative PDs between -2.5 and -0.5."
+ggplot(threshold_curve_data, aes(x = x, y = Probability)) +
+  geom_line(linewidth = 1.1, color = "#2C3E50") +
+  geom_hline(data = threshold_points, aes(yintercept = Cumulative_PD), linetype = "dotted", color = "#BBBBBB") +
+  geom_vline(data = threshold_points, aes(xintercept = Threshold), linetype = "dotted", color = "#BBBBBB") +
+  geom_point(data = threshold_points, aes(x = Threshold, y = Cumulative_PD, color = Horizon), size = 3.4) +
+  geom_text(data = threshold_points, aes(x = Threshold, y = Cumulative_PD, label = Horizon), nudge_x = 0.04, size = 3.5) +
+  scale_color_manual(values = colors2, guide = "none") +
+  scale_y_continuous(labels = function(x) fmt_pct(x, 0)) +
+  coord_cartesian(xlim = c(-2.5, -0.5), ylim = c(0, 0.2)) +
+  labs(
+    x = "Credit-state score X",
+    y = "Cumulative probability N(X)"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank())
 ```
 
-At this stage, the chapter has built marginal default rules for each firm. Portfolio dependence enters in the next step. We simulate the vector $(X_1,\ldots,X_{10})$ from a multivariate normal distribution with a common copula correlation of `r fmt_num(hull_example_247_rho, 1)`. That dependence assumption changes the probability of joint defaults while preserving the individual PDs shown in this section.
+At this stage, the chapter has built marginal default rules for each firm. The next step draws several credit-state scores in the same scenario. Independent draws represent borrowers whose credit states move separately. Correlated draws represent borrowers exposed to shared shocks. With a common copula correlation of `r fmt_num(hull_example_247_rho, 1)`, the probability of joint defaults changes while the individual PDs shown in this section are preserved.

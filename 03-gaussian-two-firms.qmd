@@ -38,7 +38,7 @@ two_firm_table <- data.frame(
   Simulated_PD_B = fmt_pct(two_firm_numeric$pd_firm_b, 2),
   P_both_default = fmt_pct(two_firm_numeric$both_default, 2),
   P_at_least_one = fmt_pct(two_firm_numeric$at_least_one, 2),
-  Default_indicator_corr = fmt_num(two_firm_numeric$default_indicator_corr, 4)
+  Default_variable_corr = fmt_num(two_firm_numeric$default_indicator_corr, 4)
 )
 names(two_firm_table) <- c(
   "rho",
@@ -76,9 +76,9 @@ P(A\text{ or }B\text{ defaults})
 =`r fmt_pct(two_firm_independent_any, 2)`.
 $$
 
-Those formulas rely on independence. The Gaussian copula lets us keep each marginal PD near `r fmt_pct(two_firm_pd, 2)` while changing how often the firms default together.
+Those formulas rely on independence. Under independence, firm A's credit state and firm B's credit state are unrelated. The Gaussian copula adds shared shocks, so low values of $X_A$ and $X_B$ can occur together more often while each firm keeps a marginal PD near `r fmt_pct(two_firm_pd, 2)`.
 
-The covariance matrix carries the dependence.
+The covariance matrix tells R how strongly the two credit-state scores share shocks.
 
 $$
 \Sigma=
@@ -93,22 +93,22 @@ rho <- 0.2
 sigma <- matrix(c(1, rho, rho, 1), nrow = 2)
 
 set.seed(130575)
-latent <- MASS::mvrnorm(
+credit_state <- MASS::mvrnorm(
   n = 100000,
   mu = c(0, 0),
   Sigma = sigma
 )
 
 threshold <- qnorm(0.15)
-default_a <- latent[, 1] <= threshold
-default_b <- latent[, 2] <= threshold
+default_a <- credit_state[, 1] <= threshold
+default_b <- credit_state[, 2] <= threshold
 
 mean(default_a)
 mean(default_b)
 mean(default_a & default_b)
 ```
 
-The first two probabilities check the marginal PDs. The third probability is the joint default probability. That is where dependence becomes visible.
+The first two probabilities check the marginal PDs. The third probability is the joint default probability. That is where the shared-shock assumption becomes visible.
 
 ```{r}
 kable(
@@ -118,44 +118,80 @@ kable(
 )
 ```
 
-The table demonstrates the main point. The marginal PDs stay close to `r fmt_pct(two_firm_pd, 2)`, while the probability of both firms defaulting rises as $\rho$ rises. The default-indicator correlation is lower than the latent copula correlation because default is a tail event created after applying the threshold.
+The table demonstrates the main point. The marginal PDs stay close to `r fmt_pct(two_firm_pd, 2)`, while the probability of both firms defaulting rises as $\rho$ rises. The default-variable correlation is lower than the correlation between credit-state scores because default is a tail event created after applying the threshold.
 
-The scatter plots show the same mechanism. Each dot is one simulated pair $(X_A,X_B)$. A firm defaults when its latent variable is below the threshold. The lower-left region is the joint-default region.
+The union probability also helps explain what correlation changes. For two firms,
+
+$$
+P(A \text{ or } B)=P(A)+P(B)-P(A \text{ and } B).
+$$
+
+The marginal probabilities $P(A)$ and $P(B)$ remain close to `r fmt_pct(two_firm_pd, 2)`. As $\rho$ moves from 0 to 0.5, the simulated joint-default probability rises from `r fmt_pct(two_firm_numeric$both_default[1], 2)` to `r fmt_pct(two_firm_numeric$both_default[3], 2)`. Because the joint-default term is subtracted in the union formula, the probability that at least one firm defaults falls from `r fmt_pct(two_firm_numeric$at_least_one[1], 2)` to `r fmt_pct(two_firm_numeric$at_least_one[3], 2)`. Higher correlation moves defaults into the same scenarios.
+
+The scatter plots show the same mechanism. Each dot is one simulated pair $(X_A,X_B)$, meaning one credit scenario for the two firms. A firm defaults when its credit-state score is below the threshold. The lower-left region is the joint-default region.
 
 ```{r}
 #| label: fig-two-firm-copula-scatter
 #| fig-cap: "Two-firm Gaussian copula simulations with more joint tail outcomes."
 #| fig-width: 9.2
 #| fig-height: 3.4
-old_par <- par(mfrow = c(1, 3), mar = c(4, 4, 3, 1), pty = "s")
-
-for (plot_data in two_firm_plot_data) {
-  rho_value <- unique(plot_data$rho)
-  both_default <- plot_data$firm_a <= two_firm_threshold &
-    plot_data$firm_b <= two_firm_threshold
-  point_color <- ifelse(both_default, "#E74C3C", "#56657355")
-  plot(
-    plot_data$firm_a,
-    plot_data$firm_b,
-    pch = 19,
-    cex = 0.35,
-    col = point_color,
-    xlim = c(-4, 4),
-    ylim = c(-4, 4),
-    asp = 1,
-    xlab = "Firm A latent variable",
-    ylab = "Firm B latent variable",
-    main = paste0("rho = ", fmt_num(rho_value, 1))
+two_firm_scatter_data <- do.call(rbind, lapply(two_firm_plot_data, function(plot_data) {
+  rho_label <- paste0("rho = ", fmt_num(unique(plot_data$rho), 1))
+  data.frame(
+    firm_a = plot_data$firm_a,
+    firm_b = plot_data$firm_b,
+    rho_label = rho_label,
+    joint_default = plot_data$firm_a <= two_firm_threshold &
+      plot_data$firm_b <= two_firm_threshold
   )
-  abline(v = two_firm_threshold, h = two_firm_threshold, lty = 2, lwd = 2)
-  legend(
-    "bottomright",
-    legend = paste0("Joint defaults ", fmt_int(sum(both_default))),
-    bty = "n"
-  )
-}
+}))
+two_firm_scatter_data$rho_label <- factor(
+  two_firm_scatter_data$rho_label,
+  levels = paste0("rho = ", fmt_num(two_firm_rhos, 1))
+)
+two_firm_joint_counts <- aggregate(
+  joint_default ~ rho_label,
+  data = two_firm_scatter_data,
+  FUN = sum
+)
+two_firm_joint_counts$label <- paste0("Joint defaults: ", fmt_int(two_firm_joint_counts$joint_default))
 
-par(old_par)
+ggplot(two_firm_scatter_data, aes(x = firm_a, y = firm_b)) +
+  geom_rect(
+    data = data.frame(rho_label = levels(two_firm_scatter_data$rho_label)),
+    aes(xmin = -4, xmax = two_firm_threshold, ymin = -4, ymax = two_firm_threshold),
+    inherit.aes = FALSE,
+    fill = "#E74C3C",
+    alpha = 0.10
+  ) +
+  geom_point(aes(color = joint_default), size = 0.45, alpha = 0.55) +
+  geom_vline(xintercept = two_firm_threshold, linetype = "dashed", linewidth = 0.8) +
+  geom_hline(yintercept = two_firm_threshold, linetype = "dashed", linewidth = 0.8) +
+  geom_label(
+    data = two_firm_joint_counts,
+    aes(x = 1.0, y = -3.55, label = label),
+    inherit.aes = FALSE,
+    size = 2.8,
+    fill = "white",
+    label.size = 0.15
+  ) +
+  facet_wrap(~rho_label, nrow = 1) +
+  scale_color_manual(
+    values = c("FALSE" = adjustcolor("#566573", alpha.f = 0.55), "TRUE" = "#E74C3C"),
+    labels = c("Other scenarios", "Joint defaults"),
+    name = NULL
+  ) +
+  coord_equal(xlim = c(-4, 4), ylim = c(-4, 4)) +
+  labs(
+    x = "Firm A credit-state score",
+    y = "Firm B credit-state score"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top",
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
 ```
 
-This first credit-risk application of the copula separates the individual credit quality of each firm from the dependence between firms. The PD of each firm stays fixed, while the probability of clustered defaults changes.
+This first credit-risk application of the copula separates the individual default probability of each firm from the co-default pattern between firms. The PD of each firm stays fixed, while the probability of clustered defaults changes.

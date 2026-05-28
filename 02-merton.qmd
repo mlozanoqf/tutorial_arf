@@ -14,6 +14,8 @@ The model estimates how likely that event is, under the model assumptions, and i
 
 The philosophy of these models goes back to @black1973pricing, @merton1973theory and @merton1974pricing. They treat the firm's financial claims, especially equity and debt, as contingent claims written on the assets of the firm. A contingent claim is a financial claim whose payoff depends on what happens to an underlying variable. In Merton, the underlying variable is the future value of the firm's assets, $V_T$. The assets are the underlying source of value; equity and debt are the claims whose payoffs depend on whether $V_T$ is above or below the promised debt payment $D$.
 
+The same structural-credit language remains active. Recent research extends structural models by allowing the firm's debt policy, and therefore the default boundary, to move over time; this matters for predicted credit spreads [@FeldhutterSchaefer2023DebtDynamics]. In industry practice, Moody's 2025 EDF-X example shows the related use of forward-looking PD signals to identify credit deterioration before a bankruptcy event [@MoodysFirstBrands2025]. This chapter keeps the classic Merton model because it makes the core objects visible: asset value, promised debt payment, asset volatility, distance to default, and the conversion from those objects to a model-implied PD.
+
 ## Why risk-neutral valuation works here
 
 The Merton model links today, $t=0$, with debt maturity, $t=T$. At $t=0$, market values such as equity value are observed. At $t=T$, the firm either repays the promised debt payment $D$ or defaults. The key future variable is the value of the firm's assets at maturity, $V_T$.

@@ -29,12 +29,16 @@ names(one_firm_check) <- c(
 )
 ```
 
-Before adding dependence across firms, it is useful to check the one-firm rule. For the 5-year horizon in Hull's Example 24.7, the cumulative PD is `r fmt_pct(one_firm_pd, 2)` and the default threshold is `r fmt_num(one_firm_threshold, 6)`.
+Before linking firms through common shocks, it is useful to check the one-firm rule. For the 5-year horizon in Hull's Example 24.7, the cumulative PD is `r fmt_pct(one_firm_pd, 2)` and the default threshold is `r fmt_num(one_firm_threshold, 6)`.
 
-The equation is
+The rule can be written as a two-case definition:
 
 $$
-D_i(5)=1\{X_i \leq N^{-1}(0.15)\}.
+D_i(5)=
+\begin{cases}
+1, & \text{if } X_i \leq N^{-1}(0.15),\\
+0, & \text{if } X_i > N^{-1}(0.15).
+\end{cases}
 $$
 
 The R code applies the same rule.
@@ -49,7 +53,9 @@ one_firm_default <- one_firm_x <= one_firm_threshold
 mean(one_firm_default)
 ```
 
-With a finite number of random draws, the simulated PD lands close to `r fmt_pct(one_firm_pd, 2)`. That is the first sanity check. The simulation rule preserves the marginal PD before we ask it to model dependence.
+The object `one_firm_default` is a TRUE/FALSE vector. R treats TRUE as 1 and FALSE as 0 when it computes a mean, so `mean(one_firm_default)` is the fraction of simulations in which the firm defaults.
+
+With a finite number of random draws, the simulated PD lands close to `r fmt_pct(one_firm_pd, 2)`. That is the first sanity check. The simulation rule preserves the marginal PD before we link this firm to other firms.
 
 ```{r}
 kable(
@@ -59,7 +65,7 @@ kable(
 )
 ```
 
-Graphically, each simulated value of $X_i$ is a possible value of the firm's default driver. Lower values are worse credit states. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
+Graphically, each simulated value of $X_i$ is a possible credit state for the firm. Lower values are weaker credit states. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
 
 ```{r}
 #| label: fig-one-firm-marginal-default-check
@@ -70,37 +76,45 @@ one_firm_hist <- hist(
   probability = TRUE,
   plot = FALSE
 )
-one_firm_bar_color <- ifelse(
-  one_firm_hist$mids <= one_firm_threshold,
-  adjustcolor("#E74C3C", alpha.f = 0.85),
-  "#D6EAF8"
+one_firm_hist_data <- data.frame(
+  x_mid = one_firm_hist$mids,
+  density = one_firm_hist$density,
+  default_region = one_firm_hist$mids <= one_firm_threshold
 )
-plot(
-  one_firm_hist,
-  freq = FALSE,
-  col = one_firm_bar_color,
-  border = "white",
-  main = NULL,
-  ylab = "Density",
-  xlab = "Simulated default driver X"
-)
-lines(x, D, lwd = 3, col = "#2C3E50")
-abline(v = one_firm_threshold, lwd = 3, lty = 2, col = "#E74C3C")
-legend(
-  "topright",
-  legend = c(
-    "Default region",
-    paste0("Threshold = ", fmt_num(one_firm_threshold, 3)),
-    paste0("Simulated PD = ", fmt_pct(one_firm_sim_pd, 2))
-  ),
-  fill = c(adjustcolor("#E74C3C", alpha.f = 0.85), NA, NA),
-  border = c("white", NA, NA),
-  lty = c(NA, 2, NA),
-  lwd = c(NA, 3, NA),
-  col = c(NA, "#E74C3C", NA),
-  bty = "n",
-  text.col = c("#E74C3C", "#E74C3C", "#2C3E50")
-)
+one_firm_density_data <- data.frame(x = x, Density = D)
+
+ggplot(one_firm_hist_data, aes(x = x_mid, y = density, fill = default_region)) +
+  geom_col(width = diff(one_firm_hist$breaks)[1], color = "white", linewidth = 0.1) +
+  geom_line(data = one_firm_density_data, aes(x = x, y = Density), inherit.aes = FALSE, linewidth = 1.1, color = "#2C3E50") +
+  geom_vline(xintercept = one_firm_threshold, linewidth = 1, linetype = "dashed", color = "#E74C3C") +
+  annotate(
+    "label",
+    x = 1.05,
+    y = 0.37,
+    hjust = 0,
+    label = paste0(
+      "Threshold = ", fmt_num(one_firm_threshold, 3),
+      "\nSimulated PD = ", fmt_pct(one_firm_sim_pd, 2)
+    ),
+    size = 3.5,
+    fill = "white",
+    label.size = 0.2
+  ) +
+  scale_fill_manual(
+    values = c("FALSE" = "#D6EAF8", "TRUE" = "#E74C3C"),
+    labels = c("Survival region", "Default region"),
+    name = NULL
+  ) +
+  coord_cartesian(xlim = c(-4, 4), ylim = c(0, 0.43)) +
+  labs(
+    x = "Simulated credit-state score X",
+    y = "Density"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    panel.grid.minor = element_blank()
+  )
 ```
 
-This one-firm check verifies the marginal default mechanism. The copula model begins when we simulate several latent variables together and allow them to be correlated.
+This one-firm check verifies the marginal default mechanism. The copula model begins when we draw several firms' credit-state scores in the same scenario and let shared shocks make those scores correlated.

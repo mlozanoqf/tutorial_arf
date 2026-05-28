@@ -15,7 +15,7 @@ copula_input_table <- data.frame(
   ),
   Code = c(
     "`pd_cum`",
-    "simulated standard normal default driver",
+    "simulated standard normal credit-state score",
     "`default_threshold <- qnorm(pd_cum)`",
     "`rho`",
     "`ead`",
@@ -24,9 +24,9 @@ copula_input_table <- data.frame(
   ),
   Financial_role = c(
     "Cumulative default probability of firm $i$ by horizon $T$.",
-    "Model variable summarizing firm $i$'s credit condition; lower values mean weaker credit.",
+    "Model score summarizing firm $i$'s credit condition in a scenario; lower values mean weaker credit.",
     "Default threshold; values below this boundary are defaults.",
-    "Correlation between default drivers before converting them into 0/1 defaults.",
+    "Correlation between credit-state scores before converting them into 0/1 defaults.",
     "Exposure at default measuring the amount at risk.",
     "Fraction recovered after default.",
     "Fraction lost after default."
@@ -35,53 +35,88 @@ copula_input_table <- data.frame(
 names(copula_input_table) <- c("Object", "Code", "Financial role")
 ```
 
-Hull introduces default correlation before introducing the Gaussian copula model. That order matters. The financial problem is portfolio co-default. In this chapter, co-default means that several borrowers default within the same horizon because they are exposed to common bad states of the world.
+Imagine a bank with loans to ten manufacturing firms. The credit team may know the 5-year cumulative PD of each firm. That information is useful, but it answers a borrower-level question. It says how often each name defaults over five years. The portfolio manager also needs a portfolio-level answer. Do defaults tend to arrive one by one, or can several borrowers fail in the same bad credit environment?
 
-Defaults cluster for economic reasons. Firms in the same industry can be exposed to the same demand shock. Firms in the same country can be affected by the same interest-rate, exchange-rate, or funding shock. A large default can also weaken suppliers, customers, banks, or other connected firms. This dependence leaves diversification incomplete even when a portfolio contains many borrowers.
+That second question is the co-default problem. Co-default means that several borrowers default within the same horizon. It matters because a lender can absorb isolated defaults more easily than a cluster of defaults arriving together.
 
-The Gaussian copula model converts this financial idea into a simulation procedure. It starts from individual cumulative PDs, creates correlated default drivers, applies each firm's default threshold, and records which firms default in each scenario. Once we know which firms default in each simulation, exposures and recoveries convert those default events into portfolio losses.
+Defaults cluster for economic reasons. Firms in the same industry can face the same fall in demand. Firms in the same country can face the same interest-rate, exchange-rate, or funding shock. A supplier can be hurt when a large customer defaults. A borrower that depends on refinancing can become fragile when market liquidity dries up. These shared forces leave diversification incomplete even when a portfolio contains many borrowers.
+
+The Gaussian copula turns this idea into a disciplined scenario model. In each scenario, firm $i$ receives a credit-state score, denoted $X_i$. Think of $X_i$ as a compact summary of the credit environment facing that firm in that scenario. It stands in for the combined effect of demand, margins, funding access, refinancing conditions, collateral values, sector stress, and other credit-relevant forces. A high value of $X_i$ means a strong credit state. A low value means a weak credit state.
+
+The modeling target is deliberately narrow: one standardized credit-state score per firm and per scenario. The default threshold then gives that score financial meaning. If a firm's 5-year cumulative PD is 15%, the threshold is chosen so that the worst 15% of simulated credit states are counted as defaults by year 5.
+
+Simulation is useful here because a portfolio has many possible default combinations. With ten firms there are already $2^{10}=1{,}024$ possible default sets by a given horizon. The simulation creates many credit scenarios, applies the same default rule in each scenario, and counts the resulting portfolio defaults. The first check is mechanical: simulated default frequencies should reproduce the input PDs. After that check passes, the financial question is which value of $\rho$ is a reasonable description of common credit stress.
+
+Here, dependence means that the firms' credit-state scores tend to be weak together more often, or less often, than they would under independence. The copula correlation $\rho$ controls that shared movement. If $\rho$ is high, a bad scenario for one borrower is more likely to be a bad scenario for other borrowers too. The Gaussian copula procedure starts from individual cumulative PDs, converts them into default thresholds, draws correlated credit-state scores, and records which firms default in each scenario. Once we know which firms default, exposures and recoveries convert those default events into portfolio losses.
+
+For the equal-correlation examples in this chapter, a simple one-factor version makes the shared shock visible:
+
+$$
+X_i=\sqrt{\rho}\,Z_0+\sqrt{1-\rho}\,Z_i.
+$$
+
+The score $X_i$ is the simulated credit state of firm $i$. The variable $Z_0$ is the common credit shock in the scenario, such as a recession, a funding squeeze, or a sector-wide stress event. The variable $Z_i$ is the firm-specific shock. If $Z_0$ is very low, many firms receive weak credit-state scores in the same simulation. The parameter $\rho$ controls how much each firm's score depends on that common shock. This is the mechanism that creates co-default risk.
 
 ```{r}
 #| label: fig-copula-credit-risk-pipeline
 #| fig-cap: "Gaussian copula workflow for portfolio credit risk."
 #| fig-width: 9
 #| fig-height: 1.35
-old_par <- par(mar = c(0.1, 0.2, 0.1, 0.2))
-plot.new()
-plot.window(xlim = c(0, 1), ylim = c(0.35, 0.65))
-
 box_x <- c(0.14, 0.38, 0.62, 0.86)
 box_labels <- c(
   "Individual\nPDs",
-  "Copula\ncorrelation",
+  "Shared\ncredit shocks",
   "Simulated\ndefaults",
   "Portfolio\nloss distribution"
 )
 box_width <- 0.18
 box_height <- 0.22
 
-for (i in seq_along(box_x)) {
-  rect(
-    box_x[i] - box_width / 2, 0.5 - box_height / 2,
-    box_x[i] + box_width / 2, 0.5 + box_height / 2,
-    col = "#F4F8FB", border = "#2C7FB8", lwd = 2
-  )
-  text(box_x[i], 0.5, box_labels[i], cex = 0.95)
-}
-
-arrows(
-  box_x[-length(box_x)] + box_width / 2 + 0.015, 0.5,
-  box_x[-1] - box_width / 2 - 0.015, 0.5,
-  length = 0.08, lwd = 2, col = "#555555"
+pipeline_boxes <- data.frame(
+  x = box_x,
+  xmin = box_x - box_width / 2,
+  xmax = box_x + box_width / 2,
+  ymin = 0.5 - box_height / 2,
+  ymax = 0.5 + box_height / 2,
+  label = box_labels
 )
-par(old_par)
+pipeline_arrows <- data.frame(
+  x = box_x[-length(box_x)] + box_width / 2 + 0.015,
+  xend = box_x[-1] - box_width / 2 - 0.015,
+  y = 0.5,
+  yend = 0.5
+)
+
+ggplot() +
+  geom_segment(
+    data = pipeline_arrows,
+    aes(x = x, xend = xend, y = y, yend = yend),
+    linewidth = 0.8,
+    color = "#555555",
+    arrow = arrow(length = grid::unit(0.16, "cm"), type = "closed")
+  ) +
+  geom_rect(
+    data = pipeline_boxes,
+    aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+    fill = "#F4F8FB",
+    color = "#2C7FB8",
+    linewidth = 0.8
+  ) +
+  geom_text(
+    data = pipeline_boxes,
+    aes(x = x, y = 0.5, label = label),
+    lineheight = 0.95,
+    size = 3.5
+  ) +
+  coord_cartesian(xlim = c(0, 1), ylim = c(0.35, 0.65), clip = "off") +
+  theme_void()
 ```
 
-The workflow separates marginal default risk, dependence, and loss severity. Marginal default risk describes each firm one at a time, before adding any co-movement with other firms. For firm $i$, the cumulative default probability $Q_i(T)$ is the probability that the firm has defaulted at some point between today and horizon $T$. It accumulates default risk over the interval from 0 to $T$, so a 5-year cumulative PD includes defaults that occur in years 1, 2, 3, 4, or 5.
+The workflow separates marginal default risk, co-default behavior, and loss severity. Marginal default risk describes each firm one at a time, before adding common shocks across firms. For firm $i$, the cumulative default probability $Q_i(T)$ is the probability that the firm has defaulted at some point between today and horizon $T$. It accumulates default risk over the interval from 0 to $T$, so a 5-year cumulative PD includes defaults that occur in years 1, 2, 3, 4, or 5.
 
-Dependence enters through the copula correlation $\rho$, which controls how strongly the firms' default drivers move together. In this chapter, a default driver is the model's standardized credit state for a firm. Lower values mean weaker credit states, and default occurs when the driver falls below its threshold. Loss severity comes from exposures and recoveries. After defaults are simulated, exposures and recoveries convert each default event into a money loss.
+Co-default behavior enters through the copula correlation $\rho$. The parameter $\rho$ controls how strongly the firms' credit-state scores share common shocks. When $\rho$ is higher, weak credit states tend to arrive for several firms in the same scenario. Lower values of the credit-state score mean weaker credit conditions, and default occurs when the score falls below its threshold. Loss severity comes from exposures and recoveries. After defaults are simulated, exposures and recoveries convert each default event into a money loss.
 
-This separation is why copulas are useful in credit risk. We can hold each firm's default probability fixed and change only the dependence assumption. When the tail of the loss distribution changes, joint default behavior drives that change.
+This separation is why copulas are useful in credit risk. We can hold each firm's default probability fixed and change the common-shock correlation. When the tail of the loss distribution changes, joint default behavior drives that change.
 
 ```{r}
 kable(
@@ -91,11 +126,11 @@ kable(
 )
 ```
 
-One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the standardized normal default drivers $X_i$ and $X_j$. These are the continuous credit states we simulate first.
+One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the standardized normal credit-state scores $X_i$ and $X_j$. These are the continuous credit states we simulate first.
 
-The default indicator $D_i$ is created after the threshold rule is applied. It equals 1 when firm $i$ defaults and 0 otherwise. The sample correlation between $D_i$ and $D_j$ is therefore a result of the simulation, and it depends on both $\rho$ and the default thresholds. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
+The binary default variable $D_i$ is created after the threshold rule is applied. It equals 1 when firm $i$ defaults and 0 otherwise. The sample correlation between $D_i$ and $D_j$ is therefore a result of the simulation, and it depends on both $\rho$ and the default thresholds. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
 
-We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula represents the firm's default driver with a standard normal variable $X_i$. The threshold is the point on the normal scale that leaves probability $Q_i(T)$ to its left:
+We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula represents the firm's credit state with a standard normal score $X_i$. The threshold is the point on the normal scale that leaves probability $Q_i(T)$ to its left:
 
 $$
 z_i(T)=N^{-1}(Q_i(T)).

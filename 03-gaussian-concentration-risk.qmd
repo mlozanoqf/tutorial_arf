@@ -27,6 +27,10 @@ concentration_summary_numeric <- rbind(
   Equal_exposures = loss_risk_summary(loss_equal),
   Concentrated_exposure = loss_risk_summary(loss_concentrated)
 )
+equal_single_default_loss <- ead_equal[1] * (1 - concentration_recovery[1])
+large_borrower_default_loss <- ead_concentrated[1] * (1 - concentration_recovery[1])
+concentration_capital_increase <- concentration_summary_numeric["Concentrated_exposure", "economic_capital_999"] -
+  concentration_summary_numeric["Equal_exposures", "economic_capital_999"]
 
 concentration_summary_table <- data.frame(
   Portfolio = c("Equal exposures", "One large borrower"),
@@ -48,14 +52,16 @@ names(concentration_summary_table) <- c(
 )
 ```
 
-The copula controls default dependence. Portfolio loss also depends on exposure concentration. To isolate this point, keep the same simulated default matrix, the same PDs, the same recovery rate, the same copula correlation, and the same total exposure. Change only the exposure weights.
+The copula controls the co-default pattern. Portfolio loss also depends on exposure concentration. To isolate this point, keep the same simulated default matrix, the same PDs, the same recovery rate, the same copula correlation, and the same total exposure. Change only the exposure weights.
+
+Using the same default matrix means every row has the same firms defaulting in both portfolios. The experiment changes the dollar loss attached to those default events. This isolates exposure concentration from default frequency.
 
 The comparison uses two portfolios.
 
 - **Equal exposures** with ten firms at $10 million each.
 - **One large borrower** with one firm at $40 million and nine firms sharing the remaining $60 million.
 
-Both portfolios have $100 million of total EAD. Since all firms have the same PD and recovery, expected loss is almost the same. Tail loss is not.
+Both portfolios have $100 million of total EAD. Since all firms have the same PD and recovery, expected loss is almost the same. Tail loss becomes larger when the high-exposure borrower appears in severe default scenarios.
 
 ```{r}
 kable(
@@ -65,57 +71,87 @@ kable(
 )
 ```
 
-The reason is simple and important. In the equal-exposure portfolio, each default adds the same loss. In the concentrated portfolio, the default of the largest borrower creates a much larger loss jump. The default-count distribution is unchanged, while the loss distribution changes.
+The reason is simple and important. In the equal-exposure portfolio, each default adds the same loss. In the concentrated portfolio, the default of the largest borrower creates a much larger loss jump. The default-count distribution stays the same, while the loss distribution changes.
+
+Numerically, one default in the equal-exposure portfolio adds `r fmt_musd(equal_single_default_loss)` of loss. The default of the largest borrower in the concentrated portfolio adds `r fmt_musd(large_borrower_default_loss)`. That larger jump raises 99.9% economic capital by `r fmt_musd(concentration_capital_increase)` even though the total EAD, PDs, recoveries, and simulated default scenarios are held fixed.
 
 ```{r}
 #| label: fig-concentration-risk-losses
 #| fig-cap: "Same defaults and different exposure weights."
-old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
-
-plot_concentration_hist <- function(losses, var_value, main, base_color) {
+concentration_breaks <- seq(0, max(loss_concentrated) / 1e6 + 4, by = 4)
+make_concentration_hist_data <- function(losses, var_value, portfolio) {
   hist_object <- hist(
     losses / 1e6,
-    breaks = seq(0, max(loss_concentrated) / 1e6 + 4, by = 4),
+    breaks = concentration_breaks,
     plot = FALSE
   )
-  bar_color <- ifelse(
-    hist_object$mids >= var_value / 1e6,
-    adjustcolor("#C0392B", alpha.f = 0.90),
-    adjustcolor(base_color, alpha.f = 0.88)
-  )
-  plot(
-    hist_object,
-    col = bar_color,
-    border = "white",
-    main = main,
-    xlab = "Portfolio loss ($ millions)",
-    ylab = "Frequency"
-  )
-  abline(v = var_value / 1e6, col = "#7B241C", lwd = 3, lty = 2)
-  legend(
-    "topright",
-    legend = "99% VaR tail",
-    fill = adjustcolor("#C0392B", alpha.f = 0.90),
-    border = "white",
-    bg = "white",
-    box.col = "#CCCCCC"
+  data.frame(
+    Portfolio = portfolio,
+    x_mid = hist_object$mids,
+    Frequency = hist_object$counts,
+    Tail = hist_object$mids >= var_value / 1e6
   )
 }
 
-plot_concentration_hist(
-  loss_equal,
-  concentration_summary_numeric["Equal_exposures", "var_99"],
-  "Equal exposures",
-  "#2C7FB8"
+concentration_hist_data <- rbind(
+  make_concentration_hist_data(
+    loss_equal,
+    concentration_summary_numeric["Equal_exposures", "var_99"],
+    "Equal exposures"
+  ),
+  make_concentration_hist_data(
+    loss_concentrated,
+    concentration_summary_numeric["Concentrated_exposure", "var_99"],
+    "One large borrower"
+  )
 )
-plot_concentration_hist(
-  loss_concentrated,
-  concentration_summary_numeric["Concentrated_exposure", "var_99"],
-  "One large borrower",
-  "#F39C12"
+concentration_hist_data$Portfolio <- factor(
+  concentration_hist_data$Portfolio,
+  levels = c("Equal exposures", "One large borrower")
+)
+concentration_hist_data$Fill <- ifelse(
+  concentration_hist_data$Tail,
+  "99% VaR tail",
+  as.character(concentration_hist_data$Portfolio)
+)
+concentration_var_data <- data.frame(
+  Portfolio = factor(c("Equal exposures", "One large borrower"), levels = levels(concentration_hist_data$Portfolio)),
+  VaR = c(
+    concentration_summary_numeric["Equal_exposures", "var_99"],
+    concentration_summary_numeric["Concentrated_exposure", "var_99"]
+  ) / 1e6
 )
 
-par(old_par)
+ggplot(concentration_hist_data, aes(x = x_mid, y = Frequency, fill = Fill)) +
+  geom_col(width = diff(concentration_breaks)[1], color = "white", linewidth = 0.15) +
+  geom_vline(
+    data = concentration_var_data,
+    aes(xintercept = VaR),
+    inherit.aes = FALSE,
+    color = "#7B241C",
+    linewidth = 1,
+    linetype = "dashed"
+  ) +
+  facet_wrap(~Portfolio, nrow = 1) +
+  scale_fill_manual(
+    values = c(
+      "Equal exposures" = "#2C7FB8",
+      "One large borrower" = "#F39C12",
+      "99% VaR tail" = "#C0392B"
+    ),
+    breaks = c("Equal exposures", "One large borrower", "99% VaR tail"),
+    name = NULL
+  ) +
+  labs(
+    x = "Portfolio loss ($ millions)",
+    y = "Frequency"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
 ```
 
 This application moves from borrower-level PD to portfolio-level loss. A portfolio can have the same average credit quality and the same total exposure, while its tail-loss profile changes because the exposures are concentrated.

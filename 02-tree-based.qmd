@@ -4,6 +4,8 @@ The previous chapter built a transparent logistic-regression benchmark for credi
 
 The goal is not to replace interpretation with a black box. The goal is to understand what a tree-based model is doing, why it can capture patterns that a logistic model may miss, and how to compare it fairly against the logistic benchmark. We begin with a single decision tree, then move to gradient boosted trees through XGBoost, and finally compare the models using AUC, Brier score, calibration, bad rates, and net payoff.
 
+Current supervisory discussions make this comparison practical rather than cosmetic. The EBA's 2023 follow-up report on machine learning for IRB models says that financial institutions use or intend to use machine-learning techniques mainly for PD estimation and risk differentiation, including random forests and gradient boosting for risk-driver selection and scoring [@EBA2023MLIRB]. The same report emphasizes overfitting, data quality, explainability, and validation. This chapter therefore treats XGBoost as a challenger model that must be compared against the logistic benchmark using AUC, calibration, and economic consequences together.
+
 {{< include 02-tree-benchmark.qmd >}}
 
 {{< include 02-tree-single-tree.qmd >}}
