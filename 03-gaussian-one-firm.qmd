@@ -59,7 +59,7 @@ kable(
 )
 ```
 
-Graphically, each simulated value of $X_i$ is a possible latent credit-quality state. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
+Graphically, each simulated value of $X_i$ is a possible value of the firm's default driver. Lower values are worse credit states. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
 
 ```{r}
 #| label: fig-one-firm-marginal-default-check
@@ -82,7 +82,7 @@ plot(
   border = "white",
   main = NULL,
   ylab = "Density",
-  xlab = "Simulated latent credit-quality variable X"
+  xlab = "Simulated default driver X"
 )
 lines(x, D, lwd = 3, col = "#2C3E50")
 abline(v = one_firm_threshold, lwd = 3, lty = 2, col = "#E74C3C")

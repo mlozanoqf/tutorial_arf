@@ -7,6 +7,8 @@ This is the continuity note for the `tutorial_arf` repository. The project shoul
 ## Current workflow
 
 - Current branch: `main`.
+- Current publishing flow: edit sources on `main`, render locally when useful, commit to `main`, push to `origin/main`, and let GitHub Actions render and publish `_book`.
+- `_book` is a generated output directory, not a branch. It is ignored by git and uploaded by the GitHub Pages workflow after `quarto render`.
 - Use targeted renders while editing content:
   - Logistic chapter: `quarto render 01-logistic.qmd`
   - Tree and XGBoost chapter: `quarto render 02-tree-based.qmd`
@@ -209,15 +211,18 @@ Relevant local source:
 - The workflow can still fail while GitHub Actions/Pages is degraded, especially when downloading official actions such as `actions/configure-pages`.
 - On 2026-05-27, a complete local `quarto render` succeeded before publishing the Merton revision.
 - On 2026-05-27, another complete local `quarto render` succeeded after the chapter 4 copula/t-copula/Credit VaR revision and visual polish.
-- On 2026-05-27, the last confirmed good published version was `ac224d2` (`Revise copula chapter with tail risk`), which corresponds to visible `Publication: 90` on GitHub Pages. The live site is published from the workflow artifact `_book`, not from root `index.html`.
 - On 2026-05-27, legacy root render artifacts were removed from version control: `index.html`, `Logistic.html`, `index_files/`, `Logistic_files/`, and `libs/`. These files contained stale pre-book output and should not be restored unless the user explicitly asks to recover the old static render from history.
+- On 2026-05-27, the simplification was verified end to end with commit `bd8b114` (`Simplify book publishing artifacts`). A full local `quarto render` succeeded, the commit was pushed to `origin/main`, GitHub Actions completed successfully, and GitHub Pages showed visible `Publication: 91`.
+- The last confirmed good published version is now `bd8b114` (`Simplify book publishing artifacts`). The previous good published checkpoint was `ac224d2` (`Revise copula chapter with tail risk`), visible as `Publication: 90`.
+- On 2026-05-27, chapter 4 received a reader-first clarity pass around section 4.1. The section now defines co-default, separates marginal cumulative PDs, dependence, and loss severity, uses "default driver" consistently, distinguishes default-driver correlation from default-indicator correlation, and adds a numerical `qnorm()`/`pnorm()` bridge for the 5-year cumulative PD.
+- The Hull Example 24.7 threshold table now explains why the threshold check reproduces the same cumulative PDs: the final column applies `pnorm()` back to the `qnorm()` thresholds. This is intentional, not a duplicated input column.
 - The latest published source commit before the chapter 4 revision was `8b3c0cc` (`Revise Merton chapter and reproducible outputs`), pushed to `origin/main` after the successful full render.
 - `Hull 11th.pdf` remains local and untracked. Do not commit it unless the user explicitly asks.
 
 ## Next session
 
 - If context is lost after a Codex update, start by reading this file, checking `git status -sb`, and checking `git log -1 --oneline` to identify the latest pushed source commit.
+- If the user is worried about publication, verify the current source commit against GitHub Pages by checking the visible `Publication` number on the site and the latest `Publish Quarto book` workflow run. The confirmed checkpoint before the 4.1 clarity pass was `bd8b114` / `Publication: 91`; after the next successful push, the visible publication marker should increment.
 - Continue with chapter 4 only if the user asks for another visual/text pass. The current chapter 4 direction is portfolio credit risk, t-copula tail dependence, and Credit VaR model risk.
 - Continue with the Merton chapter only if the user asks for more Merton work. Merton block 4 has been completed; if continuing Merton, do a final reader pass only for style and flow, not another conceptual rewrite unless a specific weakness appears.
-- If GitHub Actions has recovered, re-run the latest failed workflow or trigger a new push.
-- Consider simplifying the publication workflow or adding a documented fallback for local publishing if Actions keeps being fragile.
+- Do not restore the removed root render artifacts after a full render. They were removed specifically to avoid stale duplicate book output in the repository root.

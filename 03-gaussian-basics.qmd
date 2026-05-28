@@ -15,7 +15,7 @@ copula_input_table <- data.frame(
   ),
   Code = c(
     "`pd_cum`",
-    "simulated normal variable",
+    "simulated standard normal default driver",
     "`default_threshold <- qnorm(pd_cum)`",
     "`rho`",
     "`ead`",
@@ -24,9 +24,9 @@ copula_input_table <- data.frame(
   ),
   Financial_role = c(
     "Cumulative default probability of firm $i$ by horizon $T$.",
-    "Latent credit-quality state used by the copula.",
-    "Default boundary on the latent normal scale.",
-    "Copula correlation controlling how strongly firms move together.",
+    "Model variable summarizing firm $i$'s credit condition; lower values mean weaker credit.",
+    "Default threshold; values below this boundary are defaults.",
+    "Correlation between default drivers before converting them into 0/1 defaults.",
     "Exposure at default measuring the amount at risk.",
     "Fraction recovered after default.",
     "Fraction lost after default."
@@ -35,11 +35,11 @@ copula_input_table <- data.frame(
 names(copula_input_table) <- c("Object", "Code", "Financial role")
 ```
 
-Hull introduces default correlation before introducing the Gaussian copula model. That order matters. The financial problem is portfolio co-default, where several borrowers can fail in the same bad state of the world.
+Hull introduces default correlation before introducing the Gaussian copula model. That order matters. The financial problem is portfolio co-default. In this chapter, co-default means that several borrowers default within the same horizon because they are exposed to common bad states of the world.
 
 Defaults cluster for economic reasons. Firms in the same industry can be exposed to the same demand shock. Firms in the same country can be affected by the same interest-rate, exchange-rate, or funding shock. A large default can also weaken suppliers, customers, banks, or other connected firms. This dependence leaves diversification incomplete even when a portfolio contains many borrowers.
 
-The Gaussian copula model gives us a practical simulation machine for this problem. It takes individual default probabilities as inputs, adds a dependence structure, and produces simulated portfolio default events. Once we know which firms default in each simulation, we can add exposures and recoveries to obtain a loss distribution.
+The Gaussian copula model converts this financial idea into a simulation procedure. It starts from individual cumulative PDs, creates correlated default drivers, applies each firm's default threshold, and records which firms default in each scenario. Once we know which firms default in each simulation, exposures and recoveries convert those default events into portfolio losses.
 
 ```{r}
 #| label: fig-copula-credit-risk-pipeline
@@ -77,7 +77,9 @@ arrows(
 par(old_par)
 ```
 
-The workflow separates three objects. Marginal default risk gives each firm its own cumulative default probability, denoted $Q_i(T)$. Dependence enters through the copula correlation $\rho$, which controls how much the latent credit-quality variables move together. Loss severity comes from exposures and recoveries, which convert default events into money losses.
+The workflow separates marginal default risk, dependence, and loss severity. Marginal default risk describes each firm one at a time, before adding any co-movement with other firms. For firm $i$, the cumulative default probability $Q_i(T)$ is the probability that the firm has defaulted at some point between today and horizon $T$. It accumulates default risk over the interval from 0 to $T$, so a 5-year cumulative PD includes defaults that occur in years 1, 2, 3, 4, or 5.
+
+Dependence enters through the copula correlation $\rho$, which controls how strongly the firms' default drivers move together. In this chapter, a default driver is the model's standardized credit state for a firm. Lower values mean weaker credit states, and default occurs when the driver falls below its threshold. Loss severity comes from exposures and recoveries. After defaults are simulated, exposures and recoveries convert each default event into a money loss.
 
 This separation is why copulas are useful in credit risk. We can hold each firm's default probability fixed and change only the dependence assumption. When the tail of the loss distribution changes, joint default behavior drives that change.
 
@@ -89,9 +91,11 @@ kable(
 )
 ```
 
-One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the latent normal variables $X_i$ and $X_j$. The sample correlation between the default indicators $D_i$ and $D_j$ is a derived quantity, where $D_i$ is 1 after default and 0 otherwise. The indicator correlation depends on both $\rho$ and the default threshold. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
+One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the standardized normal default drivers $X_i$ and $X_j$. These are the continuous credit states we simulate first.
 
-We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula works with a latent standard normal variable $X_i$. The default threshold is
+The default indicator $D_i$ is created after the threshold rule is applied. It equals 1 when firm $i$ defaults and 0 otherwise. The sample correlation between $D_i$ and $D_j$ is therefore a result of the simulation, and it depends on both $\rho$ and the default thresholds. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
+
+We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula represents the firm's default driver with a standard normal variable $X_i$. The threshold is the point on the normal scale that leaves probability $Q_i(T)$ to its left:
 
 $$
 z_i(T)=N^{-1}(Q_i(T)).
@@ -105,10 +109,12 @@ $$
 X_i \leq z_i(T).
 $$
 
-This rule is constructed so that the marginal default probability is preserved.
+The rule preserves the marginal default probability by construction. The inverse normal function $N^{-1}(\cdot)$ finds the value whose left-tail area is exactly $Q_i(T)$, so the probability of falling below the threshold is the original cumulative PD.
 
 $$
 P(X_i \leq z_i(T))=P(X_i \leq N^{-1}(Q_i(T)))=Q_i(T).
 $$
 
-In R, the equation is exactly the pair `qnorm()` and `pnorm()`. The function `qnorm()` translates a given cumulative PD into a normal threshold. The function `pnorm()` checks that the threshold reproduces the same cumulative PD.
+For the 5-year PD used below, `pd_cum[5]` is `r fmt_pct(pd_cum[5], 1)`. The threshold is `r fmt_num(default_threshold[5], 4)`, obtained with `qnorm(pd_cum[5])`. A simulated value of $X_i$ below `r fmt_num(default_threshold[5], 4)` is counted as a default by year 5. Since `pnorm(default_threshold[5])` returns `r fmt_pct(threshold_check[5], 1)`, the threshold check recovers the same cumulative PD.
+
+This is why the code uses the pair `qnorm()` and `pnorm()`. The function `qnorm()` translates a cumulative PD into a normal threshold. The function `pnorm()` is the check that the threshold reproduces the same cumulative PD.

@@ -15,7 +15,7 @@ names(hull_threshold_table) <- c(
   "Cumulative PD",
   "Incremental PD",
   "Default threshold",
-  "pnorm(threshold) check"
+  "PD recovered from threshold"
 )
 
 hull_threshold_numeric <- data.frame(
@@ -41,7 +41,7 @@ $$
 Q(5)-Q(4)=15\%-10\%=5\%.
 $$
 
-The table below keeps both objects visible because they answer different questions. The cumulative PD is used to define the default threshold by horizon. The incremental PD tells us how much new default probability is added between two adjacent horizons.
+The table below keeps both objects visible because they answer different questions. The cumulative PD is used to define the default threshold by horizon. The incremental PD tells us how much new default probability is added between two adjacent horizons. The last column is a check. It applies $N(\cdot)$ back to the threshold, so it should reproduce the cumulative PD exactly apart from rounding. In other words, the cumulative PD is the input, the default threshold is the normal-scale version of that input, and the recovered PD confirms that the transformation did not change the marginal default probability.
 
 ```{r}
 kable(
@@ -51,7 +51,7 @@ kable(
 )
 ```
 
-The code below produces the two most important columns.
+The code below shows the transformation and its check.
 
 ```{r}
 pd_cum <- c(0.01, 0.03, 0.06, 0.10, 0.15)
@@ -59,9 +59,9 @@ default_threshold <- qnorm(pd_cum)
 pnorm(default_threshold)
 ```
 
-The financial meaning is longer than the code. `pd_cum` contains marginal default probabilities. The command `qnorm(pd_cum)` converts those probabilities into normal-scale default thresholds. The command `pnorm(default_threshold)` verifies that each threshold reproduces the original cumulative PD.
+The financial meaning is longer than the code. `pd_cum` contains marginal cumulative default probabilities. The command `qnorm(pd_cum)` converts those probabilities into normal-scale default thresholds. The command `pnorm(default_threshold)` walks back from the threshold to the probability scale. It gives the same numerical values as `pd_cum` by construction, and that equality is useful because it proves that the threshold rule preserves the individual default probabilities before we add dependence across firms.
 
-For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its latent credit-quality variable is below that value.
+For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its default driver is below that value.
 
 $$
 D_i(5)=1\{X_i \leq `r fmt_num(default_threshold[5], 6)`\}.
