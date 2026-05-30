@@ -240,7 +240,7 @@ We are ready to plot.
 
 ```{r}
 #| label: fig-hwftvotaactvoaatz
-#| fig-cap: "Objective function when asset volatility is fixed and the current asset value changes."
+#| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
 # Plot the results.
 plot(V0.seq, FG.V0, type = "l", xlab = expression(paste(V[0])),
      ylab = expression(paste(F(x,y)^2+G(x,y)^2)), cex.lab = 0.8, lwd = 3)
@@ -255,7 +255,7 @@ This figure is a diagnostic check rather than a separate estimation method. It s
 
 ```{r}
 #| label: fig-hwftvotaatzactvota
-#| fig-cap: "Objective function when the current asset value is fixed and asset volatility changes."
+#| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
 # Now fix V0, and evaluate different sv values.
 sv.seq <- seq(0.001, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
