@@ -240,7 +240,7 @@ We are ready to plot.
 
 ```{r}
 #| label: fig-hwftvotaactvoaatz
-#| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
+#| fig-cap: "Objective function when asset volatility is fixed and the current asset value changes."
 # Plot the results.
 plot(V0.seq, FG.V0, type = "l", xlab = expression(paste(V[0])),
      ylab = expression(paste(F(x,y)^2+G(x,y)^2)), cex.lab = 0.8, lwd = 3)
@@ -249,11 +249,13 @@ abline(h = FG(V0, sv), lty = 2)
 points(V0, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-Clearly, the minimization worked well here. For the sake of completeness, now we fix the $V_0$ value and evaluate the function again.
+Figure @fig-hwftvotaactvoaatz is a one-dimensional slice of the minimization problem. In this slice, $\sigma_V$ is held fixed at the estimated value and only $V_0$ changes. The vertical dashed line marks the estimated asset value, and the red circle marks the value of the objective function at that estimate. The curve reaches its lowest point near the estimated $V_0$, so nearby alternatives for the asset value produce larger squared errors in equations 24.3 and 24.4. Economically, moving away from this $V_0$ makes it harder for the model to match both the observed equity value and the observed equity volatility.
+
+This figure is a diagnostic check rather than a separate estimation method. It shows that, conditional on the estimated $\sigma_V$, the optimizer has found a sensible asset value. For completeness, we now make the symmetric check by fixing $V_0$ and varying $\sigma_V$.
 
 ```{r}
 #| label: fig-hwftvotaatzactvota
-#| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
+#| fig-cap: "Objective function when the current asset value is fixed and asset volatility changes."
 # Now fix V0, and evaluate different sv values.
 sv.seq <- seq(0.001, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
@@ -268,7 +270,11 @@ abline(h = FG(V0, sv), lty = 2)
 points(sv, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
 ```
 
-We can show the same as before but in a 3D plot.
+Figure @fig-hwftvotaatzactvota gives the second slice. Now $V_0$ is fixed at the estimated value and $\sigma_V$ changes. The estimated asset volatility again sits near the bottom of the curve. If $\sigma_V$ is too low, the model understates how strongly equity reacts to asset risk. If $\sigma_V$ is too high, the model overstates that risk transmission. Both mistakes increase the objective function because the two Hull equations are no longer matched as closely.
+
+Taken together, Figures @fig-hwftvotaactvoaatz and @fig-hwftvotaatzactvota show that the numerical solution is locally coherent in each parameter direction. The next figures extend the same idea to the joint surface, where $V_0$ and $\sigma_V$ move at the same time.
+
+We can show the same objective function as a 3D plot.
 
 ```{r}
 #| label: fig-motf
