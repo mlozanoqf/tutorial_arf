@@ -139,10 +139,10 @@ p_values <- sapply(ages, logistic_function)
 age_indicator_data <- data.frame(
   age = c(age_min_train, age_max_train),
   p = c(age_pd_min_train, age_pd_max_train),
-  label_x = c(age_min_train + 80, age_max_train + 80),
+  label_x = c(age_min_train + 80, age_max_train + 240),
   label_y = c(
     min(age_pd_min_train + 0.08, 0.95),
-    max(age_pd_max_train - 0.08, 0.05)
+    min(age_pd_max_train + 0.22, 0.95)
   ),
   label = c(
     paste0("min age = ", fmt_num(age_min_train, 0), "\np = ", fmt_pct(age_pd_min_train, 2)),
