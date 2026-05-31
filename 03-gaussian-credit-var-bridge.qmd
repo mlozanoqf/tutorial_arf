@@ -368,7 +368,8 @@ ggplot(vasicek_factor_plot_data, aes(x = Systematic_factor, y = Loss)) +
     vjust = -0.25,
     size = 3.4,
     fill = "white",
-    label.size = 0.2,
+    label.size = 0,
+    linewidth = 0,
     color = "#7B241C"
   ) +
   labs(

@@ -18,17 +18,69 @@ The results are useful precisely because they are not one-sided. XGBoost is a mo
 ```{r}
 #| label: fig-tree-roc-comparison
 #| fig-cap: "ROC curves: logistic regression, single tree, and XGBoost."
-plot(ROC_logi_full, col = "blue", lwd = 3)
-lines(ROC_tree_simple, col = "gray40", lwd = 3)
-lines(ROC_xgb, col = "darkorange", lwd = 3)
-legend("bottomright",
-       legend = c(
-         paste0("Logistic AUC: ", round(as.numeric(auc(ROC_logi_full)), 4)),
-         paste0("Single tree AUC: ", round(as.numeric(auc(ROC_tree_simple)), 4)),
-         paste0("XGBoost AUC: ", round(as.numeric(auc(ROC_xgb)), 4))
-       ),
-       col = c("blue", "gray40", "darkorange"),
-       lwd = 3)
+roc_to_df <- function(roc_object, model_name) {
+  data.frame(
+    false_positive_rate = 1 - roc_object$specificities,
+    true_positive_rate = roc_object$sensitivities,
+    model = model_name,
+    auc = as.numeric(auc(roc_object))
+  )
+}
+
+roc_comparison <- bind_rows(
+  roc_to_df(ROC_logi_full, "Logistic regression"),
+  roc_to_df(ROC_tree_simple, "Single tree"),
+  roc_to_df(ROC_xgb, "XGBoost")
+) |>
+  mutate(
+    model_label = paste0(model, " (AUC = ", round(auc, 4), ")"),
+    model_label = factor(
+      model_label,
+      levels = unique(model_label)
+    )
+  ) |>
+  arrange(model_label, false_positive_rate)
+
+ggplot(
+  roc_comparison,
+  aes(
+    x = false_positive_rate,
+    y = true_positive_rate,
+    color = model_label
+  )
+) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray60",
+    linewidth = 0.7
+  ) +
+  geom_line(linewidth = 1.15) +
+  scale_color_manual(
+    values = c("blue", "gray40", "darkorange"),
+    name = NULL
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  labs(
+    x = "False positive rate (1 - specificity)",
+    y = "True positive rate (sensitivity)"
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
 ```
 
 The ROC comparison focuses on ranking. If the XGBoost curve lies above the logistic curve, the boosted model is doing a better job ranking defaulting borrowers above non-defaulting borrowers. This does not automatically make it the better lending strategy, because the final decision still depends on cutoffs, costs, and calibration.

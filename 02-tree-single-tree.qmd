@@ -1,6 +1,6 @@
 ## A single decision tree
 
-A decision tree is the simplest tree-based model. It divides the data by asking a sequence of questions. Each question creates a split. At the end of a sequence of splits, each terminal node contains a group of observations with a default rate. That default rate becomes the predicted probability of default for applicants who fall into that node.
+A decision tree is the simplest tree-based model. It divides the data by asking a sequence of questions. Each question creates a split. At the end of a sequence of splits, each terminal node contains a group of observations with a default rate. In tree terminology, one terminal node is called a leaf and several terminal nodes are called leaves. The default rate in the leaf becomes the predicted probability of default for applicants who fall into that node.
 
 If a terminal node, or leaf, contains $n_L$ loans and $d_L$ of them defaulted, the leaf prediction is:
 
@@ -18,16 +18,199 @@ simple_tree
 
 The printed object describes the tree in text form. Each split sends observations to different branches. The variables that appear near the top are the first questions asked by the model, which means they are especially important for this particular tree.
 
+The figure below reads the same fitted tree as a credit-risk map. Each rectangle is one node. To make the diagram easy to read, the terminal boxes are labeled Leaf 1 to Leaf 5 from left to right. Those labels are teaching labels used in the figure and in the table below. The rule printed in a box is the local rule for reaching that box from its parent. The PD is the empirical default rate among applicants in that node. For internal nodes, that rate summarizes the borrowers who have reached that point. For terminal leaves, it becomes the predicted PD assigned to new applicants. The last line shows the same calculation behind the formula above: defaults divided by applicants. Darker colors indicate higher default risk.
+
 ```{r}
 #| label: fig-single-decision-tree
 #| fig-cap: "A single decision tree for credit scoring."
-#| fig-width: 10
+#| fig-width: 8.6
 #| fig-height: 7
-plot(simple_tree, uniform = TRUE, margin = 0.10)
-text(simple_tree, use.n = TRUE, all = TRUE, cex = 0.70)
+tree_frame <- simple_tree$frame
+tree_nodes <- data.frame(
+  node_id = as.integer(row.names(tree_frame)),
+  row_id = seq_len(nrow(tree_frame)),
+  split_variable = tree_frame$var,
+  n = tree_frame$n,
+  default_count = tree_frame$yval2[, 3],
+  default_rate = tree_frame$yval2[, 5],
+  is_leaf = tree_frame$var == "<leaf>",
+  stringsAsFactors = FALSE
+)
+
+tree_nodes$parent_id <- ifelse(tree_nodes$node_id == 1, NA, tree_nodes$node_id %/% 2)
+tree_nodes$depth <- floor(log2(tree_nodes$node_id))
+tree_node_rules <- labels(simple_tree, minlength = 0)
+
+clean_tree_rule <- function(x) {
+  x <- gsub("log\\(l_amnt\\)", "log(loan amount)", x)
+  x <- gsub("log\\(income\\)", "log(income)", x)
+  x <- gsub("\\bint\\b", "interest rate", x)
+  x <- gsub("\\bl_amnt\\b", "loan amount", x)
+  x <- gsub("\\bemp_len\\b", "employment length", x)
+  x <- gsub("\\bloan_st\\b", "default", x)
+  x <- gsub("<", " < ", x)
+  x <- gsub(">=", " >= ", x)
+  x <- gsub("  +", " ", x)
+  trimws(x)
+}
+
+tree_nodes$node_rule <- clean_tree_rule(tree_node_rules)
+tree_nodes$node_rule[tree_nodes$node_id == 1] <- "All training applicants"
+tree_nodes$node_type <- ifelse(tree_nodes$is_leaf, "Leaf", "Node")
+tree_nodes$node_rule_plot <- vapply(
+  tree_nodes$node_rule,
+  function(rule_i) paste(strwrap(rule_i, width = 18), collapse = "\n"),
+  character(1)
+)
+leaf_ids <- tree_nodes$node_id[tree_nodes$is_leaf]
+tree_nodes$leaf_number <- NA_integer_
+tree_nodes$leaf_number[tree_nodes$is_leaf] <- seq_along(leaf_ids)
+tree_nodes$node_heading <- ifelse(
+  tree_nodes$is_leaf,
+  paste0("Leaf ", tree_nodes$leaf_number),
+  ifelse(tree_nodes$node_id == 1, "Root", "Split")
+)
+
+tree_nodes$x <- NA_real_
+tree_nodes$x[tree_nodes$is_leaf] <- seq_along(leaf_ids)
+
+for (depth_i in rev(seq_len(max(tree_nodes$depth) + 1) - 1)) {
+  parent_rows <- which(tree_nodes$depth == depth_i & !tree_nodes$is_leaf)
+  for (row_i in parent_rows) {
+    child_rows <- which(tree_nodes$parent_id == tree_nodes$node_id[row_i])
+    tree_nodes$x[row_i] <- mean(tree_nodes$x[child_rows], na.rm = TRUE)
+  }
+}
+tree_nodes$y <- -tree_nodes$depth
+tree_x_limits <- range(tree_nodes$x, na.rm = TRUE) + c(-0.35, 0.35)
+tree_y_limits <- range(tree_nodes$y, na.rm = TRUE) + c(-0.35, 0.35)
+
+tree_nodes$node_label <- paste0(
+  tree_nodes$node_heading,
+  "\n",
+  tree_nodes$node_rule_plot,
+  "\nPD = ", fmt_pct(tree_nodes$default_rate, 1),
+  "\n", fmt_int(tree_nodes$default_count), " / ", fmt_int(tree_nodes$n)
+)
+
+tree_edges <- merge(
+  tree_nodes[, c("node_id", "x", "y")],
+  tree_nodes[, c("node_id", "parent_id", "x", "y")],
+  by.x = "node_id",
+  by.y = "parent_id",
+  suffixes = c("_parent", "_child")
+)
+
+ggplot2::ggplot() +
+  ggplot2::geom_segment(
+    data = tree_edges,
+    ggplot2::aes(
+      x = x_parent,
+      y = y_parent,
+      xend = x_child,
+      yend = y_child
+    ),
+    linewidth = 0.55,
+    color = "gray55"
+  ) +
+  ggplot2::geom_label(
+    data = tree_nodes,
+    ggplot2::aes(x = x, y = y, label = node_label, fill = default_rate),
+    label.size = 0,
+    linewidth = 0,
+    label.padding = grid::unit(0.24, "lines"),
+    size = 4,
+    lineheight = 0.95,
+    color = "gray10"
+  ) +
+  ggplot2::scale_fill_gradientn(
+    colors = c("#D6EAF8", "#FEF5C4", "#F5B041", "#C0392B"),
+    labels = function(x) fmt_pct(x, 0),
+    name = "Node PD",
+    guide = ggplot2::guide_colorbar(barwidth = 7, barheight = 0.5)
+  ) +
+  ggplot2::coord_cartesian(
+    xlim = tree_x_limits,
+    ylim = tree_y_limits,
+    clip = "off"
+  ) +
+  ggplot2::theme_void(base_size = 12) +
+  ggplot2::theme(
+    legend.position = "bottom",
+    plot.margin = grid::unit(c(8, 14, 8, 14), "pt")
+  )
 ```
 
-The figure is useful because it makes the logic visible. The model is not estimating a coefficient for each variable. It is building a set of conditional rules. The first split partitions the data into two groups. Then each group can be split again. The final leaves summarize the predicted class and the number of observations reaching each leaf.
+The figure is useful because it makes the scoring logic visible. We will use three words carefully. A split node asks a question and sends applicants to lower nodes. A split node is not a leaf, because the applicant still has to continue through the tree. A terminal leaf is where the tree stops and assigns the final predicted PD. A line is one possible answer to a split question. A path is the full route from the root node to one terminal leaf.
+
+In this fitted tree, there are `r sum(!tree_nodes$is_leaf)` split nodes and `r sum(tree_nodes$is_leaf)` terminal leaves. The root is counted as a split node because it creates the first partition of the data. Each box labeled Split is also a split node. None of those split nodes is counted as a leaf. A leaf is counted only when a box has no lines leaving it below. The five terminal boxes are labeled Leaf 1, Leaf 2, Leaf 3, Leaf 4, and Leaf 5 from left to right. A new applicant follows exactly one complete path from the root to one leaf, and the leaf at the end supplies the predicted PD.
+
+The table below expands the same `r sum(tree_nodes$is_leaf)` leaves shown in the figure. A terminal box shows its local rule, while the full scoring rule also includes every previous rule on the path. For example, the bottom-right red leaf combines the final loan-amount condition with the previous conditions on region, grade, and income. The table stacks those inherited conditions into one row, so each row is one complete path used for prediction.
+
+```{r}
+#| echo: false
+#| results: asis
+leaf_paths <- path.rpart(simple_tree, nodes = leaf_ids, print.it = FALSE)
+
+leaf_path_plain <- vapply(leaf_paths, function(path_i) {
+  path_i <- clean_tree_rule(path_i[path_i != "root"])
+  paste(path_i, collapse = "; ")
+}, character(1))
+
+leaf_path_text <- vapply(leaf_paths, function(path_i) {
+  path_i <- clean_tree_rule(path_i[path_i != "root"])
+  path_i <- gsub(">=", "&gt;=", path_i, fixed = TRUE)
+  path_i <- gsub("<", "&lt;", path_i, fixed = TRUE)
+  paste(path_i, collapse = "<br>")
+}, character(1))
+
+leaf_summary <- tree_nodes[tree_nodes$is_leaf, ]
+lowest_leaf_index <- which.min(leaf_summary$default_rate)
+highest_leaf_index <- which.max(leaf_summary$default_rate)
+
+leaf_table <- data.frame(
+  leaf = leaf_summary$leaf_number,
+  rule = leaf_path_text,
+  applicants = fmt_int(leaf_summary$n),
+  defaults = fmt_int(leaf_summary$default_count),
+  predicted_PD = fmt_pct(leaf_summary$default_rate, 2),
+  row.names = NULL
+)
+
+cat('
+<style>
+.tree-leaf-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.tree-leaf-table col:nth-child(1) { width: 7% !important; }
+.tree-leaf-table col:nth-child(2) { width: 44% !important; }
+.tree-leaf-table col:nth-child(3) { width: 16% !important; }
+.tree-leaf-table col:nth-child(4) { width: 15% !important; }
+.tree-leaf-table col:nth-child(5) { width: 18% !important; }
+.tree-leaf-table th:nth-child(1),
+.tree-leaf-table td:nth-child(1) {
+  text-align: center !important;
+}
+.tree-leaf-table th:nth-child(n+3),
+.tree-leaf-table td:nth-child(n+3) {
+  text-align: right !important;
+  white-space: nowrap;
+}
+</style>
+')
+
+knitr::kable(
+  leaf_table,
+  format = "html",
+  caption = "Terminal leaves of the single decision tree.",
+  col.names = c("Leaf", "Rule", "Applicants", "Defaults", "Predicted PD"),
+  escape = FALSE,
+  table.attr = 'class="tree-leaf-table table"'
+)
+```
+
+The lowest-risk leaf in this fitted tree assigns a PD of `r fmt_pct(leaf_summary$default_rate[lowest_leaf_index], 2)`. The highest-risk leaf assigns a PD of `r fmt_pct(leaf_summary$default_rate[highest_leaf_index], 2)`. The highest-risk path is Leaf `r leaf_summary$leaf_number[highest_leaf_index]`: `r leaf_path_plain[highest_leaf_index]`. This range is the main intuition behind a tree score. Applicants are sorted into different regions of the training data, and each region carries its own historical default rate.
 
 However, a single tree has an important weakness: it can be unstable. A small change in the training data can produce a different set of splits. A tree can also be too simple if it is shallow, or too noisy if it is allowed to grow too deep. This creates a natural motivation for ensemble methods, where many trees are combined instead of relying on one tree.
 

@@ -510,7 +510,8 @@ ggplot2::ggplot(
   payoff_data,
   ggplot2::aes(x = terminal_asset_value, y = terminal_equity_value)
 ) +
-  ggplot2::geom_line(linewidth = 1.25, color = "black") +
+  ggplot2::geom_hline(yintercept = 0, linewidth = 0.35, color = "gray78") +
+  ggplot2::geom_line(linewidth = 1.25, color = "#0B5CAD") +
   ggplot2::geom_vline(xintercept = D, linetype = "dashed", linewidth = 0.7) +
   ggplot2::annotate(
     "label",
@@ -523,11 +524,12 @@ ggplot2::ggplot(
       "100,000 cases."
     ),
     label.size = 0,
+    linewidth = 0,
     fill = "white",
     alpha = 0.9,
     size = 3.8
   ) +
-  ggplot2::coord_cartesian(xlim = c(5, 20), ylim = c(0, 10), expand = FALSE) +
+  ggplot2::coord_cartesian(xlim = c(5, 20), ylim = c(-0.55, 10), expand = FALSE) +
   ggplot2::labs(
     x = expression(paste("Simulated assets at maturity (", V[T], ")")),
     y = expression(paste("Simulated equity at maturity (", E[T], ")"))

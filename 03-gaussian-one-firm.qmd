@@ -81,11 +81,9 @@ one_firm_hist_data <- data.frame(
   density = one_firm_hist$density,
   default_region = one_firm_hist$mids <= one_firm_threshold
 )
-one_firm_density_data <- data.frame(x = x, Density = D)
 
 ggplot(one_firm_hist_data, aes(x = x_mid, y = density, fill = default_region)) +
   geom_col(width = diff(one_firm_hist$breaks)[1], color = "white", linewidth = 0.1) +
-  geom_line(data = one_firm_density_data, aes(x = x, y = Density), inherit.aes = FALSE, linewidth = 1.1, color = "#2C3E50") +
   geom_vline(xintercept = one_firm_threshold, linewidth = 1, linetype = "dashed", color = "#E74C3C") +
   annotate(
     "label",
@@ -98,7 +96,8 @@ ggplot(one_firm_hist_data, aes(x = x_mid, y = density, fill = default_region)) +
     ),
     size = 3.5,
     fill = "white",
-    label.size = 0.2
+    label.size = 0,
+    linewidth = 0
   ) +
   scale_fill_manual(
     values = c("FALSE" = "#D6EAF8", "TRUE" = "#E74C3C"),
