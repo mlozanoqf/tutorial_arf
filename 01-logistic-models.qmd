@@ -87,6 +87,15 @@ age_pd_18 <- age_exp_18 / (1 + age_exp_18)
 age_logit_60 <- beta_age_0 + beta_age_1 * age_example_60
 age_exp_60 <- exp(age_logit_60)
 age_pd_60 <- age_exp_60 / (1 + age_exp_60)
+age_min_train <- min(train$age, na.rm = TRUE)
+age_max_train <- max(train$age, na.rm = TRUE)
+age_logit_min_train <- beta_age_0 + beta_age_1 * age_min_train
+age_logit_max_train <- beta_age_0 + beta_age_1 * age_max_train
+age_pd_min_train <- exp(age_logit_min_train) / (1 + exp(age_logit_min_train))
+age_pd_max_train <- exp(age_logit_max_train) / (1 + exp(age_logit_max_train))
+age_pd_observed_low <- min(age_pd_min_train, age_pd_max_train)
+age_pd_observed_high <- max(age_pd_min_train, age_pd_max_train)
+age_pd_observed_width <- age_pd_observed_high - age_pd_observed_low
 aic_age <- AIC(logi_age)
 ```
 
@@ -108,7 +117,7 @@ $p = \frac{\exp(`r fmt_num(age_logit_60, 5)`)}{1 + \exp(`r fmt_num(age_logit_60,
 
 The results of the default probability estimation evaluated at ages 18 and 60 are not very promising because the difference in probabilities is very small. This means that the model does not generate significantly differentiated default probabilities, even when evaluated over a wide age range. This can be problematic because it suggests that this is a poor model.
 
-The following is a graphical representation of the logistic regression model's output.
+The following figure shows the logistic regression model's output. The training data contain ages from `r fmt_num(age_min_train, 0)` to `r fmt_num(age_max_train, 0)`. The model maps those two endpoints to predicted default probabilities of `r fmt_pct(age_pd_min_train, 2)` and `r fmt_pct(age_pd_max_train, 2)`, respectively. The dotted indicators in the figure mark those two observed age limits and their corresponding probabilities.
 
 ```{r}
 #| label: fig-scolcam
@@ -127,15 +136,68 @@ ages <- seq(-1000, 500, by = 1)
 # Apply the logistic function to each age
 p_values <- sapply(ages, logistic_function)
 
+age_indicator_data <- data.frame(
+  age = c(age_min_train, age_max_train),
+  p = c(age_pd_min_train, age_pd_max_train),
+  label_x = c(age_min_train + 80, age_max_train + 80),
+  label_y = c(
+    min(age_pd_min_train + 0.08, 0.95),
+    max(age_pd_max_train - 0.08, 0.05)
+  ),
+  label = c(
+    paste0("min age = ", fmt_num(age_min_train, 0), "\np = ", fmt_pct(age_pd_min_train, 2)),
+    paste0("max age = ", fmt_num(age_max_train, 0), "\np = ", fmt_pct(age_pd_max_train, 2))
+  )
+)
+
 # Create the plot
 library(ggplot2)
-ggplot(data = data.frame(age = ages, p = p_values), 
-       aes(x = age, y = p)) +
-  geom_line(color = "blue", size = 2) +
+ggplot(data = data.frame(age = ages, p = p_values), aes(x = age, y = p)) +
+  geom_line(color = "blue", linewidth = 2) +
+  geom_segment(
+    data = age_indicator_data,
+    aes(x = age, xend = age, y = 0, yend = p),
+    inherit.aes = FALSE,
+    linetype = "dotted",
+    linewidth = 0.9,
+    color = "#C0392B"
+  ) +
+  geom_segment(
+    data = age_indicator_data,
+    aes(x = min(ages), xend = age, y = p, yend = p),
+    inherit.aes = FALSE,
+    linetype = "dotted",
+    linewidth = 0.9,
+    color = "#C0392B"
+  ) +
+  geom_segment(
+    data = age_indicator_data,
+    aes(x = age, xend = label_x, y = p, yend = label_y),
+    inherit.aes = FALSE,
+    linetype = "dotted",
+    linewidth = 0.7,
+    color = "#C0392B"
+  ) +
+  geom_point(
+    data = age_indicator_data,
+    aes(x = age, y = p),
+    inherit.aes = FALSE,
+    color = "#C0392B",
+    size = 2.8
+  ) +
+  geom_label(
+    data = age_indicator_data,
+    aes(x = label_x, y = label_y, label = label),
+    inherit.aes = FALSE,
+    size = 3.2,
+    fill = "white",
+    color = "#7B241C",
+    label.size = 0.2
+  ) +
   labs(x = "Age", y = "Probability (p)") +
   theme_minimal()
 ```
-The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. This implies that, to observe the full range of probabilities from 0 to 1, we would require age values that are unrealistic or implausibly extreme. Such behavior suggests that the model is poorly specified, as it fails to generate meaningful distinctions in probabilities across a realistic range of ages.
+The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. The dotted vertical lines show that the realistic age range in the training data is only a small segment of the very wide x-axis needed to display the full sigmoid curve. The dotted horizontal lines show the corresponding predicted probabilities, which move only from `r fmt_pct(age_pd_observed_low, 2)` to `r fmt_pct(age_pd_observed_high, 2)` across the observed age range, a difference of `r fmt_pct(age_pd_observed_width, 2)`. This means that the age-only model does not generate meaningful separation in default probabilities for realistic applicants. To see probabilities close to 0 or 1, the model would require age values that are unrealistic or implausibly extreme.
 
 The AIC value of the age model (`r format(round(aic_age), big.mark = ",")`) is useful when comparing models estimated on the same response variable and sample. The Akaike information criterion (AIC) is a mathematical method for comparing in-sample fit while penalizing model complexity. In statistics, AIC is used to compare different possible models; lower AIC values indicate a better in-sample trade-off between fit and parsimony among the models being compared. At the moment we cannot interpret the AIC very much because we only have one model and we cannot compare it with another AIC.
 
