@@ -269,22 +269,79 @@ set.seed(13)
 VT <- exp(rnorm(100000, log(V0) + (rf - (sv^2) / 2)*TT, sv*sqrt(TT)))
 # Plot results.
 h <- hist(VT, 100, plot = FALSE)
-ccat <- cut(h$breaks, c(-Inf, D, Inf))
-sim_pd_100k <- mean(VT < D)
-hist_legend_text <- paste0(
-  "The red area is ", fmt_pct(sim_pd_100k, 3), ", and represents\n",
-  "the simulated risk-neutral probability of default.\n",
-  "The risk-neutral probability of default of the model\n",
-  "following the textbook example is\n",
-  "N(-d_2)=", fmt_pct(pd_merton, 4), ". As we can see,\n",
-  "both are very close."
+hist_data <- data.frame(
+  xmin = head(h$breaks, -1),
+  xmax = tail(h$breaks, -1),
+  count = h$counts
 )
-# You may also need to change the xlim if a big red square appears as changes in maturity may imply larger values of VT. I recommend trying without xlim and see.
-plot(h, main = NULL, col = c("red", "blue")[ccat], 
-     xlab = "Value of the assets at maturity", xlim = c(4, 30))
-legend("topright", 
-legend = hist_legend_text,
-col = c("red", "blue"), pch = c(19), bg = "white", bty = "n", cex = 0.8)
+hist_data$region <- ifelse(hist_data$xmin < D, "Default region", "No default region")
+sim_pd_100k <- mean(VT < D)
+hist_label_x <- 18.4
+hist_label_y <- max(hist_data$count) * 0.92
+hist_label_gap <- max(hist_data$count) * 0.075
+hist_merton_label <- paste0(
+  "paste('Merton ', N(-d[2]), ' = ", fmt_pct(pd_merton, 4), "')"
+)
+ggplot2::ggplot(hist_data) +
+  ggplot2::geom_rect(
+    ggplot2::aes(
+      xmin = xmin,
+      xmax = xmax,
+      ymin = 0,
+      ymax = count,
+      fill = region
+    ),
+    color = "white",
+    linewidth = 0.1
+  ) +
+  ggplot2::geom_vline(xintercept = D, linetype = "dashed", linewidth = 0.7) +
+  ggplot2::annotate(
+    "text",
+    x = hist_label_x,
+    y = hist_label_y,
+    hjust = 0,
+    vjust = 1,
+    label = paste0("Red area = ", fmt_pct(sim_pd_100k, 3)),
+    size = 3.2
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = hist_label_x,
+    y = hist_label_y - hist_label_gap,
+    hjust = 0,
+    vjust = 1,
+    label = "Simulated risk-neutral PD",
+    size = 3.2
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = hist_label_x,
+    y = hist_label_y - 2 * hist_label_gap,
+    hjust = 0,
+    vjust = 1,
+    label = hist_merton_label,
+    parse = TRUE,
+    size = 3.2
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = hist_label_x,
+    y = hist_label_y - 3 * hist_label_gap,
+    hjust = 0,
+    vjust = 1,
+    label = "The two values are close.",
+    size = 3.2
+  ) +
+  ggplot2::coord_cartesian(xlim = c(4, 30), expand = FALSE) +
+  ggplot2::scale_fill_manual(
+    values = c("Default region" = "red", "No default region" = "blue"),
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = "Value of the assets at maturity",
+    y = "Frequency"
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 The simulated risk-neutral probability of default can be calculated as:
