@@ -37,56 +37,136 @@ E2 <- mapply(pd, 2, se, rf, TT, D.seq)
 E3 <- mapply(pd, 3, se, rf, TT, D.seq)
 E4 <- mapply(pd, 4, se, rf, TT, D.seq)
 E5 <- mapply(pd, 5, se, rf, TT, D.seq)
+
+colors <- c("green", "purple", "black", "blue", "red")
+
+make_capital_structure_data <- function(x, curves) {
+  data.frame(
+    promised_debt = rep(x, times = length(curves)),
+    curve = factor(
+      rep(names(curves), each = length(x)),
+      levels = names(curves)
+    ),
+    risk_neutral_pd = unlist(curves, use.names = FALSE)
+  )
+}
+
+plot_capital_structure <- function(curve_data, color_values,
+                                   x_label, y_label,
+                                   v_lines = NULL, h_lines = NULL,
+                                   points_data = NULL,
+                                   x_limits = NULL, y_limits = NULL,
+                                   legend_text_size = 9) {
+  p <- ggplot2::ggplot(
+    curve_data,
+    ggplot2::aes(
+      x = promised_debt,
+      y = risk_neutral_pd,
+      color = curve
+    )
+  ) +
+    ggplot2::geom_line(linewidth = 1.1) +
+    ggplot2::scale_color_manual(values = color_values) +
+    ggplot2::scale_y_continuous(labels = function(x) fmt_pct(x, 0)) +
+    ggplot2::labs(x = x_label, y = y_label, color = NULL) +
+    ggplot2::coord_cartesian(xlim = x_limits, ylim = y_limits) +
+    ggplot2::theme_classic(base_size = 12) +
+    ggplot2::theme(
+      legend.position = c(0.98, 0.02),
+      legend.justification = c(1, 0),
+      legend.background = ggplot2::element_rect(
+        fill = "white",
+        color = NA,
+        linewidth = 0.3
+      ),
+      legend.key = ggplot2::element_rect(fill = "white", color = NA),
+      legend.text = ggplot2::element_text(size = legend_text_size)
+    )
+
+  if (!is.null(v_lines)) {
+    p <- p + ggplot2::geom_vline(
+      xintercept = v_lines,
+      linetype = "dashed",
+      linewidth = 0.55,
+      color = "black"
+    )
+  }
+
+  if (!is.null(h_lines)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = h_lines,
+      linetype = "dashed",
+      linewidth = 0.55,
+      color = "black"
+    )
+  }
+
+  if (!is.null(points_data)) {
+    for (i in seq_len(nrow(points_data))) {
+      p <- p + ggplot2::geom_point(
+        data = points_data[i, ],
+        ggplot2::aes(x = promised_debt, y = risk_neutral_pd),
+        inherit.aes = FALSE,
+        shape = 21,
+        size = 4,
+        stroke = 0.7,
+        color = "black",
+        fill = points_data$point_fill[i]
+      )
+    }
+  }
+
+  p
+}
 ```
 
-Plot the results.
+@fig-gppodacs shows the first comparison area. The horizontal axis changes the promised debt payment due at maturity, $D$. Each colored curve fixes one equity value, $E_0$, and recomputes the Merton risk-neutral PD for different levels of $D$. The black curve is the original equity value, $E_0=`r fmt_num(E0, 0)`$. The vertical dashed line marks the original promised debt payment, $D=`r fmt_num(D, 0)`$, and the horizontal dashed line marks the original risk-neutral PD. Their intersection is the initial firm position.
 
 ```{r}
 #| label: fig-gppodacs
 #| fig-cap: "GoT problem. Risk-neutral probability of default and capital structure."
-# We use these vectors for colors and legends in the following plots.
-colors <- c("green", "purple", "black", "blue", "red")
 leg <- c("E0=1", "E0=2", "E0=3 (initial value)", "E0=4", "E0=5")
-# Plot.
-plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)))
-lines(D.seq, E2, col = "purple", lwd = 3)
-lines(D.seq, E3, col = "black", lwd = 3)
-lines(D.seq, E4, col = "blue", lwd = 3)
-lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = D, lty = 2)
-abline(h = pd_initial, lty = 2)
-legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
-       bg = "white")
-points(D, pd_initial, pch = 19, cex = 2)
+names(colors) <- leg
+equity_curve_data <- make_capital_structure_data(
+  D.seq,
+  setNames(list(E1, E2, E3, E4, E5), leg)
+)
+plot_capital_structure(
+  curve_data = equity_curve_data,
+  color_values = colors,
+  x_label = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
+  y_label = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)),
+  v_lines = D,
+  h_lines = pd_initial,
+  points_data = data.frame(
+    promised_debt = D,
+    risk_neutral_pd = pd_initial,
+    point_fill = "black"
+  )
+)
 ```
 
-Let's illustrate the alternatives as clearly as possible.
+@fig-gspodacs adds the two actions Daenerys is considering. Moving left from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ represents reducing the promised debt payment while staying on the black curve because $E_0$ remains unchanged. Moving from the black curve to the red curve at the same $D=`r fmt_num(D, 0)`$ represents increasing equity from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$. The yellow point therefore reads the debt-reduction alternative, and the red point reads the equity-injection alternative.
 
 ```{r}
 #| label: fig-gspodacs
 #| fig-cap: "GoT solution. Risk-neutral probability of default and capital structure."
-plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)))
-lines(D.seq, E2, col = "purple", lwd = 3)
-lines(D.seq, E3, col = "black", lwd = 3)
-lines(D.seq, E4, col = "blue", lwd = 3)
-lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = D, lty = 2)
-abline(v = D - 2, lty = 2)
-abline(h = pd_initial, lty = 2)
-abline(h = scenario1_reduce_D, lty = 2)
-abline(h = scenario1_raise_E, lty = 2)
-legend("bottomright", legend = leg, lwd = rep(3, 5), col = colors, 
-       bg = "white")
-points(D, pd_initial, pch = 19, cex = 2)
-points(D, scenario1_raise_E, pch = 19, cex = 2, col = "red")
-points(D - 2, scenario1_reduce_D, pch = 19, cex = 2, col = "yellow")
+plot_capital_structure(
+  curve_data = equity_curve_data,
+  color_values = colors,
+  x_label = paste0("Promised debt payment. Initially, D=", fmt_num(D, 0)),
+  y_label = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_initial, 2)),
+  v_lines = c(D, D - 2),
+  h_lines = c(pd_initial, scenario1_reduce_D, scenario1_raise_E),
+  points_data = data.frame(
+    promised_debt = c(D, D, D - 2),
+    risk_neutral_pd = c(pd_initial, scenario1_raise_E, scenario1_reduce_D),
+    point_fill = c("black", "red", "yellow")
+  )
+)
 ```
 
-In the first scenario, reducing the promised debt payment from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_raise_E, 2)`. Under this model-implied comparison, the lower PD comes from `r ifelse(scenario1_reduce_D < scenario1_raise_E, "reducing the promised debt payment", "increasing the equity value")`. This statement is conditional on the Merton setup: the remaining observed inputs stay fixed, while $V_0$ and $\sigma_V$ are re-estimated in each alternative.
+In the first scenario, reducing the promised debt payment from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_raise_E, 2)`. The equity injection produces the lower PD in this starting position because it moves the firm to a lower curve. The debt reduction also helps, but here the vertical move from the black curve to the red curve is larger than the leftward move along the black curve. This statement is conditional on the Merton setup: the remaining observed inputs stay fixed, while $V_0$ and $\sigma_V$ are re-estimated in each alternative.
 
 ::: {.merton-subhead}
 Scenario 2: a different starting balance sheet
@@ -94,52 +174,79 @@ Scenario 2: a different starting balance sheet
 
 Consider a different initial situation. Now, $E_0=2$ and $D=2$ while the remaining observed inputs are unchanged. In this case, the risk-neutral probability of default is `r fmt_pct(pd_scenario_2_initial, 2)`. Which action produces the lower model-implied probability of default: reduce the promised debt payment $D$ by 1, or increase the equity value $E_0$ by 1?
 
+@fig-gp2podacs repeats the same visual logic with a different starting point. The initial firm is now on the purple curve because the starting equity value is $E_0=`r fmt_num(scenario2_E0, 0)`$, not $E_0=`r fmt_num(E0, 0)`$. The vertical dashed line marks $D=`r fmt_num(scenario2_D, 0)`$, and the horizontal dashed line marks the corresponding initial PD.
+
 ```{r}
 #| label: fig-gp2podacs
 #| fig-cap: "GoT problem 2. Risk-neutral probability of default and capital structure."
 leg2 <- c("E0=1", "E0=2 (initial value)", "E0=3", "E0=4", "E0=5")
-
-plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario2_D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_2_initial, 2)), 
-     xlim = c(0, 2.5), ylim = c(0, 0.08))
-lines(D.seq, E2, col = "purple", lwd = 3)
-lines(D.seq, E3, col = "black", lwd = 3)
-lines(D.seq, E4, col = "blue", lwd = 3)
-lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = scenario2_D, lty = 2)
-abline(h = pd_scenario_2_initial, lty = 2)
-legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
-       bg = "white", cex = 0.6)
-points(scenario2_D, pd_scenario_2_initial, pch = 19, cex = 2, col = "purple")
+scenario2_colors <- setNames(unname(colors), leg2)
+scenario2_curve_data <- make_capital_structure_data(
+  D.seq,
+  setNames(list(E1, E2, E3, E4, E5), leg2)
+)
+plot_capital_structure(
+  curve_data = scenario2_curve_data,
+  color_values = scenario2_colors,
+  x_label = paste0(
+    "Promised debt payment. Initially, D=",
+    fmt_num(scenario2_D, 0)
+  ),
+  y_label = paste0(
+    "Risk-neutral PD. Initially PD=",
+    fmt_pct(pd_scenario_2_initial, 2)
+  ),
+  v_lines = scenario2_D,
+  h_lines = pd_scenario_2_initial,
+  points_data = data.frame(
+    promised_debt = scenario2_D,
+    risk_neutral_pd = pd_scenario_2_initial,
+    point_fill = "purple"
+  ),
+  x_limits = c(0, 2.5),
+  y_limits = c(0, 0.08),
+  legend_text_size = 8
+)
 ```
 
-The solution can be illustrated as follows:
+@fig-gs2podacs adds the two alternatives. Reducing the promised debt payment moves the firm left along the purple curve from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$, which is shown by the yellow point. Increasing equity from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ moves the firm from the purple curve to the black curve while keeping $D=`r fmt_num(scenario2_D, 0)`$, which is shown by the black point.
 
 ```{r}
 #| label: fig-gs2podacs
 #| fig-cap: "GoT solution 2. Risk-neutral probability of default and capital structure."
-plot(D.seq, E1, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario2_D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_2_initial, 2)), 
-     xlim = c(0, 2.5), ylim = c(0, 0.08))
-lines(D.seq, E2, col = "purple", lwd = 3)
-lines(D.seq, E3, col = "black", lwd = 3)
-lines(D.seq, E4, col = "blue", lwd = 3)
-lines(D.seq, E5, col = "red", lwd = 3)
-abline(v = scenario2_D, lty = 2)
-abline(v = scenario2_D - 1, lty = 2)
-abline(h = pd_scenario_2_initial, lty = 2)
-abline(h = scenario2_reduce_D, lty = 2)
-abline(h = scenario2_raise_E, lty = 2)
-legend("bottomright", legend = leg2, lwd = rep(3, 5), col = colors, 
-       bg = "white", cex = 0.6)
-points(scenario2_D, pd_scenario_2_initial, pch = 19, cex = 2, col = "purple")
-points(scenario2_D - 1, scenario2_reduce_D, pch = 19, cex = 2, col = "yellow")
-points(scenario2_D, scenario2_raise_E, pch = 19, cex = 2)
+plot_capital_structure(
+  curve_data = scenario2_curve_data,
+  color_values = scenario2_colors,
+  x_label = paste0(
+    "Promised debt payment. Initially, D=",
+    fmt_num(scenario2_D, 0)
+  ),
+  y_label = paste0(
+    "Risk-neutral PD. Initially PD=",
+    fmt_pct(pd_scenario_2_initial, 2)
+  ),
+  v_lines = c(scenario2_D, scenario2_D - 1),
+  h_lines = c(
+    pd_scenario_2_initial,
+    scenario2_reduce_D,
+    scenario2_raise_E
+  ),
+  points_data = data.frame(
+    promised_debt = c(scenario2_D, scenario2_D - 1, scenario2_D),
+    risk_neutral_pd = c(
+      pd_scenario_2_initial,
+      scenario2_reduce_D,
+      scenario2_raise_E
+    ),
+    point_fill = c("purple", "yellow", "black")
+  ),
+  x_limits = c(0, 2.5),
+  y_limits = c(0, 0.08),
+  legend_text_size = 8
+)
 ```
 
-In the second scenario, reducing the promised debt payment from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_raise_E, 2)`. The lower PD comes from `r ifelse(scenario2_reduce_D < scenario2_raise_E, "reducing the promised debt payment", "increasing the equity value")`. The point is not that this action is universally better, but that the model's nonlinear response depends on the starting balance-sheet position.
+In the second scenario, reducing the promised debt payment from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_raise_E, 2)`. The lower PD now comes from reducing the promised debt payment. This reverses the result from the first scenario. The reason is visible in the plot: near this starting point, moving left along the purple curve lowers PD more than moving down to the black curve at the same debt level. The model's nonlinear response depends on the starting capital-structure position.
 
 ::: {.merton-subhead}
 Scenario 3: more debt or more time
@@ -155,47 +262,70 @@ T4 <- mapply(pd, E0, se, rf, 2, D.seq)
 T5 <- mapply(pd, E0, se, rf, 2.5, D.seq)
 ```
 
+@fig-gp3mdolm changes the meaning of the colored curves. In the previous scenarios, colors represented different equity values. Here, colors represent different maturities. The black curve is the initial maturity, $T=`r fmt_num(scenario3_T, 1)`$. The vertical dashed line marks the initial promised debt payment, $D=`r fmt_num(scenario3_D, 0)`$, and the horizontal dashed line marks the initial risk-neutral PD.
+
 ```{r}
 #| label: fig-gp3mdolm
 #| fig-cap: "GoT problem 3. Higher promised debt payment or longer maturity?"
 leg3 <- c("T=2.5", "T=2", "T=1.5", "T=1", "T=0.5")
-
-plot(D.seq, T5, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario3_D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_3_initial, 2)))
-lines(D.seq, T4, col = "purple", lwd = 3)
-lines(D.seq, T3, col = "black", lwd = 3)
-lines(D.seq, T2, col = "blue", lwd = 3)
-lines(D.seq, T1, col = "red", lwd = 3)
-abline(v = scenario3_D, lty = 2)
-abline(h = pd_scenario_3_initial, lty = 2)
-legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
-       bg = "white")
-points(scenario3_D, pd_scenario_3_initial, pch = 19, cex = 2)
+scenario3_colors <- setNames(unname(colors), leg3)
+maturity_curve_data <- make_capital_structure_data(
+  D.seq,
+  setNames(list(T5, T4, T3, T2, T1), leg3)
+)
+plot_capital_structure(
+  curve_data = maturity_curve_data,
+  color_values = scenario3_colors,
+  x_label = paste0(
+    "Promised debt payment. Initially, D=",
+    fmt_num(scenario3_D, 0)
+  ),
+  y_label = paste0(
+    "Risk-neutral PD. Initially PD=",
+    fmt_pct(pd_scenario_3_initial, 2)
+  ),
+  v_lines = scenario3_D,
+  h_lines = pd_scenario_3_initial,
+  points_data = data.frame(
+    promised_debt = scenario3_D,
+    risk_neutral_pd = pd_scenario_3_initial,
+    point_fill = "black"
+  )
+)
 ```
 
-Let's visualize the result.
+@fig-ga3mdolm adds the two financing choices. Increasing the promised debt payment from $D=`r fmt_num(scenario3_D, 0)`$ to $D=`r fmt_num(scenario3_D + 2, 0)`$ moves right along the black curve because maturity remains $T=`r fmt_num(scenario3_T, 1)`$. Extending maturity from $T=`r fmt_num(scenario3_T, 1)`$ to $T=`r fmt_num(scenario3_T + 0.5, 1)`$ moves from the black curve to the purple curve while keeping $D=`r fmt_num(scenario3_D, 0)`$. The yellow point is therefore the additional-debt alternative, and the purple point is the longer-maturity alternative.
 
 ```{r}
 #| label: fig-ga3mdolm
 #| fig-cap: "GoT answer 3. Higher promised debt payment or longer maturity?"
-plot(D.seq, T5, type = "l", col = "green", lwd = 3,
-     xlab = paste0("Promised debt payment. Initially, D=", fmt_num(scenario3_D, 0)),
-     ylab = paste0("Risk-neutral PD. Initially PD=", fmt_pct(pd_scenario_3_initial, 2)))
-lines(D.seq, T4, col = "purple", lwd = 3)
-lines(D.seq, T3, col = "black", lwd = 3)
-lines(D.seq, T2, col = "blue", lwd = 3)
-lines(D.seq, T1, col = "red", lwd = 3)
-abline(v = scenario3_D, lty = 2)
-abline(v = scenario3_D + 2, lty = 2)
-abline(h = pd_scenario_3_initial, lty = 2)
-abline(h = scenario3_more_time, lty = 2)
-abline(h = scenario3_more_debt, lty = 2)
-legend("bottomright", legend = leg3, lwd = rep(3, 5), col = colors, 
-       bg = "white")
-points(scenario3_D, pd_scenario_3_initial, pch = 19, cex = 2)
-points(scenario3_D + 2, scenario3_more_debt, pch = 19, cex = 2, col = "yellow")
-points(scenario3_D, scenario3_more_time, pch = 19, cex = 2, col = "purple")
+plot_capital_structure(
+  curve_data = maturity_curve_data,
+  color_values = scenario3_colors,
+  x_label = paste0(
+    "Promised debt payment. Initially, D=",
+    fmt_num(scenario3_D, 0)
+  ),
+  y_label = paste0(
+    "Risk-neutral PD. Initially PD=",
+    fmt_pct(pd_scenario_3_initial, 2)
+  ),
+  v_lines = c(scenario3_D, scenario3_D + 2),
+  h_lines = c(
+    pd_scenario_3_initial,
+    scenario3_more_time,
+    scenario3_more_debt
+  ),
+  points_data = data.frame(
+    promised_debt = c(scenario3_D, scenario3_D + 2, scenario3_D),
+    risk_neutral_pd = c(
+      pd_scenario_3_initial,
+      scenario3_more_debt,
+      scenario3_more_time
+    ),
+    point_fill = c("black", "yellow", "purple")
+  )
+)
 ```
 
-In the third scenario, increasing the promised debt payment from $D=`r fmt_num(scenario3_D, 0)`$ to $D=`r fmt_num(scenario3_D + 2, 0)`$ while keeping maturity at $T=`r fmt_num(scenario3_T, 1)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_debt, 2)`. Extending maturity from $T=`r fmt_num(scenario3_T, 1)`$ to $T=`r fmt_num(scenario3_T + 0.5, 1)`$ while keeping $D=`r fmt_num(scenario3_D, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_time, 2)`. Both alternatives increase the PD relative to the initial `r fmt_pct(pd_scenario_3_initial, 2)`. The smaller increase comes from `r ifelse(scenario3_more_debt < scenario3_more_time, "increasing the promised debt payment", "extending maturity")`. This does not mean that higher debt improves credit risk; it means that, in this particular Merton configuration, increasing the promised payment is less adverse than extending maturity. This is a structural-model result, not a complete financing recommendation; a real decision would also require cash-flow projections, funding spreads, covenants, and business constraints.
+In the third scenario, increasing the promised debt payment from $D=`r fmt_num(scenario3_D, 0)`$ to $D=`r fmt_num(scenario3_D + 2, 0)`$ while keeping maturity at $T=`r fmt_num(scenario3_T, 1)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_debt, 2)`. Extending maturity from $T=`r fmt_num(scenario3_T, 1)`$ to $T=`r fmt_num(scenario3_T + 0.5, 1)`$ while keeping $D=`r fmt_num(scenario3_D, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_time, 2)`. Both alternatives increase the PD relative to the initial `r fmt_pct(pd_scenario_3_initial, 2)`. The smaller increase comes from increasing the promised debt payment. In this configuration, giving the assets more time to move creates a larger increase in model-implied default risk than the extra promised payment. This is a structural-model comparison, not a complete financing recommendation; a real decision would also require cash-flow projections, funding spreads, covenants, and business constraints.

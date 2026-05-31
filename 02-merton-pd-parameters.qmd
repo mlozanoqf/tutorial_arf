@@ -30,6 +30,71 @@ pd.rf <- mapply(pd, E0, se, x.rf, TT, D)
 pd.D <- mapply(pd, E0, se, rf, TT, x.D)
 pd.T <- mapply(pd, E0, se, rf, x.T, D)
 pd.se <- mapply(pd, E0, x.se, rf, TT, D)
+
+plot_pd_sensitivity <- function(x, y, current_x, x_label,
+                                y_limits = NULL, x_as_percent = FALSE,
+                                y_digits = 0) {
+  plot_data <- data.frame(
+    input_value = x,
+    risk_neutral_pd = y
+  )
+  current_point <- data.frame(
+    input_value = current_x,
+    risk_neutral_pd = pd1
+  )
+  if (is.null(y_limits)) {
+    y_limits <- c(0, max(c(y, pd1), na.rm = TRUE) * 1.06)
+  }
+
+  p <- ggplot2::ggplot(
+    plot_data,
+    ggplot2::aes(x = input_value, y = risk_neutral_pd)
+  ) +
+    ggplot2::geom_hline(
+      yintercept = 0,
+      linewidth = 0.35,
+      color = "gray82"
+    ) +
+    ggplot2::geom_line(linewidth = 1.1, color = "#0b5cad") +
+    ggplot2::geom_vline(
+      xintercept = current_x,
+      linetype = "dashed",
+      linewidth = 0.55,
+      color = "gray35"
+    ) +
+    ggplot2::geom_hline(
+      yintercept = pd1,
+      linetype = "dashed",
+      linewidth = 0.55,
+      color = "gray35"
+    ) +
+    ggplot2::geom_point(
+      data = current_point,
+      ggplot2::aes(x = input_value, y = risk_neutral_pd),
+      shape = 21,
+      size = 3.6,
+      stroke = 1.1,
+      color = "#b84300",
+      fill = "white"
+    ) +
+    ggplot2::coord_cartesian(ylim = y_limits) +
+    ggplot2::scale_y_continuous(labels = function(x) fmt_pct(x, y_digits)) +
+    ggplot2::labs(x = x_label, y = "Risk-neutral PD") +
+    ggplot2::theme_classic(base_size = 12) +
+    ggplot2::theme(
+      panel.grid.major.y = ggplot2::element_line(
+        color = "gray90",
+        linewidth = 0.25
+      ),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+
+  if (x_as_percent) {
+    p <- p + ggplot2::scale_x_continuous(labels = function(x) fmt_pct(x, 0))
+  }
+
+  p
+}
 ```
 
 The risk-free-rate grid ranges from 0% to 20%. This keeps the plot focused on a moderate range around the textbook example, rather than on extreme interest-rate environments.
@@ -43,12 +108,13 @@ Let's plot the risk-neutral probability of default as a function of equity. What
 ```{r}
 #| label: fig-tpodaafoteaatz
 #| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero."
-plot(x.E, pd.E, type = "l", ylab = "Risk-neutral PD", 
-     xlab = "Equity at time zero", lwd = 3, ylim = c(0, 0.15))
-lines(x.E, pd.E)
-abline(v = E0, lty = 2)
-abline(h = pd1, lty = 2)
-points(E0, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
+plot_pd_sensitivity(
+  x = x.E,
+  y = pd.E,
+  current_x = E0,
+  x_label = "Equity at time zero",
+  y_limits = c(0, 0.15)
+)
 ```
 
 These relationships between the observable inputs and the risk-neutral probability of default are all non-linear. This is interesting because, according to the model, the current levels of the inputs are important when deciding which change might have a high or low impact on the model-implied probability of default.
@@ -56,12 +122,15 @@ These relationships between the observable inputs and the risk-neutral probabili
 ```{r}
 #| label: fig-tpodaafotrfr
 #| fig-cap: "The risk-neutral probability of default as a function of the risk-free rate."
-plot(x.rf, pd.rf, type = "l", ylab = "Risk-neutral PD", 
-     xlab = "Risk-free rate", lwd = 3)
-abline(h = 0, lty = 2)
-abline(v = rf, lty = 2)
-abline(h = pd1, lty = 2)
-points(rf, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
+plot_pd_sensitivity(
+  x = x.rf,
+  y = pd.rf,
+  current_x = rf,
+  x_label = "Risk-free rate",
+  y_limits = range(pd.rf) + c(-0.0006, 0.0006),
+  x_as_percent = TRUE,
+  y_digits = 1
+)
 ```
 
 Risk-neutral probability of default as a function of the promised debt payment due at maturity, $D$. Note that increasing or decreasing $D$ by 1 unit has a different impact on the model-implied probability of default.
@@ -69,12 +138,13 @@ Risk-neutral probability of default as a function of the promised debt payment d
 ```{r}
 #| label: fig-tpodaafotd
 #| fig-cap: "The risk-neutral probability of default as a function of the promised debt payment due at maturity."
-plot(x.D, pd.D, type = "l", ylab = "Risk-neutral PD", 
-     xlab = "Promised debt payment at maturity", lwd = 3, ylim = c(0, 0.15))
-abline(h = 0, lty = 2)
-abline(v = D, lty = 2)
-abline(h = pd1, lty = 2)
-points(D, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
+plot_pd_sensitivity(
+  x = x.D,
+  y = pd.D,
+  current_x = D,
+  x_label = "Promised debt payment at maturity",
+  y_limits = c(0, 0.15)
+)
 ```
 
 Risk-neutral probability of default as a function of maturity. In this model-implied sensitivity exercise, changing maturity also triggers a new solution for $V_0$ and $\sigma_V$. The curve should therefore be read as: for each maturity value on the horizontal axis, the remaining observable inputs are kept fixed, the unobserved asset quantities are re-estimated, and the risk-neutral PD is recomputed. This is a model comparison, not a standalone recommendation about debt negotiation. A real negotiation would also depend on cash flows, covenants, recovery, refinancing risk, and the bank's required spread.
@@ -82,12 +152,12 @@ Risk-neutral probability of default as a function of maturity. In this model-imp
 ```{r}
 #| label: fig-tpodaafotdm
 #| fig-cap: "The risk-neutral probability of default as a function of debt maturity."
-plot(x.T, pd.T, type = "l", ylab = "Risk-neutral PD", 
-     xlab = "Maturity", lwd = 3)
-abline(h = 0, lty = 2)
-abline(v = TT, lty = 2)
-abline(h = pd1, lty = 2)
-points(TT, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
+plot_pd_sensitivity(
+  x = x.T,
+  y = pd.T,
+  current_x = TT,
+  x_label = "Maturity"
+)
 ```
 
 Risk-neutral probability of default as a function of the volatility of the equity $\sigma_E$.
@@ -95,12 +165,13 @@ Risk-neutral probability of default as a function of the volatility of the equit
 ```{r}
 #| label: fig-tpodaafote
 #| fig-cap: "The risk-neutral probability of default as a function of the volatility of the equity."
-plot(x.se, pd.se, type = "l", ylab = "Risk-neutral PD",
-     xlab = "Standard deviation of equity", lwd = 3)
-abline(h = 0, lty = 2)
-abline(v = se, lty = 2)
-abline(h = pd1, lty = 2)
-points(se, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
+plot_pd_sensitivity(
+  x = x.se,
+  y = pd.se,
+  current_x = se,
+  x_label = "Equity volatility",
+  x_as_percent = TRUE
+)
 ```
 
 
@@ -108,58 +179,142 @@ points(se, pd1, pch = 1, cex = 3, col = "red", lwd = 2)
 Two-input views
 :::
 
-In the previous plots we evaluated the probability of default function by changing one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ do not remain fixed because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated. Now, let's plot the risk-neutral probability of default as a function of $E_0$ and $\sigma_E$.
+In the previous plots we evaluated the probability of default function by changing one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ do not remain fixed because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated.
 
-One alternative is to evaluate the probability of default function 50 times by taking the 50 pairs of values of $E_0$ and $\sigma_E$. By doing that, we will end with three vectors of size 50 that we can plot as a three-dimensional scatter plot.
+Now we let two market inputs move at the same time: $E_0$ and $\sigma_E$. This is financially useful because equity value measures how much market cushion the firm has above the promised debt payment, while equity volatility measures how unstable that cushion is. A firm with low equity value and high equity volatility should imply a higher probability of default than a firm with high equity value and low equity volatility.
 
-```{r}
-#| label: fig-tpodaafoteatzatvoe
-#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity."
-ED <- mapply(pd, x.E, x.se, rf, TT, D)
-p.ED <- scatterplot3d(x.E, x.se, ED, pch = 16, type = "h", color = 1:50, 
-                      angle = 100, xlab = "Equity at time zero", 
-                      ylab = "Volatility of equity", 
-                      zlab = "Risk-neutral PD")
-p.ED$points3d(E0, se, pd1, type = "h", col = "red", pch = 20, cex = 3)  
-```
-
-The red point represents the original textbook example, where $pd = f(E_0=3, \sigma_E=0.8,rf=0.05,T=1,D=10)$ equals `r fmt_num(pd1, 7)`. Note that the red point is not part of the 50 plotted observations simply because there is no case in which the probability of default function is evaluated in $E_0=3, \sigma_E=0.8$. Although the plot above is not incorrect, it might be incomplete as we are not showing all possible values of the risk-neutral probability of default. One alternative to show a more complete plot is to evaluate all possible combinations of $E_0$ and $\sigma_E$ to evaluate the probability of default function. If we do that, we will have 50 values for $E_0$ and $\sigma_E$ that represent the $x$ and $y$ axis, and a $50 \times 50$ matrix containing the risk-neutral probability of default. This allows us to plot a surface plot and a contour plot.
+To make the comparison complete, we evaluate all combinations of 50 values of $E_0$ and 50 values of $\sigma_E$. For this two-input view, we cap $E_0$ at 10 and $\sigma_E$ at 150% so the relevant region around the original example remains readable. The result is a $50 \times 50$ grid. Each cell answers a concrete question: if the observed equity value were this level and the observed equity volatility were that level, what Merton risk-neutral PD would the model imply?
 
 ```{r}
+x.E_two_input <- seq(from = 1, to = 10, length.out = l)
+x.se_two_input <- seq(from = 0.01, to = 1.5, length.out = l)
 # Create the empty matrix.
 p_E_se <- matrix(0, nrow = l, ncol = l)
 # Fill the empty matrix with probability of default values.
 for(i in 1 : l){ # Is there an easier way to do this?
   for(j in 1 : l){
-    p_E_se[i,j] <- mapply(pd, x.E[i], x.se[j], rf, TT, D) } }
+    p_E_se[i,j] <- mapply(pd, x.E_two_input[i], x.se_two_input[j], rf, TT, D) } }
 ```
 
-Let's plot the results.
-
-```{r}
-#| label: fig-tpodaafoteatzatvoeaposv
-#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: A plane or surface view."
-# Plot results.
-p.ED1 <- persp(x.E, x.se, p_E_se, zlab = "pd", 
-               xlab = "Equity at time zero", 
-               ylab = "Volatility of equity", theta = 60, phi = 10, 
-               expand =  0.5, col = "orange", shade = 0.2, 
-               ticktype = "detailed") 
-# Add the original pd value as in the textbook example.
-points(trans3d(E0, se, pd1, p.ED1), cex = 2, pch = 19, col = "blue")
-```
-
-Now the plot becomes a surface. A contour plot simplifies the reading of a three-dimensional plot by reducing it into two dimensions: $x$ and $y$ coordinates. The value of the risk-neutral probability of default is represented by the contour lines. 
+The grid is easiest to read as a contour plot. Each contour line connects combinations of $E_0$ and $\sigma_E$ that produce the same risk-neutral PD after the model solves again for $V_0$ and $\sigma_V$.
 
 ```{r}
 #| label: fig-tpodaafoteatzatvoeacv
-#| fig-cap: "The risk-neutral probability of default as a function of the equity at time zero and the volatility of equity: A contour view."
-contour(x.E, x.se, p_E_se, xlab = "Equity at time zero", 
-        ylab = "Volatility of equity", lwd = 2)
-points(E0, se, pch = 19, col = "blue", cex = 2)
+#| fig-cap: "A contour view of the risk-neutral probability of default as a function of equity value and equity volatility."
+pd_grid <- expand.grid(
+  equity_at_time_zero = x.E_two_input,
+  equity_volatility = x.se_two_input
+)
+pd_grid$risk_neutral_pd <- as.vector(p_E_se)
+current_pd_point <- data.frame(
+  equity_at_time_zero = E0,
+  equity_volatility = se,
+  risk_neutral_pd = pd1
+)
+pd_contour_breaks <- seq(0.05, 0.95, by = 0.05)
+pd_contour_label_levels <- c(0.05, 0.10, 0.15, 0.20, 0.40)
+pd_contour_label_lines <- contourLines(
+  x = x.E_two_input,
+  y = x.se_two_input,
+  z = p_E_se,
+  levels = pd_contour_label_levels
+)
+pd_contour_label_list <- lapply(pd_contour_label_levels, function(level_value) {
+  level_lines <- pd_contour_label_lines[
+    vapply(
+      pd_contour_label_lines,
+      function(line) isTRUE(all.equal(line$level, level_value)),
+      logical(1)
+    )
+  ]
+  if (length(level_lines) == 0) {
+    return(NULL)
+  }
+  longest_line <- level_lines[[which.max(vapply(level_lines, function(line) {
+    length(line$x)
+  }, numeric(1)))]]
+  label_index <- max(1, round(length(longest_line$x) * 0.68))
+  data.frame(
+    equity_at_time_zero = longest_line$x[label_index],
+    equity_volatility = longest_line$y[label_index],
+    risk_neutral_pd = level_value
+  )
+})
+pd_contour_label_data <- do.call(rbind, pd_contour_label_list)
+if (is.null(pd_contour_label_data)) {
+  pd_contour_label_data <- data.frame(
+    equity_at_time_zero = numeric(),
+    equity_volatility = numeric(),
+    risk_neutral_pd = numeric()
+  )
+}
+pd_contour_label_data$label <- fmt_pct(
+  pd_contour_label_data$risk_neutral_pd,
+  0
+)
+
+ggplot2::ggplot(
+  pd_grid,
+  ggplot2::aes(
+    x = equity_at_time_zero,
+    y = equity_volatility,
+    z = risk_neutral_pd
+  )
+) +
+  ggplot2::geom_contour(
+    ggplot2::aes(color = ggplot2::after_stat(level)),
+    breaks = pd_contour_breaks,
+    linewidth = 0.85
+  ) +
+  ggplot2::geom_label(
+    data = pd_contour_label_data,
+    ggplot2::aes(
+      x = equity_at_time_zero,
+      y = equity_volatility,
+      label = label
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    label.size = 0,
+    fill = "white",
+    alpha = 0.86
+  ) +
+  ggplot2::geom_vline(xintercept = E0, linetype = "dashed", linewidth = 0.55) +
+  ggplot2::geom_hline(yintercept = se, linetype = "dashed", linewidth = 0.55) +
+  ggplot2::geom_point(
+    data = current_pd_point,
+    ggplot2::aes(x = equity_at_time_zero, y = equity_volatility),
+    inherit.aes = FALSE,
+    shape = 21,
+    size = 4.2,
+    stroke = 1.2,
+    color = "red",
+    fill = "white"
+  ) +
+  ggplot2::scale_y_continuous(
+    labels = function(x) fmt_pct(x, 0),
+    limits = c(0, 1.5),
+    breaks = seq(0, 1.5, by = 0.5),
+    expand = ggplot2::expansion(mult = c(0, 0))
+  ) +
+  ggplot2::scale_x_continuous(
+    limits = c(1, 10),
+    breaks = seq(2, 10, by = 2),
+    expand = ggplot2::expansion(mult = c(0, 0))
+  ) +
+  ggplot2::scale_color_viridis_c(
+    option = "C",
+    end = 0.9,
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = expression(E[0]),
+    y = expression(sigma[E])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```      
 
-The blue point is the original case. Note that the value is slightly higher than 0.1, which is consistent with $pd=`r fmt_num(pd1, 7)`$.
+The red point is the original case, where $E_0=`r fmt_num(E0, 0)`$, $\sigma_E=`r fmt_pct(se, 0)`$ and the model-implied PD is `r fmt_pct(pd1, 2)`. The point lies between the 10% and 15% contour lines, which is consistent with the numerical value. The plot also shows the main financial pattern: lower equity value and higher equity volatility move the firm toward higher default probabilities.
 
 ```{r}
 l = 40 # Vectors of length 40.

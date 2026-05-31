@@ -220,7 +220,7 @@ Now, let's see the `r length(almost_default_no_default)` cases in which $V_t$ we
 
 ```{r}
 #| label: fig-atpwl1asp
-#| fig-cap: "These paths cross below D before maturity, but finish with V_T above D and therefore do not default."
+#| fig-cap: "These paths cross below $D$ before maturity, but finish with $V_T$ above $D$ and therefore do not default."
 almost_default_no_default_data <- make_path_data(
   paths[, almost_default_no_default, drop = FALSE],
   almost_default_no_default
@@ -449,29 +449,95 @@ sim_pd_100k
 
 Figure @fig-ho1votaam is the large-sample continuation of @fig-vt-convergence-hists. The simulated value `r fmt_num(sim_pd_100k, 5)` is now very close to the model value `r fmt_num(pd_merton, 7)`. The red area in the histogram is therefore the simulation-based approximation of the model-implied risk-neutral probability $N(-d_2)$.
 
-This firm can be represented as a European call option payoff. The payoff of a typical stock option is $c=max(S_T-K, 0)$ or equivalently in terms of the Merton model: $E_T=max(V_T-D, 0)$.
+## Equity as a call option payoff
+
+The previous simulation counted default states by comparing the terminal asset value $V_T$ with the promised debt payment $D$. The same terminal comparison also explains why Merton values equity with a call-option formula.
+
+The phrase residual claimant has a concrete meaning here. In the one-period Merton setup, the firm has one promised debt payment due at maturity. At $T$, the firm's assets are valued at their market value $V_T$, and payments follow priority. Debt holders are senior claimants: they are paid first, up to the promised amount $D$. Equity holders are junior claimants: they receive only what remains after debt has been paid. Therefore:
+
+$$
+\text{Debt payoff at }T=\min(V_T,D),
+$$
+
+and:
+
+$$
+E_T=\max(V_T-D,0).
+$$
+
+If $V_T>D$, creditors receive $D$ and shareholders receive the surplus $V_T-D$. If $V_T<D$, the firm does not have enough market value to repay the promised debt payment in full. Creditors receive the available asset value, shareholders receive zero, and the firm is in default.
+
+This is a market-value claims view, not an accounting balance sheet. The model is not using book assets from financial statements at maturity. It is describing how the market value of the firm's assets is split between senior debt and junior equity claims.
+
+A European call option has terminal payoff:
+
+$$
+c_T=\max(S_T-K,0).
+$$
+
+Merton equity has the same payoff shape:
+
+$$
+E_T=\max(V_T-D,0).
+$$
+
+The mapping is direct. The asset value $V_T$ plays the role of the underlying price $S_T$, and the promised debt payment $D$ plays the role of the strike price $K$.
+
+| European call option | Merton market-value claim |
+|---|---|
+| Underlying price at maturity, $S_T$ | Market value of assets at maturity, $V_T$ |
+| Strike price, $K$ | Promised debt payment due at maturity, $D$ |
+| Call is in the money if $S_T>K$ | Equity receives a positive residual if $V_T>D$ |
+| Call expires worthless if $S_T<K$ | Equity is zero and the firm defaults if $V_T<D$ |
+| Call payoff, $\max(S_T-K,0)$ | Equity payoff, $\max(V_T-D,0)$ |
+
+This mapping is useful because it turns the credit problem into a contingent-claim problem. Default is the out-of-the-money region of equity. Survival is the in-the-money region. The debt payment $D$ becomes the default boundary. The option formula in section 3.2 is therefore not an unrelated Black-Scholes detour; it is the pricing formula for the equity claim once equity is understood as a call on the firm's assets. Observed equity value and equity volatility can then be used to infer the unobserved asset value and asset volatility, and those asset quantities determine the model-implied probability of default.
+
+It also clarifies what is being valued. The call formula values the equity claim, not the whole firm directly. In the Hull/Merton example, section 3.2 inferred a market asset value of $V_0=`r fmt_num(V0, 4)`$. The observed equity value is $E_0=`r fmt_num(E0, 0)`$, so the model-implied market value of debt is $B_0=V_0-E_0=`r fmt_num(market_value_debt, 4)`$. A buyer of the whole firm as a package of market-value assets would look at $V_0$. A buyer of only the shares would be buying the junior residual claim worth $E_0$. The difference between those two values is the debt claim, not a contradiction in valuation.
+
+This section reads the maturity payoff. The current equity value $E_0$ was already used in section 3.2 to calibrate $V_0$ and $\sigma_V$ through Hull's option-pricing equation. The figure below makes the payoff shape visible.
 
 ```{r}
 #| label: fig-avotfbssitf
-#| fig-cap: "A view of the firm's balance sheet in the future. Looks like a typical European call option payoff."
+#| fig-cap: "Equity at maturity as a European call payoff on the firm's assets."
 ET <- pmax(VT - D, 0) # payoff function of a typical call option.
-plot(sort(VT), sort(ET), type = "l", lwd = 4, xlim = c(5, 20), 
-     ylim = c(0, 10), xlab = "Simulated assets at maturity (V_T)",
-     ylab = "Simulated equity at maturity (E_T)")
-abline(v = 10, lty = 2)
-et_legend_text <- paste0(
-  "In the simulation,\n",
-  "E_T=0 happens\n",
-  "in ", fmt_pct(sim_pd_100k, 3), " of the\n",
-  "100,000 cases."
+payoff_data <- data.frame(
+  terminal_asset_value = sort(VT),
+  terminal_equity_value = sort(ET)
 )
-legend("left", legend = et_legend_text,
-bg = "white", bty = "n", cex = 0.9)
+
+ggplot2::ggplot(
+  payoff_data,
+  ggplot2::aes(x = terminal_asset_value, y = terminal_equity_value)
+) +
+  ggplot2::geom_line(linewidth = 1.25, color = "black") +
+  ggplot2::geom_vline(xintercept = D, linetype = "dashed", linewidth = 0.7) +
+  ggplot2::annotate(
+    "label",
+    x = 6.1,
+    y = 4.4,
+    hjust = 0,
+    label = paste0(
+      "Equity payoff is zero\n",
+      "in ", fmt_pct(sim_pd_100k, 3), " of the\n",
+      "100,000 cases."
+    ),
+    label.size = 0,
+    fill = "white",
+    alpha = 0.9,
+    size = 3.8
+  ) +
+  ggplot2::coord_cartesian(xlim = c(5, 20), ylim = c(0, 10), expand = FALSE) +
+  ggplot2::labs(
+    x = expression(paste("Simulated assets at maturity (", V[T], ")")),
+    y = expression(paste("Simulated equity at maturity (", E[T], ")"))
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
-This diagram shows the firm's market values at maturity. The equity value at maturity, $E_T$, is a function of $V_T$ and $D$. If $V_T<D$, then $E_T=0$. If $V_T>D$, then $E_T=V_T-D$, just as the balance-sheet logic suggests in future-value terms. At time 0, $E_T$ is a future random payoff. The Merton model values equity today and assigns a risk-neutral probability to the default case, $V_T<D$, which is the same case in which $E_T=0$.
+Figure @fig-avotfbssitf shows the payoff split at maturity. The flat part to the left of $D$ is the limited-liability region: asset value is too low to repay the promised debt payment, so equity is worth zero. To the right of $D$, equity increases one-for-one with assets because every additional unit above the promised debt payment belongs to shareholders.
 
-This payoff relation, $E_T=\max(V_T-D, 0)$, is the key point of the inside view. Equation 24.3 in [@Hull] was already used in the estimation step to choose $V_0$ and $\sigma_V$ so that the model is consistent with the observed equity value $E_0$. Recomputing $E_0$ here would only repeat that calibration check, so we do not treat it as a new valuation exercise.
+This payoff relation, $E_T=\max(V_T-D, 0)$, is the key point of the inside view. Equation 24.3 in [@Hull] uses the same call-option logic at time 0. It chooses $V_0$ and $\sigma_V$ so that the model is consistent with the observed equity value $E_0$ and the observed equity volatility $\sigma_E$.
 
 The important distinction is therefore: $E_T$ is the future state-dependent equity payoff, $E_0$ is the observed equity value today, $V_0$ is the model's market value of assets today, and $D$ is the promised debt payment at maturity. The estimate $V_0$ can be compared with the book value of total assets to understand the difference between book values and market values. We can also analyze the market value of debt, which is different from the promised debt payment $D$.
 

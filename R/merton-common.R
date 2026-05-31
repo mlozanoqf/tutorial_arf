@@ -49,3 +49,7 @@ PD <- function(V0, sv) {
 }
 
 pd_merton <- PD(V0, sv)
+market_value_debt <- V0 - E0
+pv_promised_payment_debt <- D * exp(-rf * TT)
+merton_implied_debt_yield <- (1 / TT) * log(D / market_value_debt)
+merton_implied_spread <- merton_implied_debt_yield - rf
