@@ -44,6 +44,13 @@ This split is enough for the teaching objective of the chapter: it lets us estim
 
 Assume we think that the <tt>`loan_st`</tt> depends on the age of the individual. To keep the mathematical notation separate from the code, let $Y_i$ denote the value stored in `loan_st` for applicant $i$, and let $\text{age}_i$ denote that applicant's age. We can estimate a simple logistic model to learn about the relationship between age and loan status.
 
+The model first defines the conditional probability that applicant $i$ defaults:
+
+$$
+p_i \equiv P(Y_i = 1 \mid \text{age}_i).
+$$
+
+Then logistic regression assumes that the log-odds of that probability are linear in age:
 
 $$
 \log\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \beta_1 \times \text{age}_i.
@@ -53,7 +60,7 @@ Where:
 
 * $Y_i$ is the observed outcome in the data: $Y_i=1$ means default and $Y_i=0$ means no default.
 
-* $p_i = P(Y_i = 1 \mid \text{age}_i)$ is the probability that applicant $i$ defaults, conditional on age.
+* $p_i$ is the probability that applicant $i$ defaults, conditional on age.
 
 * $\beta_0$ is the intercept, and $\beta_1$ is the coefficient for the predictor variable `age`.
 
