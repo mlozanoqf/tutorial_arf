@@ -297,12 +297,39 @@ We are ready to plot.
 ```{r}
 #| label: fig-hwftvotaactvoaatz
 #| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
-# Plot the results.
-plot(V0.seq, FG.V0, type = "l", xlab = expression(paste(V[0])),
-     ylab = expression(paste(F(x,y)^2+G(x,y)^2)), cex.lab = 0.8, lwd = 3)
-abline(v = V0, lty = 2)
-abline(h = FG(V0, sv), lty = 2)
-points(V0, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
+objective_at_solution <- FG(V0, sv)
+slice_v0_data <- data.frame(
+  asset_value = V0.seq,
+  objective = FG.V0
+)
+solution_v0_data <- data.frame(
+  asset_value = V0,
+  objective = objective_at_solution
+)
+
+ggplot2::ggplot(slice_v0_data, ggplot2::aes(x = asset_value, y = objective)) +
+  ggplot2::geom_line(linewidth = 1.1, color = "black") +
+  ggplot2::geom_vline(xintercept = V0, linetype = "dashed", linewidth = 0.7) +
+  ggplot2::geom_hline(
+    yintercept = objective_at_solution,
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_point(
+    data = solution_v0_data,
+    ggplot2::aes(x = asset_value, y = objective),
+    inherit.aes = FALSE,
+    shape = 21,
+    size = 4.2,
+    stroke = 1.2,
+    color = "red",
+    fill = "white"
+  ) +
+  ggplot2::labs(
+    x = expression(V[0]),
+    y = expression(F(x, y)^2 + G(x, y)^2)
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 @fig-hwftvotaactvoaatz is a one-dimensional slice of the minimization problem. In this slice, $\sigma_V$ is held fixed at the estimated value and only $V_0$ changes. The vertical dashed line marks the estimated asset value, and the red circle marks the value of the objective function at that estimate. The curve reaches its lowest point near the estimated $V_0$, so nearby alternatives for the asset value produce larger squared errors in equations 24.3 and 24.4. Economically, moving away from this $V_0$ makes it harder for the model to match both the observed equity value and the observed equity volatility.
@@ -317,28 +344,50 @@ sv.seq <- seq(0.001, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
 # Evaluate the function with these parameters.
 FG.sv <- mapply(FG, V0.rep, sv.seq)
-# Plot the results.
-plot(sv.seq, FG.sv, type = "l", xlab = expression(paste(sigma[V])), 
-     ylab = expression(paste(F(x, y)^2 + G(x, y)^2)), 
-     cex.lab = 0.8, lwd = 3)
-abline(v = sv, lty = 2)
-abline(h = FG(V0, sv), lty = 2)
-points(sv, FG(V0, sv), pch = 1, cex = 3, col = "red", lwd = 2)
+slice_sv_data <- data.frame(
+  asset_volatility = sv.seq,
+  objective = FG.sv
+)
+solution_sv_data <- data.frame(
+  asset_volatility = sv,
+  objective = objective_at_solution
+)
+
+ggplot2::ggplot(
+  slice_sv_data,
+  ggplot2::aes(x = asset_volatility, y = objective)
+) +
+  ggplot2::geom_line(linewidth = 1.1, color = "black") +
+  ggplot2::geom_vline(xintercept = sv, linetype = "dashed", linewidth = 0.7) +
+  ggplot2::geom_hline(
+    yintercept = objective_at_solution,
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  ggplot2::geom_point(
+    data = solution_sv_data,
+    ggplot2::aes(x = asset_volatility, y = objective),
+    inherit.aes = FALSE,
+    shape = 21,
+    size = 4.2,
+    stroke = 1.2,
+    color = "red",
+    fill = "white"
+  ) +
+  ggplot2::labs(
+    x = expression(sigma[V]),
+    y = expression(F(x, y)^2 + G(x, y)^2)
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 @fig-hwftvotaatzactvota gives the second slice. Now $V_0$ is fixed at the estimated value and $\sigma_V$ changes. The estimated asset volatility again sits near the bottom of the curve. If $\sigma_V$ is too low, the model understates how strongly equity reacts to asset risk. If $\sigma_V$ is too high, the model overstates that risk transmission. Both mistakes increase the objective function because the two Hull equations are no longer matched as closely.
 
-Taken together, @fig-hwftvotaactvoaatz and @fig-hwftvotaatzactvota show that the numerical solution is locally coherent in each parameter direction. The next figures extend the same idea to the joint surface, where $V_0$ and $\sigma_V$ move at the same time.
-
-We can show the same objective function as a 3D plot.
+Taken together, @fig-hwftvotaactvoaatz and @fig-hwftvotaatzactvota show that the numerical solution is locally coherent in each parameter direction. We can also evaluate the objective function over a grid where $V_0$ and $\sigma_V$ move at the same time.
 
 ```{r}
-#| label: fig-motf
-#| fig-cap: "Minimization of the function."
 # outer evaluates the function for each combination of the vectors.
 z <- outer(V0.seq, sv.seq, FG) # z is now 100x100 matrix.
-persp(V0.seq, sv.seq, z, col = "springgreen", shade = 0, xlab = "V0",
-      ylab = "sv", zlab = "Objective function.")
 ```
 Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
 
@@ -352,7 +401,7 @@ contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])),
 points(V0, sv, pch = 19, col = "blue", cex = 2)
 ```
 
-The following plot is useful in HTML because it can be shown as an interactive surface. The previous `persp()` plot is static; `plotly` gives a browser-based version that can be rotated.
+The following plot is useful in HTML because it can be shown as an interactive surface that can be rotated.
 
 
 ```{r}
