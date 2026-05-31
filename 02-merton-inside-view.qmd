@@ -15,18 +15,52 @@ V0.sim <- function(i) {  # the argument i is not used here.
 set.seed(3) # Reproducibility  
 paths <- sapply(1:10, V0.sim) # Create 10 paths for V.
 final_row <- nrow(paths)
-# Plot results.
-matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
-        ylab = expression(paste(V[t])), 
-        xlab = "Time in days (from 0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
-points(rep(final_row, sum(paths[final_row, ] > D)),
-       paths[final_row, paths[final_row, ] > D],
-       pch = 1, cex = 1.5, col = "green")
-points(rep(final_row, sum(paths[final_row, ] < D)),
-       paths[final_row, paths[final_row, ] < D],
-       pch = 1, cex = 1.5, col = "red")
+path_time_10 <- seq(0, final_row - 1)
+path_data_10 <- data.frame(
+  time_day = rep(path_time_10, times = ncol(paths)),
+  path_id = factor(rep(seq_len(ncol(paths)), each = nrow(paths))),
+  asset_value = as.vector(paths)
+)
+terminal_path_data_10 <- data.frame(
+  time_day = max(path_time_10),
+  asset_value = paths[final_row, ],
+  terminal_state = ifelse(paths[final_row, ] < D, "Default", "No default")
+)
+initial_path_data_10 <- data.frame(
+  time_day = 0,
+  asset_value = V0
+)
+
+ggplot2::ggplot(
+  path_data_10,
+  ggplot2::aes(x = time_day, y = asset_value, group = path_id)
+) +
+  ggplot2::geom_line(linewidth = 0.45, color = "black") +
+  ggplot2::geom_hline(yintercept = D, linewidth = 0.9, color = "red") +
+  ggplot2::geom_point(
+    data = initial_path_data_10,
+    ggplot2::aes(x = time_day, y = asset_value),
+    inherit.aes = FALSE,
+    size = 3,
+    color = "blue"
+  ) +
+  ggplot2::geom_point(
+    data = terminal_path_data_10,
+    ggplot2::aes(x = time_day, y = asset_value, color = terminal_state),
+    inherit.aes = FALSE,
+    shape = 1,
+    size = 3,
+    stroke = 1.1
+  ) +
+  ggplot2::scale_color_manual(
+    values = c("Default" = "red", "No default" = "green"),
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = "Time in days (from 0 to T)",
+    y = expression(V[t])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate rather than the firm's real-world expected asset return. In the past, some students have called this figure *la grafica de los pelitos*, which is fine as long as the interpretation is clear. The formal name is 10 simulated geometric Brownian motion processes under the risk-neutral measure.
