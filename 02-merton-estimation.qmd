@@ -188,26 +188,8 @@ Figure @fig-trartpod shows exactly this area in red. The red area is the continu
 #| fig-cap: "The red area represents the risk-neutral probability of default."
 xseq <- seq(-4, 4, 0.01) 
 densities <- dnorm(xseq, 0, 1) # Standard normal distribution.
-# Graphical evaluation of N(-d_2).
-plot(xseq, densities, xlab = "d values (-d_2 is the dotted line)", 
-     ylab = "Density", type = "l", lwd = 2, cex = 2)
-abline(h = 0)
-polygon(c(xseq[xseq >= -d2], -d2), c(densities[xseq >= -d2], 0), col = "green")
-polygon(c(xseq[xseq < -d2], -d2), c(densities[xseq < -d2], 0), col = "red")
-legend_text <- paste0(
-  "N(d_2)=", round(Nd2, 7),
-  "\nin green and\nN(-d_2)=", round(pd, 7),
-  " in red.\n\nN(d_2)+N(-d_2)=1."
-)
-legend("topleft", legend = legend_text,
-bg = "white", bty = "n", cex = 0.9)
-abline(v = -d2, lty = 2, lwd = 3)
-```
-
-For comparison, the same idea can be drawn with `ggplot2`. The original plot remains above; the next plot is only a candidate replacement so we can compare the visual treatment of the red and green areas.
-
-```{r}
-#| label: trartpod-ggplot-candidate
+legend_nd2_expression <- paste0("N(d[2])==", round(Nd2, 7))
+legend_pd_expression <- paste0("N(-d[2])==", round(pd, 7), "~'in red.'")
 normal_density_data <- data.frame(
   x = xseq,
   density = densities
@@ -235,19 +217,54 @@ ggplot2::ggplot(normal_density_data, ggplot2::aes(x = x, y = density)) +
     color = "black"
   ) +
   ggplot2::annotate(
-    "label",
-    x = -3.85,
-    y = 0.39,
-    hjust = 0,
-    vjust = 1,
-    label = legend_text,
+    "rect",
+    xmin = -3.85,
+    xmax = -2.00,
+    ymin = 0.297,
+    ymax = 0.390,
     fill = "white",
-    label.size = 0,
+    color = "black",
+    linewidth = 0.25
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = -3.80,
+    y = 0.377,
+    hjust = 0,
+    label = legend_nd2_expression,
+    parse = TRUE,
+    size = 3.4
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = -3.80,
+    y = 0.352,
+    hjust = 0,
+    label = "'in green and'",
+    parse = TRUE,
+    size = 3.4
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = -3.80,
+    y = 0.327,
+    hjust = 0,
+    label = legend_pd_expression,
+    parse = TRUE,
+    size = 3.4
+  ) +
+  ggplot2::annotate(
+    "text",
+    x = -3.80,
+    y = 0.305,
+    hjust = 0,
+    label = "N(d[2])+N(-d[2])==1",
+    parse = TRUE,
     size = 3.4
   ) +
   ggplot2::coord_cartesian(xlim = c(-4, 4), ylim = c(0, 0.42), expand = FALSE) +
   ggplot2::labs(
-    x = "d values (-d_2 is the dotted line)",
+    x = expression(paste("d values (", -d[2], " is the dotted line)")),
     y = "Density"
   ) +
   ggplot2::theme_classic(base_size = 12)
