@@ -354,9 +354,9 @@ ggplot2::ggplot(
   )
 ```
 
-Figure @fig-vt-convergence-hists makes the sampling error visible. With 100 simulated terminal values, the simulated probability can be noticeably away from the analytical Merton value. With 1,000 and then 10,000 simulated terminal values, the red area becomes a more stable approximation of the analytical risk-neutral probability $N(-d_2)$.
+Figure @fig-vt-convergence-hists makes the sampling error visible. Each panel answers the same question: what fraction of simulated terminal asset values falls below the promised debt payment $D$? With 100 simulated terminal values, the simulated probability can be noticeably away from the analytical Merton value. With 1,000 and then 10,000 simulated terminal values, the red area becomes a more stable approximation of the analytical risk-neutral probability $N(-d_2)$.
 
-Here are 100,000 simulated values of $V_T$ shown in a histogram. The reference for this section is section 15.1 in @Hull. This repeats the same terminal-value simulation with a much larger sample.
+The next figure repeats the same terminal-value simulation with 100,000 draws. It uses the same visual coding as @fig-vt-convergence-hists: red bars for default states, blue bars for non-default states, and the dashed vertical line for $D$. The larger sample makes the simulated red area a close numerical counterpart to the analytical Merton probability.
 
 ```{r}
 #| label: fig-ho1votaam
@@ -447,7 +447,7 @@ The simulated risk-neutral probability of default can be calculated as:
 sim_pd_100k
 ```
 
-Note that `r fmt_num(sim_pd_100k, 5)` is now much closer to the model value `r fmt_num(pd_merton, 7)`. The larger simulation is doing what we expect: it is approximating the model-implied risk-neutral probability $N(-d_2)$.
+Figure @fig-ho1votaam is the large-sample continuation of @fig-vt-convergence-hists. The simulated value `r fmt_num(sim_pd_100k, 5)` is now very close to the model value `r fmt_num(pd_merton, 7)`. The red area in the histogram is therefore the simulation-based approximation of the model-implied risk-neutral probability $N(-d_2)$.
 
 This firm can be represented as a European call option payoff. The payoff of a typical stock option is $c=max(S_T-K, 0)$ or equivalently in terms of the Merton model: $E_T=max(V_T-D, 0)$.
 
