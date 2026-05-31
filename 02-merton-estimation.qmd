@@ -407,6 +407,39 @@ contour_breaks <- c(
   0.001, 0.01, 0.05, 0.1, 0.25, 0.5,
   1, 2, 5, 10, 20, 50, 100
 )
+contour_label_levels <- c(1, 5, 10, 50, 100)
+contour_label_lines <- contourLines(
+  x = V0.seq,
+  y = sv.seq,
+  z = z,
+  levels = contour_label_levels
+)
+contour_label_data <- do.call(
+  rbind,
+  lapply(contour_label_levels, function(level_value) {
+    level_lines <- contour_label_lines[
+      vapply(
+        contour_label_lines,
+        function(line) isTRUE(all.equal(line$level, level_value)),
+        logical(1)
+      )
+    ]
+    longest_line <- level_lines[[which.max(vapply(level_lines, function(line) {
+      length(line$x)
+    }, numeric(1)))]]
+    label_index <- round(length(longest_line$x) * 0.72)
+    data.frame(
+      asset_value = longest_line$x[label_index],
+      asset_volatility = longest_line$y[label_index],
+      objective = level_value
+    )
+  })
+)
+contour_label_data$label <- sub(
+  "\\.0$",
+  "",
+  format(contour_label_data$objective, trim = TRUE)
+)
 
 ggplot2::ggplot(
   contour_data,
@@ -416,6 +449,19 @@ ggplot2::ggplot(
     ggplot2::aes(color = ggplot2::after_stat(level)),
     breaks = contour_breaks,
     linewidth = 0.45
+  ) +
+  ggplot2::geom_label(
+    data = contour_label_data,
+    ggplot2::aes(
+      x = asset_value,
+      y = asset_volatility,
+      label = label
+    ),
+    inherit.aes = FALSE,
+    size = 3,
+    label.size = 0,
+    fill = "white",
+    alpha = 0.85
   ) +
   ggplot2::geom_vline(xintercept = V0, linetype = "dashed", linewidth = 0.6) +
   ggplot2::geom_hline(yintercept = sv, linetype = "dashed", linewidth = 0.6) +
@@ -432,7 +478,10 @@ ggplot2::ggplot(
   ggplot2::scale_color_viridis_c(
     option = "C",
     end = 0.9,
-    guide = "none"
+    trans = "log10",
+    breaks = c(0.001, 0.01, 0.1, 1, 10, 100),
+    labels = c("0.001", "0.01", "0.1", "1", "10", "100"),
+    name = "Objective\nvalue"
   ) +
   ggplot2::labs(
     x = expression(V[0]),
@@ -441,7 +490,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Each contour line connects combinations of $V_0$ and $\sigma_V$ that produce the same value of $[F(x,y)]^2+[G(x,y)]^2$. The red point marks the estimated pair. The dashed lines make its two coordinates easier to read. A good numerical solution should sit near the innermost low-objective region because that is where the two Hull equations are matched most closely.
+Each contour line connects combinations of $V_0$ and $\sigma_V$ that produce the same value of $[F(x,y)]^2+[G(x,y)]^2$. The color bar reports the objective value associated with the contour lines, and the numbers printed on selected lines provide direct reference values. The red point marks the estimated pair. The dashed lines make its two coordinates easier to read. A good numerical solution should sit near the innermost low-objective region because that is where the two Hull equations are matched most closely.
 
 The following plot is useful in HTML because it can be shown as an interactive surface that can be rotated.
 
