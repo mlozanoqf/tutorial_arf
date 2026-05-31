@@ -204,6 +204,55 @@ bg = "white", bty = "n", cex = 0.9)
 abline(v = -d2, lty = 2, lwd = 3)
 ```
 
+For comparison, the same idea can be drawn with `ggplot2`. The original plot remains above; the next plot is only a candidate replacement so we can compare the visual treatment of the red and green areas.
+
+```{r}
+#| label: trartpod-ggplot-candidate
+normal_density_data <- data.frame(
+  x = xseq,
+  density = densities
+)
+left_tail_data <- normal_density_data[normal_density_data$x < -d2, ]
+right_tail_data <- normal_density_data[normal_density_data$x >= -d2, ]
+
+ggplot2::ggplot(normal_density_data, ggplot2::aes(x = x, y = density)) +
+  ggplot2::geom_area(
+    data = right_tail_data,
+    fill = "green",
+    color = NA
+  ) +
+  ggplot2::geom_area(
+    data = left_tail_data,
+    fill = "red",
+    color = NA
+  ) +
+  ggplot2::geom_line(linewidth = 0.9, color = "black") +
+  ggplot2::geom_hline(yintercept = 0, linewidth = 0.4, color = "black") +
+  ggplot2::geom_vline(
+    xintercept = -d2,
+    linetype = "dotted",
+    linewidth = 1.2,
+    color = "black"
+  ) +
+  ggplot2::annotate(
+    "label",
+    x = -3.85,
+    y = 0.39,
+    hjust = 0,
+    vjust = 1,
+    label = legend_text,
+    fill = "white",
+    label.size = 0,
+    size = 3.4
+  ) +
+  ggplot2::coord_cartesian(xlim = c(-4, 4), ylim = c(0, 0.42), expand = FALSE) +
+  ggplot2::labs(
+    x = "d values (-d_2 is the dotted line)",
+    y = "Density"
+  ) +
+  ggplot2::theme_classic(base_size = 12)
+```
+
 Here you can find an alternative explanation about $N(-d_2)$:
 
 ```{r}
