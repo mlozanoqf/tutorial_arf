@@ -138,7 +138,7 @@ sim_pd_10 <- sum(paths[final_row, ] < D) / ncol(paths)
 sim_pd_10
 ```
 
-The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
+The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we move from 10 to 100 simulated paths, and then from 100 to 1,000, 10,000, and 100,000 simulated terminal values.
 
 Here are 100 simulated paths from $V_0$ to $V_T$. The visual coding is the same as before: gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
 
@@ -259,7 +259,109 @@ ggplot2::ggplot(
 
 Figure @fig-atpwl1asp shows the other side of the crossing story. Every colored path falls below $D$ at least once, but each one finishes above $D$ at maturity. The different colors only separate the paths visually. The financial message is that the path history helps us see the simulated movement of assets, while the basic Merton default event is decided at $T$.
 
-Here are 100,000 simulated values of $V_T$ shown in a histogram. The reference for this section is section 15.1 in @Hull. Note that instead of drawing the complete paths, we can directly get the risk-neutral distribution of $V_T$. The resulting distribution is log-normal.
+Instead of drawing complete paths, we can also simulate terminal asset values directly from the risk-neutral distribution of $V_T$. The resulting distribution is log-normal. This is useful because the default event depends only on whether the terminal value is below $D$.
+
+The next figure shows how the simulated risk-neutral probability of default changes as the number of simulated terminal values increases. The red bars are simulated terminal values with $V_T<D$. The blue bars are simulated terminal values with $V_T\ge D$. The dashed vertical line is the promised debt payment $D$.
+
+```{r}
+#| label: fig-vt-convergence-hists
+#| fig-cap: "Convergence of the simulated risk-neutral probability of default to the analytical Merton probability."
+#| fig-width: 11
+#| fig-height: 4.2
+simulate_terminal_assets <- function(n) {
+  exp(rnorm(n, log(V0) + (rf - (sv^2) / 2) * TT, sv * sqrt(TT)))
+}
+
+set.seed(13)
+convergence_sizes <- c(100, 1000, 10000)
+convergence_labels <- paste0(
+  "N = ",
+  format(convergence_sizes, big.mark = ",", scientific = FALSE)
+)
+VT_convergence <- lapply(convergence_sizes, simulate_terminal_assets)
+names(VT_convergence) <- convergence_labels
+
+vt_convergence_data <- do.call(
+  rbind,
+  lapply(names(VT_convergence), function(sample_label) {
+    values <- VT_convergence[[sample_label]]
+    data.frame(
+      sample_label = sample_label,
+      terminal_asset_value = values,
+      region = ifelse(values < D, "Default region", "No default region")
+    )
+  })
+)
+vt_convergence_data$sample_label <- factor(
+  vt_convergence_data$sample_label,
+  levels = convergence_labels
+)
+
+convergence_pd_data <- do.call(
+  rbind,
+  lapply(names(VT_convergence), function(sample_label) {
+    values <- VT_convergence[[sample_label]]
+    histogram_counts <- hist(
+      values,
+      breaks = seq(4, 30, by = 0.25),
+      plot = FALSE
+    )$counts
+    data.frame(
+      sample_label = sample_label,
+      x = 17.6,
+      y = max(histogram_counts) * 0.95,
+      label = paste0(
+        "Sim: ", fmt_pct(mean(values < D), 1), "\n",
+        "Merton: ", fmt_pct(pd_merton, 1)
+      )
+    )
+  })
+)
+convergence_pd_data$sample_label <- factor(
+  convergence_pd_data$sample_label,
+  levels = convergence_labels
+)
+
+ggplot2::ggplot(
+  vt_convergence_data,
+  ggplot2::aes(x = terminal_asset_value, fill = region)
+) +
+  ggplot2::geom_histogram(
+    binwidth = 0.25,
+    boundary = D,
+    color = "white",
+    linewidth = 0.1
+  ) +
+  ggplot2::geom_vline(xintercept = D, linetype = "dashed", linewidth = 0.65) +
+  ggplot2::geom_text(
+    data = convergence_pd_data,
+    ggplot2::aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    hjust = 0,
+    vjust = 1,
+    size = 2.9,
+    lineheight = 0.95
+  ) +
+  ggplot2::facet_wrap(~sample_label, ncol = 3, scales = "free_y") +
+  ggplot2::coord_cartesian(xlim = c(4, 30), expand = FALSE) +
+  ggplot2::scale_fill_manual(
+    values = c("Default region" = "red", "No default region" = "blue"),
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = "Value of the assets at maturity",
+    y = "Frequency"
+  ) +
+  ggplot2::theme_classic(base_size = 12) +
+  ggplot2::theme(
+    strip.background = ggplot2::element_blank(),
+    strip.text = ggplot2::element_text(face = "bold")
+  )
+```
+
+Figure @fig-vt-convergence-hists makes the sampling error visible. With 100 simulated terminal values, the simulated probability can be noticeably away from the analytical Merton value. With 1,000 and then 10,000 simulated terminal values, the red area becomes a more stable approximation of the analytical risk-neutral probability $N(-d_2)$.
+
+Here are 100,000 simulated values of $V_T$ shown in a histogram. The reference for this section is section 15.1 in @Hull. This repeats the same terminal-value simulation with a much larger sample.
 
 ```{r}
 #| label: fig-ho1votaam
