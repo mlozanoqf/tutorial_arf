@@ -56,6 +56,8 @@ $$
 \log\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \beta_1 \times \text{age}_i.
 $$
 
+Notice that this equation does not include an additive error term $\varepsilon_i$. In a linear regression, the error term is added to the equation for the observed outcome. In logistic regression, the observed outcome is binary, so the randomness is described by $Y_i \mid \text{age}_i \sim \text{Bernoulli}(p_i)$. The logit equation describes the conditional probability $p_i$, not the realized 0/1 outcome itself.
+
 Where:
 
 * $Y_i$ is the observed outcome in the data: $Y_i=1$ means default and $Y_i=0$ means no default.
