@@ -255,6 +255,8 @@ odds_ratios <- data.frame(
 round(odds_ratios, 4)
 ```
 
+For practical interpretation, the odds-ratio columns are usually more useful than the raw coefficient column. The coefficient is reported because it is what the logistic model estimates, but it is measured in log-odds units. The OR and its 95% interval translate that estimate into a multiplicative effect on the odds of default.
+
 The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed: a one-unit increase in `log(l_amnt)` is not the same as a one-dollar increase in loan amount. Most importantly, odds ratios are not probability changes. They describe multiplicative changes in the odds of default, while the implied change in probability depends on the starting probability. A final check is uncertainty: if the 95% interval for an odds ratio includes 1, the estimated effect is not statistically clear at the usual 5% level, even if the point estimate is above or below 1.
 
 When a customer fills out a credit application form, we collect information but we do not know for sure whether she or he will eventually default. A credit risk model can help us in this task.
