@@ -394,12 +394,54 @@ Contour plots or level plots are a way to show a three-dimensional surface on a 
 ```{r}
 #| label: fig-motfacv
 #| fig-cap: "Minimization of the function: a contour view."
-# The nlevels is high to emphasize the minimum value in blue.
-contour(V0.seq, sv.seq, z, xlab = expression(paste(V[0])), 
-        ylab = expression(paste(sigma[V])), 
-        lwd = 2, nlevels = 300)
-points(V0, sv, pch = 19, col = "blue", cex = 2)
+contour_data <- expand.grid(
+  asset_value = V0.seq,
+  asset_volatility = sv.seq
+)
+contour_data$objective <- as.vector(z)
+solution_surface_data <- data.frame(
+  asset_value = V0,
+  asset_volatility = sv
+)
+contour_breaks <- c(
+  0.001, 0.01, 0.05, 0.1, 0.25, 0.5,
+  1, 2, 5, 10, 20, 50, 100
+)
+
+ggplot2::ggplot(
+  contour_data,
+  ggplot2::aes(x = asset_value, y = asset_volatility, z = objective)
+) +
+  ggplot2::geom_contour(
+    ggplot2::aes(color = ggplot2::after_stat(level)),
+    breaks = contour_breaks,
+    linewidth = 0.45
+  ) +
+  ggplot2::geom_vline(xintercept = V0, linetype = "dashed", linewidth = 0.6) +
+  ggplot2::geom_hline(yintercept = sv, linetype = "dashed", linewidth = 0.6) +
+  ggplot2::geom_point(
+    data = solution_surface_data,
+    ggplot2::aes(x = asset_value, y = asset_volatility),
+    inherit.aes = FALSE,
+    shape = 21,
+    size = 4.2,
+    stroke = 1.2,
+    color = "red",
+    fill = "white"
+  ) +
+  ggplot2::scale_color_viridis_c(
+    option = "C",
+    end = 0.9,
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = expression(V[0]),
+    y = expression(sigma[V])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
+
+Each contour line connects combinations of $V_0$ and $\sigma_V$ that produce the same value of $[F(x,y)]^2+[G(x,y)]^2$. The red point marks the estimated pair. The dashed lines make its two coordinates easier to read. A good numerical solution should sit near the innermost low-objective region because that is where the two Hull equations are matched most closely.
 
 The following plot is useful in HTML because it can be shown as an interactive surface that can be rotated.
 
