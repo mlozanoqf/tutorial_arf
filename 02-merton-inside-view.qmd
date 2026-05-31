@@ -77,13 +77,56 @@ The value of the assets was lower than the promised debt payment $D$ at some tim
 ```{r}
 #| label: fig-nttbpfdnd
 #| fig-cap: "The blue path crosses below D before maturity but does not default because it finishes above D."
-# There might be an easier way to select these cases.
-matplot(paths[, paths_below_D], type = "l", 
-        col = c("green", "blue", "red"), lwd = 2, lty = 1,
-        ylab = expression(paste(V[t])), 
-        xlab = "Time in days (from 0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
+make_path_data <- function(path_matrix, path_ids = seq_len(ncol(path_matrix))) {
+  path_matrix <- as.matrix(path_matrix)
+  data.frame(
+    time_day = rep(seq(0, nrow(path_matrix) - 1), times = ncol(path_matrix)),
+    path_id = factor(rep(path_ids, each = nrow(path_matrix)), levels = path_ids),
+    asset_value = as.vector(path_matrix)
+  )
+}
+
+paths_below_D_matrix <- paths[, paths_below_D, drop = FALSE]
+paths_below_D_data <- make_path_data(paths_below_D_matrix, paths_below_D)
+paths_below_D_data$terminal_state <- rep(
+  ifelse(
+    paths_below_D_matrix[final_row, ] < D,
+    "Default at maturity",
+    "Crosses D before maturity, no default"
+  ),
+  each = nrow(paths_below_D_matrix)
+)
+
+ggplot2::ggplot(
+  paths_below_D_data,
+  ggplot2::aes(
+    x = time_day,
+    y = asset_value,
+    group = path_id,
+    color = terminal_state
+  )
+) +
+  ggplot2::geom_line(linewidth = 0.9) +
+  ggplot2::geom_hline(yintercept = D, linewidth = 0.9, color = "red") +
+  ggplot2::geom_point(
+    data = data.frame(time_day = 0, asset_value = V0),
+    ggplot2::aes(x = time_day, y = asset_value),
+    inherit.aes = FALSE,
+    size = 3,
+    color = "blue"
+  ) +
+  ggplot2::scale_color_manual(
+    values = c(
+      "Crosses D before maturity, no default" = "blue",
+      "Default at maturity" = "red"
+    ),
+    guide = "none"
+  ) +
+  ggplot2::labs(
+    x = "Time in days (from 0 to T)",
+    y = expression(V[t])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 One path in the plot crosses below $D$ before maturity but finishes above $D$ at $t=T$. That path does not represent default in the basic Merton model. The firm defaults only if the assets are not high enough to cover the promised debt payment at maturity. In this small risk-neutral simulation, that happens in `r sum(paths[final_row, ] < D)` cases. Thus, according to these 10 risk-neutral scenarios, the simulated probability of default is `r fmt_pct(sum(paths[final_row, ] < D) / ncol(paths), 0)`. Here is how we calculate the cases in which $V_T<D$.
@@ -103,12 +146,26 @@ Here are 100 simulated paths of $V_0$ to $V_T$.
 set.seed(3) # Reproducibility  
 paths <- sapply(1:100, V0.sim) # Create 100 paths.
 final_row <- nrow(paths)
-# Plot results.
-matplot(paths, type = "l", col = "black", lwd = 1, lty = 1,
-        ylab = expression(paste(V[t])), 
-        xlab = "Time in days (from 0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
+path_data_100 <- make_path_data(paths)
+
+ggplot2::ggplot(
+  path_data_100,
+  ggplot2::aes(x = time_day, y = asset_value, group = path_id)
+) +
+  ggplot2::geom_line(linewidth = 0.25, color = "gray35", alpha = 0.55) +
+  ggplot2::geom_hline(yintercept = D, linewidth = 0.9, color = "red") +
+  ggplot2::geom_point(
+    data = data.frame(time_day = 0, asset_value = V0),
+    ggplot2::aes(x = time_day, y = asset_value),
+    inherit.aes = FALSE,
+    size = 3,
+    color = "blue"
+  ) +
+  ggplot2::labs(
+    x = "Time in days (from 0 to T)",
+    y = expression(V[t])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 ```{r}
@@ -123,12 +180,30 @@ Let's see all the `r sum(paths[final_row, ] < D)` cases that end in default.
 ```{r}
 #| label: fig-dc
 #| fig-cap: "Default cases."
-# Default cases.
-matplot(paths[, which(paths[final_row, ] < D)], type = "l", col = "black", 
-        lwd = 1, lty = 1, ylab = expression(paste(V[t])), 
-        xlab = "Time in days (from 0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
+default_cases_100 <- which(paths[final_row, ] < D)
+default_path_data_100 <- make_path_data(
+  paths[, default_cases_100, drop = FALSE],
+  default_cases_100
+)
+
+ggplot2::ggplot(
+  default_path_data_100,
+  ggplot2::aes(x = time_day, y = asset_value, group = path_id)
+) +
+  ggplot2::geom_line(linewidth = 0.45, color = "gray25", alpha = 0.75) +
+  ggplot2::geom_hline(yintercept = D, linewidth = 0.9, color = "red") +
+  ggplot2::geom_point(
+    data = data.frame(time_day = 0, asset_value = V0),
+    ggplot2::aes(x = time_day, y = asset_value),
+    inherit.aes = FALSE,
+    size = 3,
+    color = "blue"
+  ) +
+  ggplot2::labs(
+    x = "Time in days (from 0 to T)",
+    y = expression(V[t])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 ```{r include=FALSE}
@@ -142,13 +217,40 @@ Now, let's see the `r length(almost_default_no_default)` cases in which $V_t$ we
 ```{r}
 #| label: fig-atpwl1asp
 #| fig-cap: "These paths cross below D before maturity, but finish with V_T above D and therefore do not default."
-# Paths crossing below D before maturity but ending above D.
-matplot(paths[, almost_default_no_default], 
-        type = "l", col = seq_along(almost_default_no_default), lwd = 1, lty = 1, 
-        ylab = expression(paste(V[t])), 
-        xlab = "Time in days (from 0 to T)")
-abline(h = D, col = "red", lwd = 2)
-points(1, V0, pch = 19, cex = 1.5, col = "blue")
+almost_default_no_default_data <- make_path_data(
+  paths[, almost_default_no_default, drop = FALSE],
+  almost_default_no_default
+)
+almost_default_colors <- grDevices::hcl.colors(
+  length(almost_default_no_default),
+  "Dark 3"
+)
+names(almost_default_colors) <- levels(almost_default_no_default_data$path_id)
+
+ggplot2::ggplot(
+  almost_default_no_default_data,
+  ggplot2::aes(
+    x = time_day,
+    y = asset_value,
+    group = path_id,
+    color = path_id
+  )
+) +
+  ggplot2::geom_line(linewidth = 0.55, alpha = 0.9) +
+  ggplot2::geom_hline(yintercept = D, linewidth = 0.9, color = "red") +
+  ggplot2::geom_point(
+    data = data.frame(time_day = 0, asset_value = V0),
+    ggplot2::aes(x = time_day, y = asset_value),
+    inherit.aes = FALSE,
+    size = 3,
+    color = "blue"
+  ) +
+  ggplot2::scale_color_manual(values = almost_default_colors, guide = "none") +
+  ggplot2::labs(
+    x = "Time in days (from 0 to T)",
+    y = expression(V[t])
+  ) +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
 Here are 100,000 simulated values of $V_T$ shown in a histogram. The reference for this section is section 15.1 in @Hull. Note that instead of drawing the complete paths, we can directly get the risk-neutral distribution of $V_T$. The resulting distribution is log-normal.
