@@ -301,15 +301,10 @@ convergence_pd_data <- do.call(
   rbind,
   lapply(names(VT_convergence), function(sample_label) {
     values <- VT_convergence[[sample_label]]
-    histogram_counts <- hist(
-      values,
-      breaks = seq(4, 30, by = 0.25),
-      plot = FALSE
-    )$counts
     data.frame(
       sample_label = sample_label,
       x = 17.6,
-      y = max(histogram_counts) * 0.95,
+      y = 380,
       label = paste0(
         "Sim: ", fmt_pct(mean(values < D), 1), "\n",
         "Merton: ", fmt_pct(pd_merton, 1)
@@ -342,8 +337,8 @@ ggplot2::ggplot(
     size = 2.9,
     lineheight = 0.95
   ) +
-  ggplot2::facet_wrap(~sample_label, ncol = 3, scales = "free_y") +
-  ggplot2::coord_cartesian(xlim = c(4, 30), expand = FALSE) +
+  ggplot2::facet_wrap(~sample_label, ncol = 3) +
+  ggplot2::coord_cartesian(xlim = c(4, 30), ylim = c(0, 400), expand = FALSE) +
   ggplot2::scale_fill_manual(
     values = c("Default region" = "red", "No default region" = "blue"),
     guide = "none"
