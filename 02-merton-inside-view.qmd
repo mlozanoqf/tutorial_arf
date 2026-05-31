@@ -63,6 +63,8 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
+Figure @fig-so10pota should be read as follows. Each black curve is one risk-neutral path for the firm's asset value, $V_t$. The horizontal red line is the promised debt payment, $D$. The blue point marks the starting value, $V_0$. The open circles at maturity classify the terminal values: green means $V_T>D$ and red means $V_T<D$.
+
 These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate rather than the firm's real-world expected asset return. In the past, some students have called this figure *la grafica de los pelitos*, which is fine as long as the interpretation is clear. The formal name is 10 simulated geometric Brownian motion processes under the risk-neutral measure.
 
 Before counting defaults at maturity, let's first count the paths in which $V_t<D$ at least once before or at maturity. Here I use $t$, not $T$, because this first count asks whether a path ever crosses below the promised debt payment during the year. That is different from Merton default, which is determined by whether $V_T<D$ at maturity.
@@ -72,11 +74,11 @@ Before counting defaults at maturity, let's first count the paths in which $V_t<
 paths_below_D <- which(colSums(paths < D) > 0)
 paths_below_D
 ```
-The value of the assets was lower than the promised debt payment $D$ at some time in risk-neutral scenarios `r paste(paths_below_D, collapse = ", ")`. Let's plot these cases.
+The value of the assets was lower than the promised debt payment $D$ at some time in risk-neutral scenarios `r paste(paths_below_D, collapse = ", ")`. Let's plot these cases. In the next figure, red paths finish below $D$ and therefore default at maturity. The blue path crosses below $D$ during the year but finishes above $D$.
 
 ```{r}
 #| label: fig-nttbpfdnd
-#| fig-cap: "The blue path crosses below D before maturity but does not default because it finishes above D."
+#| fig-cap: "Paths that cross below D before maturity; only paths ending below D default."
 make_path_data <- function(path_matrix, path_ids = seq_len(ncol(path_matrix))) {
   path_matrix <- as.matrix(path_matrix)
   data.frame(
@@ -129,7 +131,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-One path in the plot crosses below $D$ before maturity but finishes above $D$ at $t=T$. That path does not represent default in the basic Merton model. The firm defaults only if the assets are not high enough to cover the promised debt payment at maturity. In this small risk-neutral simulation, that happens in `r sum(paths[final_row, ] < D)` cases. Thus, according to these 10 risk-neutral scenarios, the simulated probability of default is `r fmt_pct(sum(paths[final_row, ] < D) / ncol(paths), 0)`. Here is how we calculate the cases in which $V_T<D$.
+Figure @fig-nttbpfdnd isolates the paths from the 10-scenario simulation that cross $D$ at least once. The blue path is the key teaching case. It enters the region below the red debt threshold before maturity, then recovers and ends above $D$ at $T$. In the basic Merton model, default is determined by the terminal condition $V_T<D$. In this small risk-neutral simulation, that happens in `r sum(paths[final_row, ] < D)` cases. Thus, according to these 10 risk-neutral scenarios, the simulated probability of default is `r fmt_pct(sum(paths[final_row, ] < D) / ncol(paths), 0)`. Here is how we calculate the cases in which $V_T<D$.
 
 ```{r}
 sim_pd_10 <- sum(paths[final_row, ] < D) / ncol(paths)
@@ -138,7 +140,7 @@ sim_pd_10
 
 The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we increase the number of simulations from 10 to 100 and to 100,000.
 
-Here are 100 simulated paths of $V_0$ to $V_T$.
+Here are 100 simulated paths from $V_0$ to $V_T$. The visual coding is the same as before: gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
 
 ```{r}
 #| label: fig-so100pota
@@ -173,7 +175,7 @@ sim_pd_100 <- sum(paths[final_row, ] < D) / ncol(paths)
 sim_pd_100
 ```
 
-Given the simulation above, the simulated risk-neutral probability of default is `r fmt_pct(sim_pd_100, 0)`. This is closer to the model value of `r fmt_pct(pd_merton, 4)`.
+With 100 paths, individual trajectories are less important than the terminal count. The simulated risk-neutral probability of default is `r fmt_pct(sim_pd_100, 0)`. This is closer to the model value of `r fmt_pct(pd_merton, 4)`.
 
 Let's see all the `r sum(paths[final_row, ] < D)` cases that end in default.
 
@@ -205,6 +207,8 @@ ggplot2::ggplot(
   ) +
   ggplot2::theme_classic(base_size = 12)
 ```
+
+Figure @fig-dc filters the 100 simulated paths and keeps only the paths with $V_T<D$. These are the default cases under the Merton terminal-default rule. The red line is still $D$, so the important feature is where each path ends relative to that line at maturity.
 
 ```{r include=FALSE}
 almost_default <- which(colSums(paths < D) > 0)
@@ -252,6 +256,8 @@ ggplot2::ggplot(
   ) +
   ggplot2::theme_classic(base_size = 12)
 ```
+
+Figure @fig-atpwl1asp shows the other side of the crossing story. Every colored path falls below $D$ at least once, but each one finishes above $D$ at maturity. The different colors only separate the paths visually. The financial message is that the path history helps us see the simulated movement of assets, while the basic Merton default event is decided at $T$.
 
 Here are 100,000 simulated values of $V_T$ shown in a histogram. The reference for this section is section 15.1 in @Hull. Note that instead of drawing the complete paths, we can directly get the risk-neutral distribution of $V_T$. The resulting distribution is log-normal.
 
