@@ -209,7 +209,9 @@ $$
 
 In code, the vector $\hat p_i$ is `pred_logi_full`, the cutoff $c$ is `0.15`, and the binary decision $\hat y_i(c)$ is `pred_cutoff_15`. The line `ifelse(pred_logi_full > 0.15, 1, 0)` is the direct code translation of this equation.
 
-Let us arbitrarily set a cutoff of 0.15 for now. This implies that any predicted probability below or equal to 0.15 will be classified as 0 (no default), while any predicted probability above 0.15 will be classified as 1 (default). This classification rule can guide financial firms in deciding whether to approve or reject new loan applications. Applications with a predicted probability above 0.15 will be rejected, whereas those with a predicted probability below or equal to 0.15 will be approved. Thus, the loan approval or rejection decision is now based on the model's estimation.
+Let us arbitrarily set a cutoff of 0.15 for now. This value is not meant to be the final or optimal cutoff. It is a first teaching rule that makes the conversion from probabilities to binary decisions explicit. Later in the chapter, we compare cutoff rules using confusion matrices, acceptance rates, bad rates, and financial payoff.
+
+This 0.15 rule implies that any predicted probability below or equal to 0.15 will be classified as 0 (no default), while any predicted probability above 0.15 will be classified as 1 (default). This classification rule can guide financial firms in deciding whether to approve or reject new loan applications. Applications with a predicted probability above 0.15 will be rejected, whereas those with a predicted probability below or equal to 0.15 will be approved. Thus, the loan approval or rejection decision is now based on the model's estimation.
 
 Choosing a cutoff value as a classification and acceptance rule can be controversial, as managers may prefer to allocate more loans rather than fewer. In other words, managers may prefer more sales at the cost of a higher credit risk. Specifically, the higher the cutoff, the greater the number of loans allocated, since the allocation rule selects those applicants whose predicted probability is below or equal to the cutoff.
 
