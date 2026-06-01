@@ -49,3 +49,6 @@ vignettes/*.pdf
 /02-merton-minimize.html
 /02-merton-minimize_files/
 /libs/
+
+# Local reference files not intended for publication.
+/Hull 11th.pdf
