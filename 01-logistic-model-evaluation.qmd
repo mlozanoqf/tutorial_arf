@@ -317,15 +317,39 @@ Under the 0.15 rule, any predicted probability below or equal to 0.15 is classif
 #| label: fig-fmpaco
 #| fig-cap: "Full-model predicted PDs with a 15% cutoff."
 # Convert the predictions to a data frame
+cutoff_15 <- 0.15
+cutoff_15_below <- mean(pred_logi_full <= cutoff_15)
+cutoff_15_above <- mean(pred_logi_full > cutoff_15)
+
 pred_data <- data.frame(
   Observation = seq_along(pred_logi_full),  # Sequence for observation index
   Predicted_Probabilities = pred_logi_full
 )
 
+cutoff_15_scatter_labels <- data.frame(
+  x = length(pred_logi_full) * 0.72,
+  y = c(cutoff_15 * 0.48,
+        cutoff_15 + 0.68 * (max(pred_logi_full) - cutoff_15)),
+  label = c(
+    paste0("Accepted\n", fmt_pct(cutoff_15_below, 1)),
+    paste0("Rejected\n", fmt_pct(cutoff_15_above, 1))
+  )
+)
+
 # Create the plot
 ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
   geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
-  geom_hline(yintercept = 0.15, color = "red", size = 1) +  # Horizontal line
+  geom_hline(yintercept = cutoff_15, color = "red", size = 1) +  # Horizontal line
+  geom_label(
+    data = cutoff_15_scatter_labels,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    fill = "white",
+    alpha = 0.92,
+    label.size = 0,
+    size = 3.5,
+    lineheight = 0.95
+  ) +
   labs(x = "Observation (test set)", 
        y = "Predicted default probability") +
   theme_minimal()
@@ -336,15 +360,36 @@ The distribution view gives the same rule from another angle.
 ```{r}
 #| label: fig-fmphaco
 #| fig-cap: "Full-model prediction distribution with a 15% cutoff."
+full_pred_density <- density(pred_logi_full)
+cutoff_15_density_labels <- data.frame(
+  x = c(cutoff_15 * 0.55,
+        cutoff_15 + 0.48 * (max(pred_logi_full) - cutoff_15)),
+  y = max(full_pred_density$y) * 0.82,
+  label = c(
+    paste0("Accepted\n", fmt_pct(cutoff_15_below, 1)),
+    paste0("Rejected\n", fmt_pct(cutoff_15_above, 1))
+  )
+)
+
 ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
-  geom_vline(xintercept = 0.15, linetype = "longdash") +
+  geom_vline(xintercept = cutoff_15, linetype = "longdash", color = "red", linewidth = 0.8) +
+  geom_label(
+    data = cutoff_15_density_labels,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    fill = "white",
+    alpha = 0.92,
+    label.size = 0,
+    size = 3.4,
+    lineheight = 0.95
+  ) +
   labs(y = "Density", x = "Predicted default probability") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
-Predicted probabilities to the left of the dashed line are classified as no default. Predicted probabilities to the right are classified as default. The next code block creates that binary variable.
+Predicted probabilities to the left of the dashed line are classified as no default. Predicted probabilities to the right are classified as default. The labels show the share of test-set applications on each side of the cutoff. The next code block creates that binary variable.
 
 The next rows show the transformation from probability to binary prediction.
 
@@ -441,15 +486,39 @@ The 80% acceptance rule implies a cutoff of `r fmt_num(cutoff, 7)`. The cutoff l
 ```{r}
 #| label: fig-fmphncoo0
 #| fig-cap: "Full model prediction histogram with acceptance-rate cutoff."
+acceptance_cutoff_below <- mean(pred_logi_full <= cutoff)
+acceptance_cutoff_above <- mean(pred_logi_full > cutoff)
+acceptance_density_labels <- data.frame(
+  x = c(
+    min(pred_logi_full) + 0.58 * (cutoff - min(pred_logi_full)),
+    cutoff + 0.55 * (max(pred_logi_full) - cutoff)
+  ),
+  y = max(full_pred_density$y) * 0.82,
+  label = c(
+    paste0("Accepted\n", fmt_pct(acceptance_cutoff_below, 1)),
+    paste0("Rejected\n", fmt_pct(acceptance_cutoff_above, 1))
+  )
+)
+
 ggplot(pred_logi[pred_logi$model == "pred_logi_full",], 
        aes(x = pred, fill = model)) + 
   geom_density(alpha = 0.4) +
-  geom_vline(xintercept = cutoff, linetype = "longdash") +
+  geom_vline(xintercept = cutoff, linetype = "longdash", color = "red", linewidth = 0.8) +
+  geom_label(
+    data = acceptance_density_labels,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    fill = "white",
+    alpha = 0.92,
+    label.size = 0,
+    size = 3.4,
+    lineheight = 0.95
+  ) +
   labs(y = "Density", x = "Predicted default probability") +
   theme(legend.position = "none", legend.title = element_blank())
 ```
 
-The cutoff is now `r fmt_num(cutoff, 7)`. This splits the predicted default probabilities into two parts: values above the cutoff are predicted defaults, and values below or equal to the cutoff are predicted no-defaults. The next table reports cutoff values at several quantiles.
+The cutoff is now `r fmt_num(cutoff, 7)`. This splits the predicted default probabilities into two parts: values above the cutoff are predicted defaults, and values below or equal to the cutoff are predicted no-defaults. The labels show the actual split in the test set. The next table reports cutoff values at several quantiles.
 
 ```{r Cutoff by quantiles}
 cutoff_all <- quantile(pred_logi_full, seq(0.1, 1, 0.1))

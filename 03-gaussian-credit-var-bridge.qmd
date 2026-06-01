@@ -359,7 +359,7 @@ vasicek_factor_plot_data <- data.frame(
 )
 
 ggplot(vasicek_factor_plot_data, aes(x = Systematic_factor, y = Loss)) +
-  geom_point(size = 1.55, alpha = 0.12, color = "#566573") +
+  geom_point(size = 2.15, alpha = 0.12, color = "#566573") +
   geom_hline(yintercept = credit_var_loss[3] / 1e6, color = "#C0392B", linetype = "dashed", linewidth = 1) +
   annotate(
     "label",

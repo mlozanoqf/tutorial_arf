@@ -163,20 +163,61 @@ At an 80% acceptance rate, the lowest bad rate in this run is produced by `r str
 ```{r}
 #| label: fig-tree-net-payoff-comparison
 #| fig-cap: "Net payoff by acceptance rate: logistic regression, single tree, and XGBoost."
+best_strategy_points <- strategy_comparison |>
+  group_by(model) |>
+  slice_max(net_payoff, n = 1, with_ties = FALSE) |>
+  ungroup()
+
 strategy_comparison |>
   ggplot(aes(x = accept_rate, y = net_payoff, color = model)) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 2) +
+  geom_segment(
+    data = best_strategy_points,
+    aes(
+      x = accept_rate,
+      xend = accept_rate,
+      y = 4000,
+      yend = net_payoff,
+      color = model
+    ),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  geom_segment(
+    data = best_strategy_points,
+    aes(
+      x = min(strategy_comparison$accept_rate),
+      xend = accept_rate,
+      y = net_payoff,
+      yend = net_payoff,
+      color = model
+    ),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    linewidth = 0.7
+  ) +
+  geom_point(
+    data = best_strategy_points,
+    aes(x = accept_rate, y = net_payoff, color = model),
+    inherit.aes = FALSE,
+    shape = 21,
+    fill = "white",
+    size = 4,
+    stroke = 1.2
+  ) +
   scale_color_manual(values = c("logi_full" = "blue",
                                 "single_tree" = "gray40",
                                 "xgboost" = "darkorange")) +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  coord_cartesian(ylim = c(4000, NA)) +
   labs(x = "Acceptance rate", y = "Net payoff", color = "Model") +
   theme_minimal() +
   theme(legend.position = "bottom")
 ```
 
-The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. Under this assumption, the best model is not necessarily the model with the highest AUC. It is the model that produces better decisions under the selected payoff rule.
+The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model is not necessarily the model with the highest AUC. It is the model that produces better decisions under the selected payoff rule.
 
 The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r round(best_strategy_overall$net_payoff, 2)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
 
@@ -191,14 +232,31 @@ $$
 $$
 
 ```{r Best net payoff numerical check}
-data.frame(
-  model = best_strategy_overall$model,
-  acceptance_rate = best_strategy_overall$accept_rate,
-  accepted_good_loans = best_strategy_overall$accepted_good,
-  payoff_from_good_loans = best_strategy_overall$accepted_good * 1,
-  accepted_default_loans = best_strategy_overall$accepted_defaults,
-  cost_from_default_loans = best_strategy_overall$accepted_defaults * 5,
-  net_payoff = best_strategy_overall$net_payoff
+best_strategy_overall_check <- data.frame(
+  Quantity = c(
+    "Model",
+    "Acceptance rate",
+    "Accepted good loans",
+    "Payoff from good loans",
+    "Accepted default loans",
+    "Cost from default loans",
+    "Net payoff"
+  ),
+  Value = c(
+    best_strategy_overall$model,
+    fmt_pct(best_strategy_overall$accept_rate, 0),
+    fmt_int(best_strategy_overall$accepted_good),
+    fmt_int(best_strategy_overall$accepted_good * 1),
+    fmt_int(best_strategy_overall$accepted_defaults),
+    paste0("-", fmt_int(best_strategy_overall$accepted_defaults * 5)),
+    fmt_int(best_strategy_overall$net_payoff)
+  )
+)
+
+knitr::kable(
+  best_strategy_overall_check,
+  caption = "Numerical check of the overall best net-payoff strategy.",
+  row.names = FALSE
 )
 ```
 

@@ -100,7 +100,7 @@ ggplot(one_firm_hist_data, aes(x = x_mid, y = density, fill = default_region)) +
     linewidth = 0
   ) +
   scale_fill_manual(
-    values = c("FALSE" = "#D6EAF8", "TRUE" = "#E74C3C"),
+    values = c("FALSE" = "#2C7FB8", "TRUE" = "#E74C3C"),
     labels = c("Survival region", "Default region"),
     name = NULL
   ) +

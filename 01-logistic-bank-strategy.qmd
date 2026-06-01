@@ -82,17 +82,20 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
              linetype = "dashed", size = 1.1) +
   geom_hline(data = highlight_lines, aes(yintercept = bad_rate, color = color),
              linetype = "dashed", size = 1.1) +
-  facet_wrap(~model, nrow = 1) +
+  facet_wrap(~model, nrow = 1, scales = "free_y") +
   labs(x = "Acceptance rate", y = "Bad rate") +
   theme_minimal(base_size = 14) +
   theme(legend.position = "none") +
   scale_color_identity() +  # Use the colors directly without adding them to the legend
   scale_x_continuous(breaks = c(0, 0.65, 0.8, 1)) +
-  scale_y_continuous(breaks = sort(unique(c(0, round(highlight_lines$bad_rate, 4)))))
+  scale_y_continuous(
+    labels = function(x) fmt_pct(x, 1),
+    breaks = scales::breaks_pretty(n = 5)
+  )
 ```
 
 
-The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
+The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The two panels use separate vertical scales so the age-only curve remains readable even though its bad-rate values are very close to each other. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
 
 The bad rate is useful, but it does not fully describe the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we define a hypothetical *net payoff*. It should be read as a transparent scoring rule rather than an accounting profit measure: accepting a good loan creates a benefit, and accepting a bad loan creates a cost.
 
@@ -156,13 +159,29 @@ $$
 $$
 
 ```{r Net payoff numerical check}
-data.frame(
-  acceptance_rate = best_net_payoff_row$accept_rate,
-  accepted_good_loans = best_net_payoff_row$accepted_good,
-  payoff_from_good_loans = best_net_payoff_row$accepted_good * 1,
-  accepted_default_loans = best_net_payoff_row$accepted_defaults,
-  cost_from_default_loans = best_net_payoff_row$accepted_defaults * 5,
-  net_payoff = best_net_payoff_row$net_payoff
+best_net_payoff_check <- data.frame(
+  Quantity = c(
+    "Acceptance rate",
+    "Accepted good loans",
+    "Payoff from good loans",
+    "Accepted default loans",
+    "Cost from default loans",
+    "Net payoff"
+  ),
+  Value = c(
+    fmt_pct(best_net_payoff_row$accept_rate, 0),
+    fmt_int(best_net_payoff_row$accepted_good),
+    fmt_int(best_net_payoff_row$accepted_good * 1),
+    fmt_int(best_net_payoff_row$accepted_defaults),
+    paste0("-", fmt_int(best_net_payoff_row$accepted_defaults * 5)),
+    fmt_int(best_net_payoff_row$net_payoff)
+  )
+)
+
+knitr::kable(
+  best_net_payoff_check,
+  caption = "Numerical check of the best net-payoff row.",
+  row.names = FALSE
 )
 ```
 

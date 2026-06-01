@@ -31,6 +31,8 @@ simulate_two_firm_summary <- function(rho) {
 two_firm_numeric <- do.call(rbind, lapply(two_firm_rhos, simulate_two_firm_summary))
 two_firm_independent_both <- two_firm_pd * two_firm_pd
 two_firm_independent_any <- 1 - (1 - two_firm_pd)^2
+two_firm_plot_rhos <- c(-0.5, -0.2, 0.2, 0.5)
+two_firm_plot_layout_rhos <- c(-0.5, -0.2, 0.2, 0.5)
 
 two_firm_table <- data.frame(
   Copula_correlation = fmt_num(two_firm_numeric$rho, 1),
@@ -49,7 +51,7 @@ names(two_firm_table) <- c(
   "Default corr."
 )
 
-two_firm_plot_data <- lapply(two_firm_rhos, function(rho) {
+two_firm_plot_data <- lapply(two_firm_plot_rhos, function(rho) {
   latent <- simulate_latent_credit(
     n_sims = 6000,
     n_firms = 2,
@@ -128,18 +130,20 @@ $$
 
 The marginal probabilities $P(A)$ and $P(B)$ remain close to `r fmt_pct(two_firm_pd, 2)`. As $\rho$ moves from 0 to 0.5, the simulated joint-default probability rises from `r fmt_pct(two_firm_numeric$both_default[1], 2)` to `r fmt_pct(two_firm_numeric$both_default[3], 2)`. Because the joint-default term is subtracted in the union formula, the probability that at least one firm defaults falls from `r fmt_pct(two_firm_numeric$at_least_one[1], 2)` to `r fmt_pct(two_firm_numeric$at_least_one[3], 2)`. Higher correlation moves defaults into the same scenarios.
 
-The scatter plots show the same mechanism. Each dot is one simulated pair $(X_A,X_B)$, meaning one credit scenario for the two firms. A firm defaults when its credit-state score is below the threshold. The lower-left region is the joint-default region.
+The scatter plots show the same mechanism and widen the comparison to negative and positive correlations. Each dot is one simulated pair $(X_A,X_B)$, meaning one credit scenario for the two firms. A firm defaults when its credit-state score is below the threshold. The lower-left region is the joint-default region. Negative correlation pushes the firms' credit states in opposite directions more often, while positive correlation makes weak credit states arrive together more often.
 
 ```{r}
 #| label: fig-two-firm-copula-scatter
-#| fig-cap: "Two-firm Gaussian copula simulations with more joint tail outcomes."
-#| fig-width: 9.2
-#| fig-height: 3.4
+#| fig-cap: "Two-firm Gaussian copula simulations across negative and positive correlations."
+#| fig-width: 7.5
+#| fig-height: 7.5
 two_firm_scatter_data <- do.call(rbind, lapply(two_firm_plot_data, function(plot_data) {
-  rho_label <- paste0("rho = ", fmt_num(unique(plot_data$rho), 1))
+  rho <- unique(plot_data$rho)
+  rho_label <- paste0("rho = ", fmt_num(rho, 1))
   data.frame(
     firm_a = plot_data$firm_a,
     firm_b = plot_data$firm_b,
+    rho = rho,
     rho_label = rho_label,
     joint_default = plot_data$firm_a <= two_firm_threshold &
       plot_data$firm_b <= two_firm_threshold
@@ -147,7 +151,10 @@ two_firm_scatter_data <- do.call(rbind, lapply(two_firm_plot_data, function(plot
 }))
 two_firm_scatter_data$rho_label <- factor(
   two_firm_scatter_data$rho_label,
-  levels = paste0("rho = ", fmt_num(two_firm_rhos, 1))
+  levels = paste0("rho = ", fmt_num(two_firm_plot_layout_rhos, 1))
+)
+two_firm_panel_data <- unique(
+  two_firm_scatter_data[, c("rho", "rho_label")]
 )
 two_firm_joint_counts <- aggregate(
   joint_default ~ rho_label,
@@ -158,7 +165,7 @@ two_firm_joint_counts$label <- paste0("Joint defaults: ", fmt_int(two_firm_joint
 
 ggplot(two_firm_scatter_data, aes(x = firm_a, y = firm_b)) +
   geom_rect(
-    data = data.frame(rho_label = levels(two_firm_scatter_data$rho_label)),
+    data = two_firm_panel_data,
     aes(xmin = -4, xmax = two_firm_threshold, ymin = -4, ymax = two_firm_threshold),
     inherit.aes = FALSE,
     fill = "#E74C3C",
@@ -176,7 +183,7 @@ ggplot(two_firm_scatter_data, aes(x = firm_a, y = firm_b)) +
     label.size = 0,
     linewidth = 0
   ) +
-  facet_wrap(~rho_label, nrow = 1) +
+  facet_wrap(~rho_label, ncol = 2) +
   scale_color_manual(
     values = c("FALSE" = adjustcolor("#566573", alpha.f = 0.55), "TRUE" = "#E74C3C"),
     labels = c("Other scenarios", "Joint defaults"),
@@ -192,7 +199,8 @@ ggplot(two_firm_scatter_data, aes(x = firm_a, y = firm_b)) +
     legend.position = "top",
     legend.background = element_rect(fill = "white", color = NA),
     legend.key = element_rect(fill = "white", color = NA),
-    strip.text = element_text(face = "bold"),
+    strip.text = element_text(face = "bold", size = 12),
+    strip.background = element_rect(fill = "white", color = NA),
     panel.grid.minor = element_blank()
   )
 ```

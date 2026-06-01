@@ -81,12 +81,27 @@ At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_t
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 
 ```{r XGBoost prediction range}
-data.frame(
-  min_predicted_pd = min(pred_xgb),
-  median_predicted_pd = median(pred_xgb),
-  max_predicted_pd = max(pred_xgb),
-  auc = as.numeric(auc(ROC_xgb)),
-  brier_score = brier_score(actual_default_tree, pred_xgb)
+xgb_prediction_range_table <- data.frame(
+  Quantity = c(
+    "Minimum predicted PD",
+    "Median predicted PD",
+    "Maximum predicted PD",
+    "AUC",
+    "Brier score"
+  ),
+  Value = c(
+    fmt_pct(min(pred_xgb), 2),
+    fmt_pct(median(pred_xgb), 2),
+    fmt_pct(max(pred_xgb), 2),
+    fmt_num(as.numeric(auc(ROC_xgb)), 4),
+    fmt_num(brier_score(actual_default_tree, pred_xgb), 4)
+  )
+)
+
+knitr::kable(
+  xgb_prediction_range_table,
+  caption = "XGBoost prediction range and test-set performance summary.",
+  row.names = FALSE
 )
 ```
 
