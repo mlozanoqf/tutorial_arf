@@ -12,6 +12,8 @@ Any new applicant that reaches that leaf receives the same predicted probability
 
 This is very different from logistic regression. Logistic regression creates one smooth scoring equation. A tree creates local rules. The model may say, in effect: applicants in this region of the data have a default rate of 3%, while applicants in another region have a default rate of 20%. This rule-based structure is why a single tree is useful pedagogically.
 
+The tradeoff is visible from the formula. A leaf-level PD is simple because it is just a historical default rate inside one group. At the same time, all applicants inside that group receive the same PD. The tree can separate risk only through the leaves it creates.
+
 ```{r Single decision tree}
 simple_tree
 ```
@@ -224,3 +226,5 @@ data.frame(
 ```
 
 The single tree already produces default probabilities and can be evaluated like the logistic model. In code, `simple_tree <- rpart(...)` learns the leaves, and `predict(simple_tree, newdata = test, type = "prob")[, "1"]` returns the leaf default rate assigned to each test applicant. This is the code counterpart of $\hat p_L = d_L/n_L$. The main role of the single tree in this chapter is conceptual: it shows the basic building block used by more powerful tree-based methods.
+
+The prediction range in the table also shows the limitation of a single tree. The fitted tree has `r sum(tree_nodes$is_leaf)` terminal leaves, so the test-set predictions can only take a small number of distinct leaf-level values. This is useful for explanation, but it can be too coarse for a scoring system that needs a smoother risk ranking across many applicants.

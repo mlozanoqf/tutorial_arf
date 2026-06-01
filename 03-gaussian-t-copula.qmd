@@ -123,9 +123,9 @@ X_i^{t}=
 \qquad S\sim\chi^2_{\nu}.
 $$
 
-The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavier tails, so extreme credit states occur more often. The default threshold changes from $N^{-1}(PD)$ to $t_{\nu}^{-1}(PD)$, so each firm keeps the same marginal PD.
+The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavier tails, so extreme credit states occur more often. The default threshold changes from $N^{-1}(PD)$ to $t_{\nu}^{-1}(PD)$, so each firm keeps the same marginal PD. In code, this is the move from `qnorm(tcopula_pd)` to `qt(tcopula_pd, df = df)`.
 
-The scale shock is shared by all firms in a scenario. When $S/\nu$ is small, the denominator is small and the scenario becomes more extreme for the whole portfolio. Negative credit shocks are pushed further into the left tail, which creates more scenarios where several firms cross their default thresholds together.
+The scale shock is shared by all firms in a scenario. When $S/\nu$ is small, the denominator is small and the scenario becomes more extreme for the whole portfolio. Negative credit shocks are pushed further into the left tail, which creates more scenarios where several firms cross their default thresholds together. The model therefore changes the clustering of defaults without changing the average PD assigned to each firm.
 
 The comparison below keeps the 5-year PD at `r fmt_pct(tcopula_pd, 2)`, the copula correlation at `r fmt_num(tcopula_rho, 1)`, the same 10 firms, the same total exposure, and the same recovery rate. The only change is the copula tail shape.
 

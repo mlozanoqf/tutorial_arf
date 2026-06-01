@@ -269,7 +269,7 @@ In the ten-firm simulations, the outcome was a default count from 0 to 10. In th
 
 The large-portfolio formula compresses the same one-factor logic into a percentile calculation. We use $\alpha$ for the confidence level, leaving $X_i$ for the credit-state score of firm $i$. The question is practical: when the common credit factor reaches the bad tail state associated with confidence level $\alpha$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
 
-Under those assumptions, the worst-case default rate at confidence level $\alpha$ is
+Under those assumptions, the tail default rate at confidence level $\alpha$ is
 
 $$
 V(\alpha,T)=
@@ -279,7 +279,7 @@ N\left(
 \right).
 $$
 
-The formula uses the same objects as the copula simulation. $Q(T)$ is the marginal cumulative PD. The parameter $\rho$ controls the strength of the common credit factor. The confidence level $\alpha$ selects how far into the bad tail we look. The output $V(\alpha,T)$ is a tail default rate for a large homogeneous portfolio.
+The formula uses the same objects as the copula simulation. $Q(T)$ is the marginal cumulative PD. The parameter $\rho$ controls the strength of the common credit factor. The confidence level $\alpha$ selects how far into the bad tail we look. The output $V(\alpha,T)$ is Hull's tail default-rate function for a large homogeneous portfolio. This is local Credit VaR notation; the asset-value notation $V_T$ in the Merton chapter referred to a different financial object.
 
 The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $\alpha$ corresponds to the factor quantile $N^{-1}(1-\alpha)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-\alpha)=N^{-1}(\alpha)$.
 
@@ -310,6 +310,8 @@ vasicek_credit_var <- function(ead, pd, recovery, rho, confidence) {
   ead * (1 - recovery) * vasicek_default_rate(pd, rho, confidence)
 }
 ```
+
+In that code, `vasicek_default_rate()` returns $V(\alpha,T)$, the tail default rate. The function `vasicek_credit_var()` then multiplies that rate by exposure and LGD to obtain the dollar loss percentile.
 
 For the 99.9% confidence level, the numerical substitution is visible line by line.
 
@@ -346,7 +348,7 @@ kable(
 
 Expected shortfall adds one more tail-risk measure. Credit VaR identifies a high percentile of losses. Expected shortfall averages the simulated losses that exceed that percentile. The number is larger than VaR because it looks inside the tail after the VaR threshold has been crossed.
 
-The simulation below uses the one-factor representation behind the approximation. A low value of the systematic factor represents a bad economy. Bad economies raise the conditional default rate and therefore raise portfolio loss.
+The simulation below uses the one-factor representation behind the approximation. A low value of the systematic factor represents a bad economy. Those bad common-factor states raise the conditional default rate and therefore raise portfolio loss.
 
 ```{r}
 #| label: fig-vasicek-factor-loss
@@ -424,4 +426,6 @@ ggplot(
   )
 ```
 
-This completes the chapter's credit-risk problem. PDs give average default risk. Copulas shape co-default scenarios. Exposures and recoveries transform defaults into losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the loss distribution. The final comparison shows why the copula is also a capital assumption.
+The chapter's main gain is a portfolio view of credit risk. PDs describe average default risk name by name. The copula supplies the co-default mechanism. Exposures and recoveries translate default scenarios into dollar losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the resulting loss distribution.
+
+The final comparison turns the copula choice into a capital question. A Gaussian copula and a t-copula can use the same PD, exposure, recovery, and correlation inputs while producing different tail losses. The model choice is therefore a capital assumption as well as a dependence assumption. That is the practical bridge from Hull's copula example to credit portfolio management: the useful question is how large the portfolio loss can become when defaults arrive together.

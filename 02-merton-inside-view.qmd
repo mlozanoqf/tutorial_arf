@@ -4,7 +4,7 @@
 source("R/merton-common.R")
 ```
 
-Let's go back to our main example and simulate the daily evolution of the market value of the firm's assets over a year. Here are 10 simulated paths of $V_t$ from $t=0,\ldots,T$. The reference of this section is [@Hull] Chapter 14 and 15. Because this section is connected to the valuation formula, the simulations use the risk-neutral drift $rf$. These are valuation scenarios under the same risk-neutral world used to value the equity option. They are useful for visualizing the model mechanics, not for forecasting the firm's real-world asset path.
+We now return to the main Merton example and simulate the daily evolution of the market value of the firm's assets over one year. The simulation logic follows the geometric Brownian motion framework used in [@Hull], Chapters 14 and 15. Because this section is connected to the valuation formula, the simulations use the risk-neutral drift $rf$. These are valuation scenarios under the same risk-neutral world used to value the equity option. They are useful for visualizing the model mechanics, not for forecasting the firm's real-world asset path.
 
 ```{r}
 #| label: fig-so10pota
@@ -65,7 +65,7 @@ ggplot2::ggplot(
 
 Figure @fig-so10pota should be read as follows. Each black curve is one risk-neutral path for the firm's asset value, $V_t$. The horizontal red line is the promised debt payment, $D$. The blue point marks the starting value, $V_0$. The open circles at maturity classify the terminal values: green means $V_T>D$ and red means $V_T<D$.
 
-These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate rather than the firm's real-world expected asset return. In the past, some students have called this figure *la grafica de los pelitos*, which is fine as long as the interpretation is clear. The formal name is 10 simulated geometric Brownian motion processes under the risk-neutral measure.
+These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate rather than the firm's real-world expected asset return. The formal name is 10 simulated geometric Brownian motion paths under the risk-neutral measure.
 
 Before counting defaults at maturity, let's first count the paths in which $V_t<D$ at least once before or at maturity. Here I use $t$, not $T$, because this first count asks whether a path ever crosses below the promised debt payment during the year. That is different from Merton default, which is determined by whether $V_T<D$ at maturity.
 
@@ -74,7 +74,7 @@ Before counting defaults at maturity, let's first count the paths in which $V_t<
 paths_below_D <- which(colSums(paths < D) > 0)
 paths_below_D
 ```
-The value of the assets was lower than the promised debt payment $D$ at some time in risk-neutral scenarios `r paste(paths_below_D, collapse = ", ")`. Let's plot these cases. In the next figure, red paths finish below $D$ and therefore default at maturity. The blue path crosses below $D$ during the year but finishes above $D$.
+The value of the assets was lower than the promised debt payment $D$ at some time in risk-neutral scenarios `r paste(paths_below_D, collapse = ", ")`. The next figure isolates those cases. Red paths finish below $D$ and therefore default at maturity. The blue path crosses below $D$ during the year but finishes above $D$.
 
 ```{r}
 #| label: fig-nttbpfdnd
@@ -131,7 +131,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Figure @fig-nttbpfdnd isolates the paths from the 10-scenario simulation that cross $D$ at least once. The blue path is the key teaching case. It enters the region below the red debt threshold before maturity, then recovers and ends above $D$ at $T$. In the basic Merton model, default is determined by the terminal condition $V_T<D$. In this small risk-neutral simulation, that happens in `r sum(paths[final_row, ] < D)` cases. Thus, according to these 10 risk-neutral scenarios, the simulated probability of default is `r fmt_pct(sum(paths[final_row, ] < D) / ncol(paths), 0)`. Here is how we calculate the cases in which $V_T<D$.
+Figure @fig-nttbpfdnd isolates the paths from the 10-scenario simulation that cross $D$ at least once. The blue path is the key teaching case. It enters the region below the red debt threshold before maturity, then recovers and ends above $D$ at $T$. In the basic Merton model, default is determined by the terminal condition $V_T<D$. In this small risk-neutral simulation, that happens in `r sum(paths[final_row, ] < D)` cases. According to these 10 risk-neutral scenarios, the simulated probability of default is `r fmt_pct(sum(paths[final_row, ] < D) / ncol(paths), 0)`. The code below counts the cases in which $V_T<D$.
 
 ```{r}
 sim_pd_10 <- sum(paths[final_row, ] < D) / ncol(paths)
@@ -140,7 +140,7 @@ sim_pd_10
 
 The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we move from 10 to 100 simulated paths, and then from 100 to 1,000, 10,000, and 100,000 simulated terminal values.
 
-Here are 100 simulated paths from $V_0$ to $V_T$. The visual coding is the same as before: gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
+The next simulation uses 100 paths from $V_0$ to $V_T$. The visual coding is the same as before: gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
 
 ```{r}
 #| label: fig-so100pota
@@ -177,11 +177,11 @@ sim_pd_100
 
 With 100 paths, individual trajectories are less important than the terminal count. The simulated risk-neutral probability of default is `r fmt_pct(sim_pd_100, 0)`. This is closer to the model value of `r fmt_pct(pd_merton, 4)`.
 
-Let's see all the `r sum(paths[final_row, ] < D)` cases that end in default.
+The next figure keeps only the `r sum(paths[final_row, ] < D)` paths that end in default.
 
 ```{r}
 #| label: fig-dc
-#| fig-cap: "Default cases."
+#| fig-cap: "Paths that end below the promised debt payment at maturity."
 default_cases_100 <- which(paths[final_row, ] < D)
 default_path_data_100 <- make_path_data(
   paths[, default_cases_100, drop = FALSE],
@@ -208,7 +208,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Figure @fig-dc filters the 100 simulated paths and keeps only the paths with $V_T<D$. These are the default cases under the Merton terminal-default rule. The red line is still $D$, so the important feature is where each path ends relative to that line at maturity.
+Figure @fig-dc filters the 100 simulated paths and keeps only the paths with $V_T<D$. These are the default cases under the Merton terminal-default rule. The red line is still $D$, so the important feature is the terminal position of each path relative to that line. Earlier crossings matter for intuition, but the basic Merton default event is decided at maturity.
 
 ```{r include=FALSE}
 almost_default <- which(colSums(paths < D) > 0)
@@ -216,7 +216,7 @@ default <- which(paths[final_row, ] < D)
 almost_default_no_default <- setdiff(almost_default, default)
 ```
 
-Now, let's see the `r length(almost_default_no_default)` cases in which $V_t$ went below $D$ at some point, but $V_T$ finished above $D$, so the firm did not default at maturity.
+The next figure keeps the `r length(almost_default_no_default)` cases in which $V_t$ went below $D$ at some point, but $V_T$ finished above $D$, so the firm did not default at maturity.
 
 ```{r}
 #| label: fig-atpwl1asp
@@ -541,5 +541,5 @@ Figure @fig-avotfbssitf shows the payoff split at maturity. The flat part to the
 
 This payoff relation, $E_T=\max(V_T-D, 0)$, is the key point of the inside view. Equation 24.3 in [@Hull] uses the same call-option logic at time 0. It chooses $V_0$ and $\sigma_V$ so that the model is consistent with the observed equity value $E_0$ and the observed equity volatility $\sigma_E$.
 
-The important distinction is therefore: $E_T$ is the future state-dependent equity payoff, $E_0$ is the observed equity value today, $V_0$ is the model's market value of assets today, and $D$ is the promised debt payment at maturity. The estimate $V_0$ can be compared with the book value of total assets to understand the difference between book values and market values. We can also analyze the market value of debt, which is different from the promised debt payment $D$.
+The important distinction is therefore: $E_T$ is the future state-dependent equity payoff, $E_0$ is the observed equity value today, $V_0$ is the model's market value of assets today, and $D$ is the promised debt payment at maturity. The estimate $V_0$ can be compared with the book value of total assets to understand the difference between book values and market values. The market value of debt is another model-implied quantity, and it is different from the promised debt payment $D$.
 

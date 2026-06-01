@@ -2,6 +2,29 @@
 
 We can now compare the tree-based models with the logistic benchmark. The comparison is intentionally based on the same criteria used in Chapter 1. This avoids changing the rules after changing the model.
 
+```{r include=FALSE}
+model_metrics_core <- model_metrics |>
+  filter(model != "constant default rate")
+
+best_auc_row <- model_metrics_core |>
+  slice_max(auc, n = 1, with_ties = FALSE)
+
+best_brier_row <- model_metrics_core |>
+  slice_min(brier_score, n = 1, with_ties = FALSE)
+
+strategy_80 <- strategy_comparison |>
+  filter(abs(accept_rate - 0.80) < 1e-8) |>
+  arrange(bad_rate)
+
+best_strategy_by_model <- strategy_comparison |>
+  group_by(model) |>
+  slice_max(net_payoff, n = 1, with_ties = FALSE) |>
+  ungroup()
+
+best_strategy_overall <- best_strategy_by_model |>
+  slice_max(net_payoff, n = 1, with_ties = FALSE)
+```
+
 ```{r Model comparison metrics}
 model_metrics |>
   mutate(
@@ -13,7 +36,9 @@ model_metrics |>
 
 AUC measures ranking ability: do defaulting borrowers tend to receive higher predicted probabilities than non-defaulting borrowers? The Brier score measures probability error: are the predicted probabilities numerically close to the observed outcomes? Brier skill expresses improvement relative to the constant default-rate benchmark. A positive value means the model improves on assigning every applicant the same default probability. In code, `model_metrics` collects these three criteria for the logistic benchmark, the single tree, and XGBoost.
 
-The results are useful precisely because they are not one-sided. XGBoost is a more flexible model class, but in this specification it is close to the logistic benchmark rather than dramatically better on every metric. This is a good reminder that a modern algorithm still has to earn its place out of sample.
+In this run, the highest AUC belongs to `r best_auc_row$model` with AUC `r round(best_auc_row$auc, 4)`. The lowest Brier score belongs to `r best_brier_row$model` with Brier score `r round(best_brier_row$brier_score, 4)`. These two criteria may point to the same model or to different models because they answer different questions. AUC asks whether the ranking is good. Brier score asks whether the probabilities are numerically close to the realized default outcomes.
+
+The results are useful precisely because they are mixed. XGBoost is a more flexible model class. In this specification, it is close to the logistic benchmark rather than dramatically better on every metric. This is a good reminder that a modern algorithm still has to earn its place out of sample.
 
 ```{r}
 #| label: fig-tree-roc-comparison
@@ -83,7 +108,9 @@ ggplot(
   )
 ```
 
-The ROC comparison focuses on ranking. If the XGBoost curve lies above the logistic curve, the boosted model is doing a better job ranking defaulting borrowers above non-defaulting borrowers. This does not automatically make it the better lending strategy, because the final decision still depends on cutoffs, costs, and calibration.
+The ROC comparison focuses on ranking. If the XGBoost curve lies above the logistic curve, the boosted model is doing a better job ranking defaulting borrowers above non-defaulting borrowers. The final lending strategy still depends on cutoffs, costs, and calibration.
+
+This is the same logic as in Chapter 1. ROC curves ignore the size of the predicted PDs and focus on ordering. If one applicant receives 18% and another receives 4%, ROC only cares that the higher-risk applicant is ranked above the lower-risk applicant. A lending policy still has to decide where to put the cutoff and what loss is attached to accepting a borrower who defaults.
 
 ```{r}
 #| label: fig-tree-calibration-comparison
@@ -108,7 +135,9 @@ ggplot(calibration_comparison,
 
 Calibration is important because both models produce probabilities of default. A model can rank applicants well and still produce probabilities that are too high or too low. If the calibration curve is far from the dashed line, we should be cautious about interpreting the raw predicted values as literal probabilities.
 
-If a flexible model ranks applicants well but its probabilities are not calibrated enough for pricing, provisioning, or stress testing, the next step is not necessarily to discard the model. A common workflow is to keep the ranking model and then recalibrate its predicted probabilities using a separate validation sample. Methods such as logistic calibration, sometimes called Platt scaling, or isotonic regression are designed for that purpose. We do not implement recalibration here, but the calibration plot tells us whether such a step may be needed before treating the predicted values as operational probabilities of default.
+The dashed line is the ideal reference. A point near 10% on both axes means that applicants assigned an average PD near 10% defaulted about 10% of the time in that decile. A point above the line means realized defaults were higher than predicted in that group. A point below the line means realized defaults were lower than predicted. This plot therefore checks whether the PD numbers can be read as probabilities, not only as ranks.
+
+If a flexible model ranks applicants well while its probabilities need improvement for pricing, provisioning, or stress testing, a common workflow is to keep the ranking model and recalibrate its predicted probabilities using a separate validation sample. Methods such as logistic calibration, sometimes called Platt scaling, or isotonic regression are designed for that purpose. We do not implement recalibration here, but the calibration plot tells us whether such a step may be needed before treating the predicted values as operational probabilities of default.
 
 ```{r}
 #| label: fig-tree-bad-rate-comparison
@@ -129,6 +158,8 @@ strategy_comparison |>
 
 This plot translates model predictions into lending strategy. In code, `strategy_comparison` stores the acceptance rate, cutoff, accepted defaults, bad rate, and net payoff for each model. At a fixed acceptance rate, the preferred model is the one with the lower bad rate. This is often more intuitive for credit risk than raw accuracy because it focuses on the loans actually accepted by the bank.
 
+At an 80% acceptance rate, the lowest bad rate in this run is produced by `r strategy_80$model[1]`, with bad rate `r fmt_pct(strategy_80$bad_rate[1], 2)`. This means that among the applicants accepted by that model at that acceptance rate, `r fmt_pct(strategy_80$bad_rate[1], 2)` defaulted in the historical test set. The comparison is operational: it asks which score gives the cleaner accepted portfolio when the bank wants to approve the same share of applicants.
+
 ```{r}
 #| label: fig-tree-net-payoff-comparison
 #| fig-cap: "Net payoff by acceptance rate: logistic regression, single tree, and XGBoost."
@@ -147,6 +178,30 @@ strategy_comparison |>
 
 The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. Under this assumption, the best model is not necessarily the model with the highest AUC. It is the model that produces better decisions under the selected payoff rule.
 
+The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r round(best_strategy_overall$net_payoff, 2)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
+
+The payoff calculation for that row is the same one used in Chapter 1:
+
+$$
+`r best_strategy_overall$accepted_good`(1)
+-
+`r best_strategy_overall$accepted_defaults`(5)
+=
+`r best_strategy_overall$net_payoff`.
+$$
+
+```{r Best net payoff numerical check}
+data.frame(
+  model = best_strategy_overall$model,
+  acceptance_rate = best_strategy_overall$accept_rate,
+  accepted_good_loans = best_strategy_overall$accepted_good,
+  payoff_from_good_loans = best_strategy_overall$accepted_good * 1,
+  accepted_default_loans = best_strategy_overall$accepted_defaults,
+  cost_from_default_loans = best_strategy_overall$accepted_defaults * 5,
+  net_payoff = best_strategy_overall$net_payoff
+)
+```
+
 ```{r Best net payoff by model}
 strategy_comparison |>
   group_by(model) |>
@@ -155,4 +210,4 @@ strategy_comparison |>
   select(model, accept_rate, cutoff, accepted_defaults, bad_rate, net_payoff)
 ```
 
-This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. The point is not that XGBoost automatically wins, but that the same decision framework allows us to see where a more flexible model changes the lending strategy and where it does not.
+This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. The same decision framework allows us to see where a more flexible model changes the lending strategy and where it gives a similar answer.

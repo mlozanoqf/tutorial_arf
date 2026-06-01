@@ -144,7 +144,7 @@ The expected number of defaults is close to `r fmt_num(n_firms_hull * hull_pd, 2
 
 $$
 E[N_{\text{defaults}}]
-=P(D_1=1)+\cdots+P(D_{10}=1)
+=P(Y_1(5)=1)+\cdots+P(Y_{10}(5)=1)
 =10\times 0.15
 =1.50.
 $$

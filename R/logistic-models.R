@@ -36,13 +36,13 @@ real_pred_20 <- cbind.data.frame(
   "Did the model succeed?" = test$loan_st == pred_full_20
 )
 
-bank <- function(prob_of_def) {
+bank <- function(prob_of_default, actual_default) {
+  actual_default <- as.numeric(as.character(actual_default))
   accept_rate <- seq(1, 0, by = -0.05)
-  cutoff <- quantile(prob_of_def, accept_rate)
+  cutoff <- quantile(prob_of_default, accept_rate)
   bad_rate <- sapply(cutoff, function(thresh) {
-    pred_i <- ifelse(prob_of_def > thresh, 1, 0)
-    pred_as_good <- test$loan_st[pred_i == 0]
-    mean(pred_as_good == 1)
+    accepted <- prob_of_default <= thresh
+    mean(actual_default[accepted] == 1)
   })
 
   table <- cbind(
@@ -54,8 +54,8 @@ bank <- function(prob_of_def) {
   list(table = table, bad_rate = bad_rate, accept_rate = accept_rate, cutoff = cutoff)
 }
 
-bank_logi_full <- bank(pred_logi_full)
-bank_logi_age <- bank(pred_logi_age)
+bank_logi_full <- bank(pred_logi_full, test$loan_st)
+bank_logi_age <- bank(pred_logi_age, test$loan_st)
 
 ROC_logi_full <- roc(test$loan_st, pred_logi_full, quiet = TRUE)
 ROC_logi_age <- roc(test$loan_st, pred_logi_age, quiet = TRUE)

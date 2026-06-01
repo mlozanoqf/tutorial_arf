@@ -9,11 +9,11 @@ source("R/format-helpers.R")
 Inputs and Hull equations
 :::
 
-Let's follow the example 24.3 in [@Hull]. We observe five inputs: $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, and $D=10$. Here, $D$ is the promised debt payment due at maturity, not the current market value of debt. Using these inputs, we estimate the value of the assets today, $V_0$, and the volatility of the assets, $\sigma_V$. We then use those estimated asset quantities to calculate the Merton risk-neutral probability of default $pd$, among other results.
+We use Example 24.3 in [@Hull]. The observed inputs are $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, and $D=10$. Here, $D$ is the promised debt payment due at maturity, not the current market value of debt. Using these inputs, we estimate the value of the assets today, $V_0$, and the volatility of the assets, $\sigma_V$. Those estimated asset quantities are then used to calculate the Merton risk-neutral probability of default $pd$, among other results.
 
 The risk-free rate appears here because equation 24.3 is a valuation equation. We are not assuming that the firm's assets truly earn the risk-free rate in the real world. We are valuing equity under the risk-neutral measure, which is the same logic used to price a European call option. In that artificial valuation world, default is still the event $V_T < D$. After estimating $V_0$ and $\sigma_V$, we will write the risk-neutral probability of that event as $N(-d_2)$.
 
-Therefore, whenever this section says probability of default, it means the model-implied risk-neutral default probability unless we explicitly say otherwise.
+In this section, probability of default means the model-implied risk-neutral default probability unless stated otherwise.
 
 These are the known parameters.
 
@@ -132,7 +132,7 @@ pd
 ```
 The risk-neutral probability of default is `r fmt_num(pd, 7)`, or `r fmt_pct(pd, 4)`. This number is market-implied by the option-pricing structure of the model. It answers a pricing question: under the risk-neutral distribution used to value equity, how much weight is assigned to default states? A direct historical or real-world default probability would require a separate calibration from risk-neutral probabilities to real-world probabilities.
 
-Let's analyze the role of the values of $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$. First, we isolate these values.
+The next table isolates $d_1$, $d_2$, $N(d_1)$ and $N(d_2)$ so we can connect the formula to the default region.
 
 ```{r}
 # Inspect the role of d and N(d).
@@ -148,7 +148,7 @@ Before connecting this result with the figure, unpack the notation. The symbol $
 
 The red default area will be $N(-d_2)$, the area to the left of $-d_2$. The green survival area is the rest of the curve. Because the standard normal distribution is symmetric, that survival area is $1-N(-d_2)=N(d_2)$.
 
-Now we can bring back the generic risk-neutral example. In the simple one-period example, the artificial probability $q=0.80$ was the pricing weight of the survival branch, and $1-q=0.20$ was the pricing weight of the default branch. In the Merton model, a continuous distribution of possible future asset values $V_T$ replaces the two branches. The numbers are different because this is now the Hull/Merton example, but the interpretation is the same:
+The generic risk-neutral example now gives the interpretation. In the simple one-period example, the artificial probability $q=0.80$ was the pricing weight of the survival branch, and $1-q=0.20$ was the pricing weight of the default branch. In the Merton model, a continuous distribution of possible future asset values $V_T$ replaces the two branches. The numbers are different because this is now the Hull/Merton example, but the interpretation is the same:
 
 | One-period example | Merton model |
 |---|---|
@@ -159,7 +159,7 @@ Now we can bring back the generic risk-neutral example. In the simple one-period
 
 This is why the `r fmt_pct(pd, 4)` probability should be read as a risk-neutral default weight, not as an empirical default frequency. It is the continuous-model version of the bad branch in the generic example.
 
-Now, let's illustrate how $N(-d_2)$ leads to the risk-neutral probability of default given the properties of a standard normal distribution.
+The next figure illustrates how $N(-d_2)$ becomes the risk-neutral probability of default under the standard normal distribution.
 
 This is the continuous version of the one-period example. In the one-period example, there was one default branch, so the risk-neutral probability of default was simply $1-q$. In Merton, there is a full range of possible values for $V_T$, and every value below $D$ is a default state.
 
@@ -260,7 +260,7 @@ ggplot2::ggplot(normal_density_data, ggplot2::aes(x = x, y = density)) +
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Here you can find an alternative explanation about $N(-d_2)$:
+For a short supplemental explanation of $N(-d_2)$ in the Merton model, the following video may be useful:
 
 ```{r}
 embed_url("https://youtu.be/lV0ytJYbVzc")
@@ -270,7 +270,7 @@ embed_url("https://youtu.be/lV0ytJYbVzc")
 Checking the numerical solution
 :::
 
-Now, let's analyze the minimization that leads to $V_0$ and $\sigma_V$. Equations 24.3 and 24.4 in [@Hull] are solved numerically in this implementation, so $V_0$ and $\sigma_V$ come from minimizing the squared pricing errors. To see how good this approximation is, we can retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_V$. This objective function is positive because both $F(x,y)$ and $G(x,y)$ are squared, so a good solution should produce a value close to zero.
+The next diagnostic checks the minimization that leads to $V_0$ and $\sigma_V$. Equations 24.3 and 24.4 in [@Hull] are solved numerically in this implementation, so $V_0$ and $\sigma_V$ come from minimizing the squared pricing errors. To check the solution, we retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_V$. This objective function is positive because both $F(x,y)$ and $G(x,y)$ are squared, so a good solution should produce a value close to zero.
 
 ```{r}
 # Evaluate how good is the minimization.
@@ -280,7 +280,7 @@ round(min.footnote10(x = c(V0, sv)), 6)
 
 The constrained optimization above worked well: the objective function is zero in practical terms.
 
-There is another way to see how the minimization works. We can propose a graphical analysis. In particular, we can verify whether the estimated values of $V_0$ and $\sigma_V$ minimize the objective function. To illustrate this on two axes, we need to fix either $V_0$ or $\sigma_V$, and evaluate $[F(x,y)]^2+[G(x,y)]^2$ with different values of $V_0$ or $\sigma_V$. Let's do that.
+The minimization can also be checked visually. To show the objective function on two axes, we first hold $\sigma_V$ fixed at its estimated value and vary $V_0$. Then we hold $V_0$ fixed and vary $\sigma_V$. These are one-dimensional slices of the same two-parameter objective function.
 
 ```{r}
 # Fix sv and evaluate different values of V0.
@@ -292,11 +292,11 @@ FG <- function(V0, sv) { (eq24.3(V0, sv))^2 + (eq24.4(V0, sv))^2 }
 FG.V0 <- mapply(FG, V0.seq, sv.rep)
 ```
 
-We are ready to plot.
+The first slice is the objective function as a function of $V_0$ while $\sigma_V$ is held at its estimated value.
 
 ```{r}
 #| label: fig-hwftvotaactvoaatz
-#| fig-cap: "Here we fix the volatility of the assets and change the value of the assets at time zero. The minimization looks fine."
+#| fig-cap: "Objective-function slice when asset volatility is held fixed."
 objective_at_solution <- FG(V0, sv)
 slice_v0_data <- data.frame(
   asset_value = V0.seq,
@@ -338,7 +338,7 @@ This figure is a diagnostic check rather than a separate estimation method. It s
 
 ```{r}
 #| label: fig-hwftvotaatzactvota
-#| fig-cap: "Here we fix the value of the assets at time zero and change the volatility of the assets. The minimization looks fine."
+#| fig-cap: "Objective-function slice when asset value is held fixed."
 # Now fix V0, and evaluate different sv values.
 sv.seq <- seq(0.001, 0.6, length.out = 100)
 V0.rep <- rep(V0, 100)
@@ -383,13 +383,13 @@ ggplot2::ggplot(
 
 @fig-hwftvotaatzactvota gives the second slice. Now $V_0$ is fixed at the estimated value and $\sigma_V$ changes. The estimated asset volatility again sits near the bottom of the curve. If $\sigma_V$ is too low, the model understates how strongly equity reacts to asset risk. If $\sigma_V$ is too high, the model overstates that risk transmission. Both mistakes increase the objective function because the two Hull equations are no longer matched as closely.
 
-Taken together, @fig-hwftvotaactvoaatz and @fig-hwftvotaatzactvota show that the numerical solution is locally coherent in each parameter direction. We can also evaluate the objective function over a grid where $V_0$ and $\sigma_V$ move at the same time.
+Taken together, @fig-hwftvotaactvoaatz and @fig-hwftvotaatzactvota show that the numerical solution is locally coherent in each parameter direction. The next diagnostic evaluates the objective function over a grid where $V_0$ and $\sigma_V$ move at the same time.
 
 ```{r}
 # outer evaluates the function for each combination of the vectors.
 z <- outer(V0.seq, sv.seq, FG) # z is now 100x100 matrix.
 ```
-Contour plots or level plots are a way to show a three-dimensional surface on a two-dimensional plane.
+Contour plots, also called level plots, show a three-dimensional objective function on a two-dimensional plane.
 
 ```{r}
 #| label: fig-motfacv
@@ -490,7 +490,7 @@ ggplot2::ggplot(
 
 Each contour line connects combinations of $V_0$ and $\sigma_V$ that produce the same value of $[F(x,y)]^2+[G(x,y)]^2$. The numbers printed on selected lines give direct reference values for the objective function. The red point marks the estimated pair. The dashed lines make its two coordinates easier to read. A good numerical solution should sit near the innermost low-objective region because that is where the two Hull equations are matched most closely.
 
-The following plot is useful in HTML because it can be shown as an interactive surface that can be rotated.
+The interactive surface shows the same objective function in three dimensions. In HTML, it can be rotated to inspect how the low-objective region sits around the estimated pair.
 
 
 ```{r}
@@ -554,7 +554,7 @@ $$
 s=y-rf.
 $$
 
-Let's calculate these quantities.
+The code below calculates these quantities.
 
 ```{r}
 merton_implied_debt_yield <- (1 / TT) * log(D / market_value_debt)

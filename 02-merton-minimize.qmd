@@ -5,13 +5,21 @@ source("R/merton-packages.R")
 source("R/format-helpers.R")
 ```
 
-The estimation of the credit-risk Merton model requires minimizing a function. In this section, we show a simple minimization example. Here are some useful online resources for further references.
+The Merton estimation problem is numerical. We observe equity value and equity volatility, but the asset value and asset volatility that appear inside the model are unobserved. The practical task is to choose the unobserved quantities so that the model-implied equity value and equity volatility match the observed ones as closely as possible.
 
-* [FRM: How d2 in Black-Scholes becomes PD in Merton model.](https://youtu.be/lV0ytJYbVzc)
-* [Normal Probability Distribution Graph. Interactive.](https://www.intmath.com/counting-probability/normal-distribution-graph-interactive.php)
-* [How to use optim in R.](https://www.r-bloggers.com/how-to-use-optim-in-r/)
+Before solving the Merton equations, it helps to see the same numerical idea in a smaller example. Suppose we want to fit a straight line,
 
-The objective function to be minimized is $f(a,b)=\sum(a + bx_i-y_i)^2$. We have six values for $x$ and $y$, and we are expected to minimize the function $f$ by finding the parameter values $a$ and $b$. The $x_i$ and $y_i$ data looks like this:
+$$
+\hat y_i=a+bx_i,
+$$
+
+to six observations. For any candidate pair $(a,b)$, the residual for observation $i$ is $a+bx_i-y_i$. The objective function adds the squared residuals:
+
+$$
+f(a,b)=\sum_i(a+bx_i-y_i)^2.
+$$
+
+The numerical question is direct: which values of $a$ and $b$ make this objective function as small as possible? The data are:
 
 ```{r}
 # Data.
@@ -19,53 +27,65 @@ dat <- data.frame(x = c(1, 2, 3, 4, 5, 6), y = c(1, 3, 5, 6, 8, 12))
 kable(dat, caption = "Observations.", row.names = TRUE) # The table.
 ```
 
-Graphically:
+The same six observations are shown in the next figure.
 
 ```{r}
 #| label: fig-od
-#| fig-cap: "Original data."
-# A scatter plot.
-plot(y ~ x, data = dat, pch = 19, cex = 2)
+#| fig-cap: "Six observations used in a simple minimization example."
+ggplot2::ggplot(dat, ggplot2::aes(x = x, y = y)) +
+  ggplot2::geom_point(size = 3, color = "#0B5CAD") +
+  ggplot2::scale_x_continuous(breaks = dat$x) +
+  ggplot2::labs(x = "x", y = "y") +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
-Let's implement the $f(a,b)=\sum(a + bx_i-y_i)^2$ minimization.
+The code below defines the residual-sum-of-squares objective and asks `optim()` to search for the values of $a$ and $b$ that minimize it.
 
 ```{r}
 # Function that calculates the residual sum of squares.
 min.RSS <- function(data, par) {
   with(data, sum((par[1] + par[2] * x - y)^2)) }
-# Function minimization.
 result <- optim(par = c(0, 1), min.RSS, data = dat)
 a <- result$par[1]
 b <- result$par[2]
 f <- sum((a + b * dat$x - dat$y)^2)
-# Minimization output.
 ans <- data.frame(a, b, f)
 kable(ans, caption = "Minimization results f(a,b).")
 ```
 
-The minimization result is represented by a line, and the line is characterized by an intercept equal to $`r fmt_num(a, 6)`$ and a slope equal to $`r fmt_num(b, 5)`$. 
+The minimization result is a line with intercept $`r fmt_num(a, 6)`$ and slope $`r fmt_num(b, 5)`$. The fitted value for observation $i$ is therefore $\hat y_i=`r fmt_num(a, 6)`+`r fmt_num(b, 5)`x_i$.
 
-We can plot it and verify that this is indeed the right answer.
+The next figure shows the fitted line and the residuals. Each gray segment is the vertical distance between an observed value and the fitted line.
 
 ```{r}
 #| label: fig-ltmtrsos
-#| fig-cap: "Line that minimize the residual sum of squares."
-# View the results.
-plot(y ~ x, data = dat, pch = 19, ylim = c(-2, 12), xlim = c(0, 6), cex = 2)
-abline(a, b, col = "red", lwd = 3)
-abline(h = 0, lty = 2)
-abline(v = 0, lty = 2)
+#| fig-cap: "Fitted line that minimizes the residual sum of squares."
+dat$y_hat <- a + b * dat$x
+
+ggplot2::ggplot(dat, ggplot2::aes(x = x, y = y)) +
+  ggplot2::geom_segment(
+    ggplot2::aes(xend = x, yend = y_hat),
+    color = "gray65",
+    linewidth = 0.8
+  ) +
+  ggplot2::geom_abline(
+    intercept = a,
+    slope = b,
+    color = "#C0392B",
+    linewidth = 1.1
+  ) +
+  ggplot2::geom_point(size = 3, color = "#0B5CAD") +
+  ggplot2::scale_x_continuous(breaks = dat$x) +
+  ggplot2::labs(x = "x", y = "y") +
+  ggplot2::theme_classic(base_size = 12)
 ```
 
-The function that we minimize here is basically the OLS criterion. This is why the regression model leads to the same results.
+This objective function is the ordinary least squares criterion. The regression model gives the same answer because it minimizes the same sum of squared residuals.
 
 ```{r}
-# The previous example is equivalent as a linear regression model.
 reg <- lm(y ~ x, data = dat)
-# See the results.
 summary(reg)
 ```
 
-The function that we minimize in the estimation of the credit risk Merton model is more elaborated, but we follow the same principle as above.
+The Merton objective function is more complex, but the numerical structure is the same. We choose candidate parameters, compute model errors, square those errors, and let an optimizer search for the parameter values that make the objective function small. In the next section, the two parameters are $V_0$ and $\sigma_V$, and the two errors come from Hull's equity-value and equity-volatility equations.
 

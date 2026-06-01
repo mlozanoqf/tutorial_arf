@@ -4,7 +4,7 @@
 source("R/merton-pd-function.R")
 ```
 
-The problem. Daenerys Targaryen owns a big manufacturing firm that produces fire extinguishers. The firm's inputs are exactly the same as in Hull's example 24.3 [@Hull]. She is planning to ask the Iron Bank of Braavos for a loan, but she would like to reduce the firm's model-implied probability of default before negotiating credit conditions. Basic finance gives her two possible levers: reduce the promised debt payment $D$, or increase the market value of equity $E_0$ through a capital injection. Doing both at the same time would be more expensive, so she wants to compare the alternatives one at a time.
+The financial question is how a firm can reduce its model-implied probability of default before negotiating credit conditions. To make the comparison concrete, Daenerys Targaryen owns a large manufacturing firm that produces fire extinguishers. The firm's inputs are exactly the same as in Hull's example 24.3 [@Hull]. She is planning to ask the Iron Bank of Braavos for a loan. Basic finance gives her two possible levers: reduce the promised debt payment $D$, or increase the market value of equity $E_0$ through a capital injection. Doing both at the same time would be more expensive, so she wants to compare the alternatives one at a time.
 
 In this section, probability of default means the Merton risk-neutral/implied probability of default. The scenarios are useful for understanding how the model reacts to changes in capital structure; they are not historical forecasts of how often firms like this default.
 
@@ -124,7 +124,7 @@ plot_capital_structure <- function(curve_data, color_values,
 
 ```{r}
 #| label: fig-gppodacs
-#| fig-cap: "GoT problem. Risk-neutral probability of default and capital structure."
+#| fig-cap: "Initial capital-structure position and Merton risk-neutral PD."
 leg <- c("E0=1", "E0=2", "E0=3 (initial value)", "E0=4", "E0=5")
 names(colors) <- leg
 equity_curve_data <- make_capital_structure_data(
@@ -150,7 +150,7 @@ plot_capital_structure(
 
 ```{r}
 #| label: fig-gspodacs
-#| fig-cap: "GoT solution. Risk-neutral probability of default and capital structure."
+#| fig-cap: "Debt reduction versus equity injection from the initial position."
 plot_capital_structure(
   curve_data = equity_curve_data,
   color_values = colors,
@@ -178,7 +178,7 @@ Consider a different initial situation. Now, $E_0=2$ and $D=2$ while the remaini
 
 ```{r}
 #| label: fig-gp2podacs
-#| fig-cap: "GoT problem 2. Risk-neutral probability of default and capital structure."
+#| fig-cap: "Alternative starting balance sheet and Merton risk-neutral PD."
 leg2 <- c("E0=1", "E0=2 (initial value)", "E0=3", "E0=4", "E0=5")
 scenario2_colors <- setNames(unname(colors), leg2)
 scenario2_curve_data <- make_capital_structure_data(
@@ -213,7 +213,7 @@ plot_capital_structure(
 
 ```{r}
 #| label: fig-gs2podacs
-#| fig-cap: "GoT solution 2. Risk-neutral probability of default and capital structure."
+#| fig-cap: "Debt reduction versus equity injection from the alternative balance sheet."
 plot_capital_structure(
   curve_data = scenario2_curve_data,
   color_values = scenario2_colors,
@@ -266,7 +266,7 @@ T5 <- mapply(pd, E0, se, rf, 2.5, D.seq)
 
 ```{r}
 #| label: fig-gp3mdolm
-#| fig-cap: "GoT problem 3. Higher promised debt payment or longer maturity?"
+#| fig-cap: "Initial maturity-debt position and Merton risk-neutral PD."
 leg3 <- c("T=2.5", "T=2", "T=1.5", "T=1", "T=0.5")
 scenario3_colors <- setNames(unname(colors), leg3)
 maturity_curve_data <- make_capital_structure_data(
@@ -298,7 +298,7 @@ plot_capital_structure(
 
 ```{r}
 #| label: fig-ga3mdolm
-#| fig-cap: "GoT answer 3. Higher promised debt payment or longer maturity?"
+#| fig-cap: "Higher promised debt payment versus longer maturity."
 plot_capital_structure(
   curve_data = maturity_curve_data,
   color_values = scenario3_colors,

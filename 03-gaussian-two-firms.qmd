@@ -60,7 +60,7 @@ two_firm_plot_data <- lapply(two_firm_rhos, function(rho) {
 })
 ```
 
-Now we can see what the copula adds. Suppose both firms have the same 5-year cumulative PD, `r fmt_pct(two_firm_pd, 2)`. If the two default events were independent, the probability that both default by year 5 would be
+The two-firm case shows what the copula adds. Suppose both firms have the same 5-year cumulative PD, `r fmt_pct(two_firm_pd, 2)`. If the two default events were independent, the probability that both default by year 5 would be
 
 $$
 P(A\text{ defaults and }B\text{ defaults})

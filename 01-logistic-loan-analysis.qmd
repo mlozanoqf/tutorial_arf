@@ -1,6 +1,8 @@
 ## The credit scoring problem
 
-The main objective of this section is to predict whether a person or client applying for a loan will repay it or not. This issue can be considered a classification problem, where based on information about the client and the characteristics of their loan application, the client is classified into one of two categories: whether they will default or not. There are various ways to approach this classification problem; in this section, we will use a simple machine learning model called logistic regression. The model is first estimated or trained and then evaluated using new data to determine how well it performs the classification.
+The practical credit-scoring problem begins before the bank knows the outcome of a loan. At origination, the bank observes borrower and loan characteristics, such as age, income, loan amount, interest rate, grade, and employment history. What it does not yet know is whether the borrower will repay or default. The model's job is to turn the information available at origination into a probability of default that can support a lending decision.
+
+This is a binary prediction problem because each historical loan has one of two observed outcomes: default or no default. In this chapter, logistic regression gives us a transparent first benchmark. We estimate the model on a training sample, use it to generate predicted probabilities for new applicants in a test sample, and then ask whether those probabilities lead to useful credit decisions. The key object is a decision rule built from statistical predictions: which applications should be accepted, which should be rejected, and what bad rate follows from that rule?
 
 ```{r echo=FALSE}
 # This removes all items in environment. 
@@ -8,7 +10,7 @@ The main objective of this section is to predict whether a person or client appl
 rm(list=ls())
 ```
 
-Let's load the required R packages first.
+We first load the required R packages.
 
 ```{r Loan analysis}
 # Logistic models
@@ -20,5 +22,5 @@ library(pROC) # roc
 library(vembedr)
 ```
 
-This section relies on the DataCamp course *Credit Risk Modeling in R* by Lore Dirick. However, we incorporate a slightly different database and an extended analysis.
+This section is informed by the DataCamp course *Credit Risk Modeling in R* by Lore Dirick. The treatment here uses a modified database and expands the original workflow with more explicit links between model equations, R objects, diagnostic plots, cutoff rules, and bank strategy.
 

@@ -1,6 +1,6 @@
 ## Interpreting XGBoost
 
-The main risk with XGBoost is not that it is impossible to inspect. The risk is that the model is easier to use than to understand. We therefore need several complementary views of the model. No single plot makes the model fully transparent, but together they help us understand what the model is using and how it behaves.
+The main risk with XGBoost is practical: the model is easier to use than to understand. We therefore need several complementary views of the model. No single plot makes the model fully transparent, but together they help us understand what the model is using and how it behaves.
 
 The first view is feature importance. XGBoost can report which encoded variables are used most often and most effectively in the ensemble.
 
@@ -16,7 +16,9 @@ xgb_importance |>
   theme_minimal()
 ```
 
-Gain measures how much a feature contributes to improving the model's splits. It does not mean that a feature has a positive or negative effect by itself. It only tells us that the model uses that feature to reduce prediction error. For direction and local interpretation, we need another tool.
+Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. Direction and local interpretation require another tool.
+
+This distinction matters in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain is therefore a map of where the model is looking, not a full explanation of what the model predicts for a specific applicant.
 
 SHAP-style contributions provide a second view. For each observation, XGBoost can decompose the model score into contributions from the encoded variables plus a baseline term:
 
@@ -40,9 +42,9 @@ xgb_shap_importance |>
   theme_minimal()
 ```
 
-This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. It still does not make XGBoost as simple as a logistic regression coefficient, but it helps identify the variables that materially affect predicted default probabilities.
+This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. It is less direct than a logistic regression coefficient, while still identifying the variables that materially affect predicted default probabilities.
 
-We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. The point is not that this single applicant validates the model. The point is to see how the different model classes translate the same borrower information into predicted default probabilities.
+We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. This single applicant is a worked example. It shows how the different model classes translate the same borrower information into predicted default probabilities.
 
 ```{r XGBoost John Doe predictions}
 john_doe_prediction_summary |>
@@ -51,7 +53,7 @@ john_doe_prediction_summary |>
 
 The table compares the full logistic model, the single tree, and XGBoost for the same applicant. All three values are probabilities of default, so they can be compared directly. What differs is the way each model arrives at that probability: the logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
 
-For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. In that narrow sense, the logistic model is the closest to the realized outcome because it assigns an almost zero probability of default. XGBoost also assigns a low probability of default, and the single tree assigns a somewhat higher but still modest probability. All three models point in the correct direction for this applicant, but this single case should not be used to declare a general winner. The model comparison must still be based on the full test set.
+For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. In that narrow sense, the logistic model is the closest to the realized outcome because it assigns an almost zero probability of default. XGBoost also assigns a low probability of default, and the single tree assigns a somewhat higher but still modest probability. All three models point in the correct direction for this applicant. The general comparison still has to come from the full test set.
 
 For XGBoost, the local explanation follows the score equation introduced above:
 
@@ -75,7 +77,9 @@ john_xgb_contribution_table |>
   mutate(contribution = round(contribution, 4))
 ```
 
-A positive contribution increases John Doe's XGBoost score and therefore increases the predicted probability of default. A negative contribution lowers the score and therefore lowers the predicted probability of default. These values are not probability points; they are score-scale contributions before the logistic transformation. This is why the contribution table should be read together with the score reconstruction table.
+A positive contribution increases John Doe's XGBoost score and therefore increases the predicted probability of default. A negative contribution lowers the score and therefore lowers the predicted probability of default. These values are score-scale contributions before the logistic transformation, so the contribution table should be read together with the score reconstruction table.
+
+For this applicant, the reconstructed score is `r round(john_xgb_score, 4)`. Applying the logistic transformation gives a predicted PD of `r fmt_pct(john_xgb_pd_from_score, 2)`, which matches the direct XGBoost prediction. This numerical check is important because it connects the local explanation table to the actual probability used in the lending decision.
 
 The third view is partial dependence. Here we change one variable at a time and average the model's predicted probability over the test set. This gives an approximate picture of how the model behaves as that variable changes, while the empirical distribution of the other variables is kept in the background.
 
@@ -97,7 +101,9 @@ partial_dependence_data |>
   theme_minimal()
 ```
 
-Partial dependence should be read carefully. It is not a causal effect. It does not say that changing a borrower's age, income, or interest rate would mechanically cause the default probability to change by that amount. It says how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
+Partial dependence should be read as model behavior rather than causal evidence. Changing a borrower's age, income, or interest rate in this plot shows how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
+
+A useful way to read the plot is to imagine a controlled model exercise. For the interest-rate panel, for example, we repeatedly give the model the same test-set borrowers but replace the interest rate by one value on the horizontal axis. We then average the predicted PDs. The curve therefore answers a model question: how does the fitted XGBoost score respond when this input changes across the observed range?
 
 The interpretation strategy is therefore layered:
 
@@ -106,4 +112,4 @@ The interpretation strategy is therefore layered:
 3. Partial dependence shows how predicted risk changes across selected variables.
 4. Calibration and performance metrics tell us whether the predictions behave well out of sample.
 
-This is the sense in which XGBoost can be made transparent by inspection, even though it is not transparent by construction like a logistic regression.
+This is how XGBoost can be made more transparent by inspection, even though logistic regression remains more transparent by construction.

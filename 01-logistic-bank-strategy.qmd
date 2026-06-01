@@ -4,39 +4,24 @@ source("R/logistic-models.R")
 
 ## Acceptance strategy and model comparison
 
-A bank could be interested to understand the relationship between the acceptance rate and the bad rate given a model that predicts the loan status.
+A bank needs to understand how the bad rate changes when it accepts more or fewer applications. The previous section compared two acceptance rates, 80% and 65%. We now evaluate the same idea over a wider grid of acceptance rates.
 
-<!-- ```{r The bank strategy} -->
-<!-- # Function. -->
-<!-- bank <- function(prob_of_def){ -->
-<!--   cutoff <- rep(NA, 21) -->
-<!--   bad_rate <- rep(NA, 21) -->
-<!--   accept_rate <- seq(1, 0, by = -0.05) -->
-<!--   for (i in 1:21){ -->
-<!--     cutoff[i] <- quantile(prob_of_def, accept_rate[i]) -->
-<!--     pred_i <- ifelse(prob_of_def > cutoff[i], 1, 0) -->
-<!--     pred_as_good <- test$loan_st[pred_i == 0] -->
-<!--     bad_rate[i] <- sum(pred_as_good == 1)/length(pred_as_good)} -->
-<!--   table <- cbind(accept_rate, cutoff = round(cutoff, 4),  -->
-<!--                  bad_rate = round(bad_rate, 4)) -->
-<!--   return(list(table = table, bad_rate = bad_rate,  -->
-<!--               accept_rate = accept_rate, cutoff = cutoff)) -->
-<!--   } -->
-<!-- ``` -->
+Once this trade-off is clear, the bank could move beyond a single accept/reject cutoff. For example, it could create risk bands: low-risk applicants are accepted at standard terms, medium-risk applicants are accepted with a higher interest rate or additional conditions, and high-risk applicants are rejected. The simple accept/reject rule below is the first step because it makes the mechanics visible.
 
 ```{r}
-bank <- function(prob_of_def) {
+bank <- function(prob_of_default, actual_default) {
+  actual_default <- as.numeric(as.character(actual_default))
+
   # Pre-define the acceptance rates
   accept_rate <- seq(1, 0, by = -0.05)
   
   # Calculate cutoffs for each acceptance rate
-  cutoff <- quantile(prob_of_def, accept_rate)
+  cutoff <- quantile(prob_of_default, accept_rate)
   
   # Calculate bad rates for each cutoff
   bad_rate <- sapply(cutoff, function(thresh) {
-    pred_i <- ifelse(prob_of_def > thresh, 1, 0)
-    pred_as_good <- test$loan_st[pred_i == 0]
-    mean(pred_as_good == 1)
+    accepted <- prob_of_default <= thresh
+    mean(actual_default[accepted] == 1)
   })
   
   # Create the result table
@@ -50,24 +35,24 @@ bank <- function(prob_of_def) {
 }
 ```
 
-We can evaluate this function for the `logi_full` model and compare it to a less effective model, such as `logi_age`. In principle, we expect the `logi_full` model to demonstrate a more favorable relationship between the acceptance rate and the bad rate, that is, lower bad rates for a given acceptance rate. Financial institutions are generally interested in increasing the acceptance rate without significantly increasing the bad rate.
+The function receives two inputs. The first input is the vector of predicted probabilities, such as `pred_logi_full`. The second input is the observed loan outcome, `test$loan_st`, which is needed to calculate how many accepted loans actually default. Evaluating this function for `logi_full` and `logi_age` lets us compare a stronger model with a weaker benchmark. A stronger model should produce lower bad rates for the same acceptance rate.
 
-Let's apply the function to the `pred_logi_full` and the `logi_age`.
+The next code applies the function to `pred_logi_full` and `pred_logi_age`.
 
 ```{r The bank strategy a good and a bad model}
 # Apply the bank function.
-bank_logi_full <- bank(pred_logi_full)
-bank_logi_age <- bank(pred_logi_age)
+bank_logi_full <- bank(pred_logi_full, test$loan_st)
+bank_logi_age <- bank(pred_logi_age, test$loan_st)
 
 data.frame(accept_rate = bank_logi_age$accept_rate,
-           "Bad_model_bad_rate" = bank_logi_age$bad_rate, 
-           "Good_model_bad_rate)" = bank_logi_full$bad_rate)
+           logi_age_bad_rate = bank_logi_age$bad_rate,
+           logi_full_bad_rate = bank_logi_full$bad_rate)
 ```
-The table suggests that the full model is more useful for decision-making because it achieves a lower bad rate at any given acceptance rate. A plot can effectively highlight the key differences between the two models: `logi_age` and `logi_full`.
+The table suggests that the full model is more useful for decision-making because it achieves a lower bad rate at any given acceptance rate. The next plot highlights the key differences between `logi_age` and `logi_full`.
 
 ```{r}
 #| label: fig-agaabm
-#| fig-cap: "A bad and a good model."
+#| fig-cap: "Bad-rate comparison between the age-only model and the full model."
 # Combine the two datasets for easier comparison
 bank_logi_full$model <- "logi_full"
 bank_logi_age$model <- "logi_age"
@@ -107,30 +92,9 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
 ```
 
 
-<!-- ```{r} -->
-<!-- #| label: fig-agaabm -->
-<!-- #| fig-cap: "A good and a bad model." -->
-<!-- # Plot the strategy functions -->
-<!-- par(mfrow = c(1, 2)) -->
-<!-- plot(bank_logi_full$accept_rate, bank_logi_full$bad_rate,  -->
-<!--      type = "l", xlab = "Acceptance rate", ylab = "Bad rate",  -->
-<!--      lwd = 2, main = "logi_full") -->
-<!-- abline(v = bank_logi_full[["accept_rate"]][8], lty = 2) -->
-<!-- abline(h = bank_logi_full[["bad_rate"]][8], lty = 2) -->
-<!-- abline(v = bank_logi_full[["accept_rate"]][5], lty = 2, col = "red") -->
-<!-- abline(h = bank_logi_full[["bad_rate"]][5], lty = 2, col = "red") -->
-<!-- plot(bank_logi_age$accept_rate, bank_logi_age$bad_rate, -->
-<!--      type = "l", xlab = "Acceptance rate",  -->
-<!--      ylab = "Bad rate", lwd = 2, main = "logi_age") -->
-<!-- abline(v = bank_logi_age[["accept_rate"]][8], lty = 2) -->
-<!-- abline(h = bank_logi_age[["bad_rate"]][8], lty = 2) -->
-<!-- abline(v = bank_logi_age[["accept_rate"]][5], lty = 2, col = "red") -->
-<!-- abline(h = bank_logi_age[["bad_rate"]][5], lty = 2, col = "red") -->
-<!-- ``` -->
-
 The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
 
-The bad rate is useful, but it does not fully describe the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we can define a hypothetical *net payoff*. This is not an accounting profit measure. It is a transparent scoring rule that assigns a benefit to accepting a good loan and a cost to accepting a bad loan.
+The bad rate is useful, but it does not fully describe the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we define a hypothetical *net payoff*. It should be read as a transparent scoring rule rather than an accounting profit measure: accepting a good loan creates a benefit, and accepting a bad loan creates a cost.
 
 Suppose that accepting a loan that does not default gives the bank a payoff of 1, while accepting a loan that defaults costs 5. Rejected loans receive a payoff of 0 because the bank does not issue the loan. Under these assumptions:
 
@@ -174,12 +138,37 @@ net_payoff_results <- do.call(
          prob_of_default = pred_logi_full)
 )
 
+best_net_payoff_row <- net_payoff_results[
+  which.max(net_payoff_results$net_payoff),
+]
+
 net_payoff_results
 ```
 
-In this example, the highest net payoff occurs at an acceptance rate of 80%. This does not mean that 80% is universally optimal. It means that, under this particular payoff assumption, the additional good loans accepted when moving from 65% to 80% more than compensate for the additional defaults. After 80%, accepting more applications still brings in more good loans, but the extra defaults become too costly under this rule.
+The table contains the complete payoff calculation, but the best row is worth checking explicitly. At the selected acceptance rate, the rule accepts `r best_net_payoff_row$accepted_good` good loans and `r best_net_payoff_row$accepted_defaults` defaulting loans. Under the assumed payoffs, the calculation is:
 
-The preferred acceptance rate depends on how costly defaults are relative to good accepted loans. We can therefore repeat the calculation under different assumptions for the cost of accepting a default.
+$$
+`r best_net_payoff_row$accepted_good`(1)
+-
+`r best_net_payoff_row$accepted_defaults`(5)
+=
+`r best_net_payoff_row$net_payoff`.
+$$
+
+```{r Net payoff numerical check}
+data.frame(
+  acceptance_rate = best_net_payoff_row$accept_rate,
+  accepted_good_loans = best_net_payoff_row$accepted_good,
+  payoff_from_good_loans = best_net_payoff_row$accepted_good * 1,
+  accepted_default_loans = best_net_payoff_row$accepted_defaults,
+  cost_from_default_loans = best_net_payoff_row$accepted_defaults * 5,
+  net_payoff = best_net_payoff_row$net_payoff
+)
+```
+
+In this example, the highest net payoff occurs at an acceptance rate of `r fmt_pct(best_net_payoff_row$accept_rate, 0)`. The result is specific to this payoff assumption: the additional good loans accepted when moving from 65% to 80% more than compensate for the additional defaults. After 80%, accepting more applications still brings in more good loans, but the extra defaults become too costly under this rule.
+
+The preferred acceptance rate depends on how costly defaults are relative to good accepted loans. The calculation can therefore be repeated under different assumptions for the cost of accepting a default.
 
 ```{r Net payoff sensitivity}
 best_net_payoff <- function(bad_loan_cost) {
@@ -207,19 +196,21 @@ data.frame(
 )
 ```
 
-The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The important point is not to treat these assumed payoffs as real bank profits, but to make explicit that cutoff selection is a business decision under costs and benefits, not only a statistical exercise.
+The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The important point is to read these assumed payoffs as a transparent cost-benefit exercise for cutoff selection, rather than as real bank profits.
 
-This simple net payoff rule is closely related to the credit-risk idea of expected loss, but it is not the same object. A standard expected-loss expression is:
+This simple net payoff rule is closely related to the credit-risk idea of expected loss. A standard expected-loss expression is:
 
 $$
 \text{Expected loss} = PD \times LGD \times EAD,
 $$
 
-where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$ is exposure at default. In this chapter, the predicted probability $\hat p_i$ plays the role of the model-based $PD$, while the values 1 and 5 are simplified teaching assumptions about benefits and costs. A full profitability model would also include loan amount, interest income, funding costs, recovery rates, and exposure. The simplified net payoff is useful because it makes the decision logic transparent before adding those additional banking details.
+where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$ is exposure at default. In this chapter, the predicted probability $\hat p_i$ plays the role of the model-based $PD$, while the values 1 and 5 are simplified teaching assumptions about benefits and costs. A full profitability model would also include loan amount, interest income, funding costs, recovery rates, and exposure. The simplified net payoff is a first cost-benefit version of the same decision logic before adding those additional banking details.
 
 ## ROC, AUC, and calibration
 
-The acceptance-rate analysis compares business rules at selected cutoffs. We now move to metrics that summarize ranking, calibration, and sensitivity/specificity across cutoffs. The ROC (Receiver Operating Characteristic) curve is a graphical representation used to evaluate the performance of a binary classification model, such as a credit risk model designed to predict defaults and non-defaults. In this context, the ROC curve plots the true positive rate, or sensitivity, against the false positive rate, which is equal to $1 - \text{specificity}$, across various cutoff values. We will still report specificity directly because it has a clear credit-risk interpretation: the proportion of non-default loans correctly identified as non-defaults.
+The acceptance-rate analysis compares business rules at selected cutoffs. The next metrics summarize ranking, calibration, and sensitivity/specificity across cutoffs. The ROC (Receiver Operating Characteristic) curve evaluates how well the model ranks defaults above non-defaults as the cutoff changes.
+
+Throughout this book, we draw ROC curves with sensitivity on the vertical axis and the false positive rate on the horizontal axis. The false positive rate is $1 - \text{specificity}$. In credit terms, it is the share of non-default loans that the model incorrectly classifies as predicted defaults at a given cutoff. This convention matches the ROC figures used in the next chapter.
 
 The area under the ROC curve (AUC) quantifies the model's ability to discriminate between the two classes: a higher AUC indicates better ranking performance. For example, a model with an AUC close to 1 tends to assign higher default probabilities to defaulting borrowers than to non-defaulting borrowers, while an AUC of 0.5 indicates no better ranking performance than random guessing. By analyzing the trade-off between sensitivity (correctly identifying defaults) and specificity (correctly identifying non-defaults), the ROC curve helps determine an operational threshold for classification, balancing the cost of misclassifying borrowers.
 
@@ -228,22 +219,69 @@ The area under the ROC curve (AUC) quantifies the model's ability to discriminat
 #| fig-cap: "ROC curves: Full model in blue, age model in orange."
 
 # Calculate ROC curves
-ROC_logi_full <- roc(test$loan_st, pred_logi_full)
-ROC_logi_age <- roc(test$loan_st, pred_logi_age)
+ROC_logi_full <- roc(test$loan_st, pred_logi_full, quiet = TRUE)
+ROC_logi_age <- roc(test$loan_st, pred_logi_age, quiet = TRUE)
 auc_logi_full <- as.numeric(auc(ROC_logi_full))
 auc_logi_age <- as.numeric(auc(ROC_logi_age))
 
-# Draw the ROC curves on one plot
-plot(ROC_logi_full, col = "blue", lwd = 3)
-lines(ROC_logi_age, col = "orange", lwd = 3)
-legend("bottomright", 
-       legend = c(paste0("Full model AUC: ", fmt_num(auc_logi_full, 4)),
-                  paste0("Age model AUC: ", fmt_num(auc_logi_age, 4))), 
-       col = c("blue", "orange"), 
-       lwd = 3)
+roc_to_df_logistic <- function(roc_object, model_name) {
+  data.frame(
+    false_positive_rate = 1 - roc_object$specificities,
+    true_positive_rate = roc_object$sensitivities,
+    model = model_name,
+    auc = as.numeric(auc(roc_object))
+  )
+}
+
+roc_logistic_comparison <- bind_rows(
+  roc_to_df_logistic(ROC_logi_full, "logi_full"),
+  roc_to_df_logistic(ROC_logi_age, "logi_age")
+) |>
+  mutate(
+    model_label = paste0(model, " (AUC = ", fmt_num(auc, 4), ")"),
+    model_label = factor(model_label, levels = unique(model_label))
+  ) |>
+  arrange(model_label, false_positive_rate)
+
+ggplot(
+  roc_logistic_comparison,
+  aes(x = false_positive_rate, y = true_positive_rate, color = model_label)
+) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray60",
+    linewidth = 0.7
+  ) +
+  geom_line(linewidth = 1.2) +
+  scale_color_manual(
+    values = c("blue", "orange"),
+    name = NULL
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  labs(
+    x = "False positive rate (1 - specificity)",
+    y = "True positive rate (sensitivity)"
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
 ```
 
-As expected, in @fig-fmibamio the area under the curve (AUC) is higher for the blue line which corresponds to the `logi_full` model. We can calculate the exact values for both models:
+In @fig-fmibamio, the blue curve for `logi_full` dominates the orange curve for `logi_age` over most of the plot. This indicates that `logi_full` gives a better ranking of high-risk and low-risk applicants. The exact AUC values make that comparison explicit:
 
 ```{r AUC good and bad model}
 # Compute the AUCs:
@@ -251,9 +289,9 @@ auc_logi_full
 auc_logi_age
 ```
 
-Note that the <tt>`logi_age`</tt> has an AUC of `r fmt_num(auc_logi_age, 4)`. This is close to a loan approval process in which we randomly accept and reject with no further analysis. In other words, the <tt>`logi_age`</tt> is so bad that it is almost equivalent as using no model at all and accept and reject loan applications based on a random rule.
+The `logi_age` model has an AUC of `r fmt_num(auc_logi_age, 4)`, which is close to the value produced by random ranking. That means age alone adds very little useful ranking information in this application. The `logi_full` model has an AUC of `r fmt_num(auc_logi_full, 4)`, so it ranks defaulting applicants above non-defaulting applicants much more effectively.
 
-The AUC is useful, but it does not answer every question. In particular, AUC evaluates discrimination or ranking: whether applicants who default tend to receive higher predicted probabilities than applicants who do not default. It does not tell us whether the predicted probabilities are well calibrated. Calibration is a different question. If the model assigns a group of applicants an average predicted probability of default of 20%, do about 20% of those applicants actually default?
+AUC answers a ranking question: do applicants who default tend to receive higher predicted probabilities than applicants who do not default? Calibration answers a probability question. If the model assigns a group of applicants an average predicted probability of default of 20%, do about 20% of those applicants actually default?
 
 This distinction matters because we have been calling the output of the model a probability of default. If the model is well calibrated, the predicted probabilities can be interpreted more literally. If the model is poorly calibrated, the model may still be useful for ranking applicants from low risk to high risk, but the numerical probability values should be interpreted with more caution.
 
@@ -294,7 +332,7 @@ calibration_models |>
 
 The interpretation is direct. If the average predicted probability and the observed default rate are close within each decile, the model is reasonably calibrated for that part of the risk distribution. If the observed default rate is systematically above the predicted probability, the model is underestimating credit risk. If the observed default rate is systematically below the predicted probability, the model is overestimating credit risk.
 
-We can visualize the same idea. The dashed line represents perfect calibration. Points close to the dashed line indicate that predicted probabilities and observed default rates are similar. Points far from the dashed line indicate calibration problems. We use the same colors as in the ROC figure: blue for the full model and orange for the age model.
+The same idea appears in the next plot. The dashed line represents perfect calibration. Points close to the dashed line indicate that predicted probabilities and observed default rates are similar. Points far from the dashed line indicate calibration problems. The colors match the ROC figure: blue for the full model and orange for the age model.
 
 ```{r}
 #| label: fig-calibration-models
@@ -358,17 +396,17 @@ $$
 {\text{Brier score of the benchmark}}.
 $$
 
-A value close to 0 means the model is barely improving on the constant default-rate benchmark; a positive value means the model reduces probability error relative to that benchmark. In code, `baseline_brier` is the denominator and `1 - brier_results$brier_score / baseline_brier` is the Brier skill calculation. The Brier score is not a pure calibration test because it also rewards models that separate high-risk and low-risk applicants, but it is a convenient way to summarize whether the predicted probabilities are numerically close to the observed default outcomes.
+A value close to 0 means the model is barely improving on the constant default-rate benchmark; a positive value means the model reduces probability error relative to that benchmark. In code, `baseline_brier` is the denominator and `1 - brier_results$brier_score / baseline_brier` is the Brier skill calculation. The Brier score combines probability accuracy with the model's ability to separate high-risk and low-risk applicants, so it is a convenient way to summarize whether the predicted probabilities are numerically close to the observed default outcomes.
 
 In practice, discrimination and calibration answer complementary questions. AUC helps us decide whether the model ranks applicants in a useful way. Calibration helps us decide whether the estimated probabilities can be interpreted as realistic probabilities of default. A lending strategy can benefit from both: ranking is useful for deciding whom to accept or reject, while calibration is useful for pricing, provisioning, stress testing, and communicating the meaning of a predicted probability.
 
-Sensitivity refers to the model's ability to correctly identify defaults, also known as true positives. Specificity, on the other hand, measures the model's ability to correctly identify non-default loans, also referred to as true negatives. In practical terms, a highly sensitive model minimizes the risk of missing actual defaults, ensuring that loans likely to fail are identified and rejected. However, an extreme focus on sensitivity can lead to over-rejection, where many creditworthy applicants are misclassified as high risk. This conservative approach reduces potential defaults but can severely limit revenue, harming the firm's profitability and growth.
+Sensitivity is the share of actual defaults correctly identified as predicted defaults. Specificity is the share of actual non-defaults correctly identified as predicted non-defaults. Under our lending rule, higher sensitivity means fewer defaulting borrowers are mistakenly accepted. Higher specificity means fewer good borrowers are mistakenly rejected.
 
-Conversely, a model with high specificity ensures that most creditworthy borrowers are approved, maximizing loan issuance and short-term revenue. Yet, an exclusive focus on specificity may allow a significant number of risky loans to go undetected, resulting in a higher rate of defaults. Over time, the accumulation of bad debts could undermine the firm's financial stability, potentially leading to insolvency. Thus, balancing sensitivity and specificity is essential: the former safeguards against default-related losses, while the latter promotes profitable lending. The optimal trade-off will depend on the firm's risk appetite, financial goals, and regulatory constraints.
+The trade-off is financial. A very low cutoff rejects many applicants and tends to increase sensitivity, but it can reject many good borrowers. A very high cutoff accepts more applicants and tends to increase specificity, but it can accept more borrowers who default. The right balance depends on risk appetite, profitability, and regulation.
 
-If a firm were to accept all loans, it would achieve 100% specificity by correctly identifying all non-default loans, but it would fail to identify defaults, leading to the maximum bad rate possible and significant financial losses. Conversely, if the firm were to reject all loans that might potentially default, it would achieve 100% sensitivity by correctly identifying all defaults. However, this would result in rejecting all loan applications, including creditworthy borrowers, and consequently, the firm would not issue any loans. While this would eliminate credit risk, it would also severely restrict the firm's revenue and growth potential. In both cases, while some risks may be mitigated, the firm would face substantial operational challenges: one approach would expose the firm to financial instability due to the maximum bad rate, while the other would stifle business growth by not issuing any loans. Both scenarios emphasize the importance of balancing risk mitigation with sustainable business growth.
+The two extreme policies make the problem clear. Accepting everyone maximizes loan volume but accepts all defaults. Rejecting everyone eliminates accepted defaults but issues no loans. Useful credit policy lives between those extremes.
 
-The @fig-fmibamio contains the full range of possible cutoff values. Let's evaluate sensitivity and specificity at two acceptance-rate targets that we have reviewed before: 80% and 65%. Here the acceptance rate is not the same thing as the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile.
+The @fig-fmibamio contains the full range of possible cutoff values. We evaluate sensitivity and specificity at two acceptance-rate targets reviewed before: 80% and 65%. Here the acceptance rate is not the same thing as the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile. Since the ROC graph uses false positive rate on the horizontal axis, the guide lines below use $1-\text{specificity}$.
 
 
 ```{r}
@@ -432,20 +470,94 @@ print(results_df)
 ```{r}
 #| label: fig-fmibeitar
 #| fig-cap: "Full model in blue, evaluated in two acceptance rates: 65% in black, 80% in red."
-# Draw the ROCs on one plot with a title
-plot(ROC_logi_full, col = "blue", lwd = 3)
-abline(v = metrics_full_80["specificity"], col = "red", lty = 2, lwd = 2)
-abline(h = metrics_full_80["sensitivity"], col = "red", lty = 2, lwd = 2)
-abline(v = metrics_full_65["specificity"], col = "black", lty = 2, lwd = 2)
-abline(h = metrics_full_65["sensitivity"], col = "black", lty = 2, lwd = 2)
-legend("bottomright", 
-       legend = c("Acceptance rate of 80%", 
-                  "Acceptance rate of 65%"), 
-       col = c("red", "black"), 
-       lwd = 3, lty = 2)
+roc_full_df <- roc_to_df_logistic(ROC_logi_full, "logi_full") |>
+  arrange(false_positive_rate)
+
+roc_acceptance_guides <- data.frame(
+  target = c("Acceptance rate of 80%", "Acceptance rate of 65%"),
+  false_positive_rate = c(
+    1 - metrics_full_80["specificity"],
+    1 - metrics_full_65["specificity"]
+  ),
+  true_positive_rate = c(
+    metrics_full_80["sensitivity"],
+    metrics_full_65["sensitivity"]
+  )
+)
+
+ggplot(roc_full_df, aes(x = false_positive_rate, y = true_positive_rate)) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray60",
+    linewidth = 0.7
+  ) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_segment(
+    data = roc_acceptance_guides,
+    aes(
+      x = false_positive_rate,
+      xend = false_positive_rate,
+      y = 0,
+      yend = true_positive_rate,
+      color = target
+    ),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  geom_segment(
+    data = roc_acceptance_guides,
+    aes(
+      x = 0,
+      xend = false_positive_rate,
+      y = true_positive_rate,
+      yend = true_positive_rate,
+      color = target
+    ),
+    inherit.aes = FALSE,
+    linetype = "dashed",
+    linewidth = 1
+  ) +
+  geom_point(
+    data = roc_acceptance_guides,
+    aes(
+      x = false_positive_rate,
+      y = true_positive_rate,
+      color = target
+    ),
+    inherit.aes = FALSE,
+    size = 2.8
+  ) +
+  scale_color_manual(
+    values = c("Acceptance rate of 80%" = "red",
+               "Acceptance rate of 65%" = "black"),
+    name = NULL
+  ) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  labs(
+    x = "False positive rate (1 - specificity)",
+    y = "True positive rate (sensitivity)"
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
 ```
 
-Let's check if these sensitivity and specificity results are correct. 
+The next two confusion matrices verify the sensitivity and specificity results.
 
 The sensitivity value is: $\text{Sensitivity} = \frac{\text{True positives}}{\text{True positives} + \text{False negatives}}$.
 
@@ -494,97 +606,110 @@ CrossTable(test$loan_st, pred_full_65, prop.r = FALSE,
 
 For this rule, sensitivity is `r round(sens_65, 4)`, calculated as `r tp_65` / (`r tp_65` + `r fn_65`). Specificity is `r round(spec_65, 4)`, calculated as `r tn_65` / (`r tn_65` + `r fp_65`).
 
-In a credit risk model that predicts default and non-default cases, there is an inherent trade-off between sensitivity and specificity. Under the rule "reject if predicted probability of default is above the cutoff," lowering the cutoff rejects more applicants. This usually increases sensitivity because more actual defaulters are detected, but it also reduces specificity because more non-defaulting borrowers are misclassified as defaulters. Conversely, raising the cutoff accepts more applicants and improves specificity by reducing false positives, but it risks missing actual defaulters, thereby lowering sensitivity.
+Under the rule "reject if predicted probability of default is above the cutoff," lowering the cutoff rejects more applicants. This usually increases sensitivity because more actual defaulters are detected. It also reduces specificity because more non-defaulting borrowers are misclassified as defaulters. Raising the cutoff accepts more applicants and improves specificity by reducing false positives, but it risks missing actual defaulters and lowers sensitivity.
 
-A pure-random approval rule would look like this:
+A pure-random score would look like this:
 
 ```{r}
 #| label: fig-rrm
-#| fig-cap: "Random rule model."
+#| fig-cap: "Random-score ROC benchmark."
 set.seed(2020)
 pred_rand_model <- runif(length(pred_logi_age))
-ROC_rand <- roc(test$loan_st, pred_rand_model)
-# Draw the ROCs on one plot
-plot(ROC_rand, col = "red")
-auc(ROC_rand)
+ROC_rand <- roc(test$loan_st, pred_rand_model, quiet = TRUE)
+auc_rand <- as.numeric(auc(ROC_rand))
+
+roc_rand_df <- roc_to_df_logistic(ROC_rand, "Random score") |>
+  arrange(false_positive_rate)
+
+ggplot(roc_rand_df, aes(x = false_positive_rate, y = true_positive_rate)) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray60",
+    linewidth = 0.7
+  ) +
+  geom_line(color = "red", linewidth = 1.2) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  labs(
+    x = "False positive rate (1 - specificity)",
+    y = "True positive rate (sensitivity)"
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+
+auc_rand
 ```
 
-In theory, this random evaluation process would lead to an AUC of $0.5 = (1 \times 1)/2$. In contrast, now imagine we have a perfect model:
+A random score should produce a ROC curve close to the diagonal. The area under that diagonal is 0.5, so an AUC close to 0.5 means the score has almost no ranking power. Because the code uses a finite random sample, the reported AUC can be close to 0.5 without being exactly 0.5.
+
+A perfect score gives the opposite benchmark:
 
 ```{r}
 #| label: fig-pm
-#| fig-cap: "Perfect model."
-pred_perfect_model <- as.numeric(test$loan_st)
-ROC_perfect <- roc(test$loan_st, pred_perfect_model)
-plot(ROC_perfect)
-auc(ROC_perfect)
+#| fig-cap: "Perfect-score ROC benchmark."
+pred_perfect_model <- as.numeric(as.character(test$loan_st))
+ROC_perfect <- roc(test$loan_st, pred_perfect_model, quiet = TRUE)
+auc_perfect <- as.numeric(auc(ROC_perfect))
+
+roc_perfect_df <- data.frame(
+  false_positive_rate = c(0, 0, 1),
+  true_positive_rate = c(0, 1, 1)
+)
+
+ggplot(roc_perfect_df, aes(x = false_positive_rate, y = true_positive_rate)) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    color = "gray60",
+    linewidth = 0.7
+  ) +
+  geom_path(color = "blue", linewidth = 1.2) +
+  scale_x_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1),
+    expand = c(0.01, 0.01)
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    limits = c(0, 1.02),
+    breaks = seq(0, 1, 0.25),
+    expand = c(0.01, 0.01)
+  ) +
+  labs(
+    x = "False positive rate (1 - specificity)",
+    y = "True positive rate (sensitivity)"
+  ) +
+  coord_equal() +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank())
+
+auc_perfect
 ```
 
-In a perfect model, the AUC is equal to 1 ($1 \times 1$). The model correctly identifies defaults (100% sensitivity) and at the same time correctly identifies no-defaults (100% specificity).
+In a perfect score, every applicant who defaults receives a higher score than every applicant who does not default. The ROC curve therefore rises vertically from 0% to 100% sensitivity while the false positive rate is still 0%, and then moves horizontally along the top of the graph. The AUC is 1. At the right cutoff, the model identifies all defaults and all non-defaults correctly, giving 100% sensitivity and 100% specificity.
 
-Edward Malthouse explains these concepts quite well:
+For a short supplemental explanation of ROC and AUC, the following video may be useful:
 
 ```{r}
 embed_url("https://youtu.be/HljSmQhLs8M")
 ```
 
-```{r eval=FALSE, include=FALSE}
-log_1_remove_home <- glm(loan_st ~ grade + home + income
-+ emp_cat + ir_cat, family = "binomial", data = train)
+## What do we gain and what do we lose?
 
-pred_log_1_remove_home <- predict(log_1_remove_home, newdata = test, 
-                                type = "response")
-strategy_pred_log_1_remove_home <- 
-  bank(as.numeric(pred_log_1_remove_home))
-# Plot the strategy functions
-plot(bank_logi_full$accept_rate,
-     bank_logi_full$bad_rate, 
-     type = "l", xlab = "Acceptance rate", ylab = "Bad rate", 
-     lwd = 2, main = "logi_full")
-abline(v = 0.65, lty = 2)
-abline(h = bad_rate, lty = 2)
-lines(strategy_pred_log_1_remove_home$accept_rate, 
-     strategy_pred_log_1_remove_home$bad_rate,
-     type = "l", xlab = "Acceptance rate", 
-     ylab = "Bad rate", lwd = 2, main = "logi_multi", col = "red")
-abline(v = strategy_pred_log_1_remove_home[["accept_rate"]][8], lty = 2)
-abline(h = strategy_pred_log_1_remove_home[["bad_rate"]][8], lty = 2)
+Logistic regression gives us a transparent credit-scoring benchmark. The model produces a predicted probability of default, and the coefficients can be interpreted through log-odds and odds ratios. This makes the model easier to audit, explain, and connect to a lending rule.
 
-```
+The cost of that transparency is structure. Unless we manually add nonlinear terms or interactions, the model assumes a relatively simple relationship between the predictors and the log-odds of default. That can be too restrictive if credit risk depends on combinations of variables, such as interest rate and grade, or loan amount and income.
 
-```{r eval=FALSE, include=FALSE}
-#library(glmulti)
-#cloglog <- glmulti(loan_st ~ ., family = "binomial", 
- #                     data = train, level =2, 
-  #                 plotty = FALSE)
-
-#cloglog <- glm(loan_st~1+l_amnt+income+age+income:l_amnt+age:l_amnt+age:income+grade:age+emp_cat:income+emp_cat:age+ir_cat:l_amnt+ir_cat:income, family = "binomial", 
- #                     data = train)
-#predictions_cloglog <- predict(cloglog, newdata = test, type = "response")
-#strategy_predictions_cloglog <-
-#bank(as.numeric(predictions_cloglog))
-
-# Plot the strategy functions
-#par(mfrow = c(1, 2))
-#plot(bank_logi_full$accept_rate,
-#bank_logi_full$bad_rate,
-#type = "l", xlab = "Acceptance rate", ylab = "Bad rate",
-##lwd = 2, main = "logi_full")
-#abline(v = 0.65, lty = 2)
-#abline(h = bad_rate, lty = 2)
-#plot(strategy_predictions_cloglog$accept_rate,
-#strategy_predictions_cloglog$bad_rate,
-##type = "l", xlab = "Acceptance rate",
-#ylab = "Bad rate", lwd = 2, main = "logi_age")
-#abline(v = strategy_predictions_cloglog[["accept_rate"]][8], lty = 2)
-#abline(h = strategy_predictions_cloglog[["bad_rate"]][8], lty = 2)
-
-#plot(bank_logi_full$accept_rate,
-####bank_logi_full$bad_rate,
-#type = "l", xlab = "Acceptance rate", ylab = "Bad rate",
-#lwd = 2, main = "logi_full",
-#xlim = c(0.65,1))
-#lines(strategy_predictions_cloglog$accept_rate, 
-#      strategy_predictions_cloglog$bad_rate, col = "red", lwd = 2)
-#abline(v=0.65)
-```
+The main gain from this chapter is therefore a disciplined workflow. We started with a probability model, converted probabilities into cutoff decisions, evaluated the resulting accepted portfolio, and connected the cutoff to bad rates, calibration, AUC, Brier score, and net payoff. The next chapter keeps the same credit scoring problem and the same evaluation logic, but changes the model class. That lets us ask a sharper question: can tree-based models capture interactions and nonlinear patterns that the logistic benchmark may miss, and do those extra patterns improve credit decisions out of sample?

@@ -16,6 +16,8 @@ The philosophy of these models goes back to @black1973pricing, @merton1973theory
 
 The same structural-credit language remains active. Recent research extends structural models by allowing the firm's debt policy, and therefore the default boundary, to move over time; this matters for predicted credit spreads [@FeldhutterSchaefer2023DebtDynamics]. In industry practice, Moody's 2025 EDF-X example shows the related use of forward-looking PD signals to identify credit deterioration before a bankruptcy event [@MoodysFirstBrands2025]. This chapter keeps the classic Merton model because it makes the core objects visible: asset value, promised debt payment, asset volatility, distance to default, and the conversion from those objects to a model-implied PD.
 
+The route through the chapter is deliberately sequential. First, we use a two-state example to explain why risk-neutral probabilities are pricing weights rather than real-world default frequencies. Second, we replicate Hull's Merton equations and solve for the unobserved asset value $V_0$ and asset volatility $\sigma_V$. Third, we connect the fitted model to the risk-neutral default probability $N(-d_2)$. Fourth, we simulate risk-neutral asset paths to make the terminal-default event visible. Fifth, we read equity as a call option on the firm's assets. Finally, we use sensitivity and capital-structure scenarios to ask how changes in equity value, volatility, promised debt payment, maturity, and the risk-free rate affect the model-implied probability of default.
+
 ## Why risk-neutral valuation works here
 
 The Merton model links today, $t=0$, with debt maturity, $t=T$. At $t=0$, market values such as equity value are observed. At $t=T$, the firm either repays the promised debt payment $D$ or defaults. The key future variable is the value of the firm's assets at maturity, $V_T$.
@@ -138,7 +140,7 @@ $$
 E_0=\frac{0.80(10)+0.20(0)}{1.05}=7.6190.
 $$
 
-This is the no-arbitrage value today of equity in the one-period example: $E_0=7.6190$. We can verify this directly by constructing a portfolio that reproduces the equity payoff. Let $\Delta$ be the number of units of the firm's assets held today, and let $C$ be the cash position invested in the risk-free asset. If $C<0$, the portfolio borrows at the risk-free rate.
+This is the no-arbitrage value today of equity in the one-period example: $E_0=7.6190$. The value can be verified directly by constructing a portfolio that reproduces the equity payoff. Let $\Delta$ be the number of units of the firm's assets held today, and let $C$ be the cash position invested in the risk-free asset. If $C<0$, the portfolio borrows at the risk-free rate.
 
 To match the equity payoff in both states, the portfolio must satisfy
 

@@ -46,4 +46,6 @@ vignettes/*.pdf
 /index_files/
 /Logistic.html
 /Logistic_files/
+/02-merton-minimize.html
+/02-merton-minimize_files/
 /libs/

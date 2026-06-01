@@ -63,10 +63,10 @@ colnames(loss_distribution_matrix) <- paste0("rho = ", fmt_num(loss_rhos, 1))
 Defaults become financially useful when we attach exposures and recoveries. In one simulated credit scenario $s$, portfolio loss is
 
 $$
-L_s=\sum_{i=1}^n EAD_i \times LGD_i \times D_{i,s},
+L_s=\sum_{i=1}^n EAD_i \times LGD_i \times Y_{i,s},
 $$
 
-where $D_{i,s}$ equals 1 when firm $i$ defaults in scenario $s$ and 0 otherwise. The code applies the same calculation.
+where $Y_{i,s}$ equals 1 when firm $i$ defaults in scenario $s$ and 0 otherwise. The code applies the same calculation.
 
 ```{r}
 ead <- rep(10e6, 10)

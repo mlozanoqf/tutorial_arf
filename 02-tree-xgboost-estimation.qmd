@@ -2,6 +2,43 @@
 
 XGBoost requires a numerical matrix. This is why we use `model.matrix()`: it converts categorical variables such as `grade`, `home`, `sex`, and `region` into indicator variables, while keeping numerical variables such as `age`, `int`, `l_amnt`, and `income` in numerical form. This encoding step is important because it makes explicit what the algorithm receives as input. The mathematical object $x_i$ is represented in code by one row of `xgb_train_matrix` or `xgb_test_matrix`; the observed outcome $y_i$ is represented by `xgb_train_label` or `xgb_test_label`.
 
+One row of the matrix is one applicant. Each column is one numerical signal that the algorithm can use when it searches for splits. After this transformation, XGBoost no longer sees a variable called `grade` as a word or category. It sees numerical columns indicating the applicant's grade level. This is the bridge between the credit application data and the algorithm.
+
+The translation from the financial object to the R object is:
+
+```{r XGBoost object bridge}
+knitr::kable(
+  data.frame(
+    step = c(
+      "Borrower and loan information",
+      "Observed default outcome",
+      "Encoded numerical matrix",
+      "XGBoost score",
+      "Predicted probability of default",
+      "Credit decision"
+    ),
+    R_object = c(
+      "`train` and `test`",
+      "`loan_st`",
+      "`xgb_train_matrix` and `xgb_test_matrix`",
+      "`predict(..., outputmargin = TRUE)` conceptually",
+      "`pred_xgb`",
+      "cutoff or acceptance-rate rule"
+    ),
+    interpretation = c(
+      "Applicant characteristics available before the lending decision",
+      "Historical repayment result used for training and evaluation",
+      "One row per applicant and one numerical column per model signal",
+      "Log-odds scale value produced by the boosted trees",
+      "Default-risk estimate after the logistic transformation",
+      "Rule that converts the PD into accept or reject"
+    )
+  ),
+  caption = "Bridge between credit-scoring objects and XGBoost objects.",
+  escape = FALSE
+)
+```
+
 ```{r XGBoost design matrices}
 data.frame(
   object = c("training matrix", "test matrix"),
@@ -11,6 +48,18 @@ data.frame(
 ```
 
 The model was estimated with shallow trees and a moderate number of boosting rounds. We can inspect the training process by re-estimating the model at selected boosting rounds and calculating AUC on both the training and test sets.
+
+```{r include=FALSE}
+xgb_final_round <- max(xgb_learning_curve$rounds)
+xgb_final_train_auc <- xgb_learning_curve$auc[
+  xgb_learning_curve$rounds == xgb_final_round &
+    xgb_learning_curve$series == "Train AUC"
+]
+xgb_final_test_auc <- xgb_learning_curve$auc[
+  xgb_learning_curve$rounds == xgb_final_round &
+    xgb_learning_curve$series == "Test AUC"
+]
+```
 
 ```{r}
 #| label: fig-xgboost-learning
@@ -27,7 +76,9 @@ ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
 
 The training curve helps us see whether the model is learning useful structure or merely memorizing the training data. If training AUC keeps increasing while test AUC stops improving or falls, the model may be overfitting. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
 
-The curve is a diagnostic, not an invitation to tune repeatedly on the test set. If we wanted to optimize XGBoost carefully, we would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
+At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The gap between those two values is part of the diagnostic. A very large gap would suggest that the ensemble is fitting details that do not generalize well. Here the learning curve explains the behavior of the model instead of chasing the best-looking test-set point.
+
+The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 
 ```{r XGBoost prediction range}
 data.frame(
@@ -40,3 +91,5 @@ data.frame(
 ```
 
 The XGBoost model returns predicted probabilities of default, just like the logistic model. In code, those probabilities are stored in `pred_xgb`; mathematically, they are the $\hat p_i$ values used by the same evaluation equations from Chapter 1. Therefore, all the credit-risk tools developed in Chapter 1 still apply: cutoffs, acceptance rates, bad rates, calibration, Brier score, and net payoff.
+
+The prediction range table should be read as a risk-segmentation summary. The minimum, median, and maximum predicted PD tell us how widely the model spreads applicants across the risk scale. A model that assigns nearly the same PD to everyone would have little value for screening, even if that average PD were reasonable. A useful scoring model must separate applicants enough to support different decisions.

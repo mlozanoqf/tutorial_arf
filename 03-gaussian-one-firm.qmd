@@ -34,7 +34,7 @@ Before linking firms through common shocks, it is useful to check the one-firm r
 The rule can be written as a two-case definition:
 
 $$
-D_i(5)=
+Y_i(5)=
 \begin{cases}
 1, & \text{if } X_i \leq N^{-1}(0.15),\\
 0, & \text{if } X_i > N^{-1}(0.15).
@@ -65,7 +65,7 @@ kable(
 )
 ```
 
-Graphically, each simulated value of $X_i$ is a possible credit state for the firm. Lower values are weaker credit states. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
+In the figure, each simulated value of $X_i$ is a possible credit state for the firm. Lower values are weaker credit states. The firm defaults by year 5 when the simulated value falls to the left of the threshold.
 
 ```{r}
 #| label: fig-one-firm-marginal-default-check

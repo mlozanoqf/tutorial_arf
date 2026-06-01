@@ -12,6 +12,8 @@ In logistic regression, the model has a clear parametric form. A predictor chang
 
 This makes tree-based models attractive for credit scoring because credit risk is often shaped by interactions. A high interest rate may be more concerning for one grade than for another. A loan amount may have a different meaning depending on income. A linear logistic model can include interactions, but the analyst has to specify them. A tree-based model can discover some of these interactions directly from the data.
 
+All models in this chapter produce the same kind of output. For applicant $i$, each model returns a predicted probability of default, denoted $\hat p_i$. What changes is the construction of $\hat p_i$. The logistic model builds it from one coefficient equation. A single tree builds it from the observed default rate in one terminal leaf. XGBoost builds it from many small trees that are added together. Since the output is still a PD, the evaluation tools from Chapter 1 remain valid.
+
 The comparison will use the same evaluation logic developed in Chapter 1:
 
 ```{r Tree chapter model metrics preview}

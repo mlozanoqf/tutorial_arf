@@ -66,20 +66,51 @@ The financial meaning is longer than the code. `pd_cum` contains marginal cumula
 For the 5-year horizon, the threshold is `r fmt_num(default_threshold[5], 6)`. A simulated firm defaults by year 5 if its credit-state score is below that value.
 
 $$
-D_i(5)=
+Y_i(5)=
 \begin{cases}
 1, & \text{if } X_i \leq `r fmt_num(default_threshold[5], 6)`,\\
 0, & \text{if } X_i > `r fmt_num(default_threshold[5], 6)`.
 \end{cases}
 $$
 
-$D_i(5)$ is therefore a binary default variable. It equals 1 when firm $i$ defaults by year 5 and equals 0 when the firm survives through year 5. The cutoff rule is simple: values of $X_i$ below the threshold are counted as defaults, and values above the threshold are counted as survival.
+$Y_i(5)$ is therefore a binary default variable. It equals 1 when firm $i$ defaults by year 5 and equals 0 when the firm survives through year 5. The cutoff rule is simple: values of $X_i$ below the threshold are counted as defaults, and values above the threshold are counted as survival.
 
 Because $X_i$ is standard normal, this rule gives
 
 $$
-P(D_i(5)=1)=P(X_i \leq `r fmt_num(default_threshold[5], 6)`)=N(`r fmt_num(default_threshold[5], 6)`) = `r fmt_pct(pd_cum[5], 2)`.
+P(Y_i(5)=1)=P(X_i \leq `r fmt_num(default_threshold[5], 6)`)=N(`r fmt_num(default_threshold[5], 6)`) = `r fmt_pct(pd_cum[5], 2)`.
 $$
+
+A single simulated scenario can be read directly from the same rule. The next table uses the 5-year threshold and a few illustrative credit-state scores. A score below the threshold becomes $Y_i(5)=1$; a score above the threshold becomes $Y_i(5)=0$.
+
+```{r Gaussian threshold scenario example}
+threshold_scenario_example <- data.frame(
+  Firm = c("Firm A", "Firm B", "Firm C", "Firm D"),
+  Credit_state_score = c(-1.40, -1.05, -0.80, 0.25),
+  Default_threshold = rep(default_threshold[5], 4)
+)
+threshold_scenario_example$`Y_i(5)` <- ifelse(
+  threshold_scenario_example$Credit_state_score <=
+    threshold_scenario_example$Default_threshold,
+  1,
+  0
+)
+threshold_scenario_example$Interpretation <- ifelse(
+  threshold_scenario_example$`Y_i(5)` == 1,
+  "Default by year 5",
+  "Survival through year 5"
+)
+
+kable(
+  transform(
+    threshold_scenario_example,
+    Credit_state_score = fmt_num(Credit_state_score, 2),
+    Default_threshold = fmt_num(Default_threshold, 6)
+  ),
+  caption = "Illustrative threshold rule for one simulated credit scenario.",
+  row.names = FALSE
+)
+```
 
 The figure below shows the same logic graphically for year 1 and year 5. The shaded area is the cumulative probability of default by that horizon.
 

@@ -32,8 +32,8 @@ The organizing principle follows the literate programming spirit of @knuth1984li
 
 ## What's new in this edition {.unnumbered}
 
+- **Credit-scoring workflow:** Chapter 1 now connects logistic PDs with cutoff rules, bad rates, calibration, ROC/AUC, Brier score, and a simple lending payoff exercise.
+- **Tree-based benchmark:** Chapter 2 compares logistic regression, a single tree, and XGBoost using the same test set and the same credit-policy metrics.
+- **Merton model rebuild:** Chapter 3 now gives a fuller risk-neutral valuation bridge, replicates Hull's equations, checks the numerical solution, and links equity to a call payoff on firm assets.
 - **Portfolio credit risk:** Chapter 4 now builds the Gaussian copula model around Hull Example 24.7, correlated defaults, portfolio losses, concentration risk, and capital.
-- **Tail dependence:** A t-copula extension shows how heavier joint tails can change default clustering and loss measures while keeping the same marginal PDs.
-- **Credit VaR model risk:** The final application compares the Vasicek Gaussian benchmark with Gaussian and t-copula simulations.
-- **Cleaner chapter flow:** Credit VaR is now integrated into Chapter 4, so the book moves directly from copula portfolio risk to the references.
-- **Sharper visuals:** Chapter 4 figures now highlight default regions, threshold checks, loss tails, and model-risk comparisons more clearly.
+- **Tail-risk extension:** The final Chapter 4 sections compare Gaussian and t-copula assumptions and connect the simulation logic to Credit VaR, expected shortfall, and economic capital.

@@ -47,7 +47,7 @@ The modeling target is deliberately narrow: one standardized credit-state score 
 
 Simulation is useful here because a portfolio has many possible default combinations. With ten firms there are already $2^{10}=1{,}024$ possible default sets by a given horizon. The simulation creates many credit scenarios, applies the same default rule in each scenario, and counts the resulting portfolio defaults. The first check is mechanical: simulated default frequencies should reproduce the input PDs. After that check passes, the financial question is which value of $\rho$ is a reasonable description of common credit stress.
 
-Here, dependence means that the firms' credit-state scores tend to be weak together more often, or less often, than they would under independence. The copula correlation $\rho$ controls that shared movement. If $\rho$ is high, a bad scenario for one borrower is more likely to be a bad scenario for other borrowers too. The Gaussian copula procedure starts from individual cumulative PDs, converts them into default thresholds, draws correlated credit-state scores, and records which firms default in each scenario. Once we know which firms default, exposures and recoveries convert those default events into portfolio losses.
+Dependence has a concrete credit-risk meaning here. The firms' credit-state scores tend to be weak together more often, or less often, than they would under independence. The copula correlation $\rho$ controls that shared movement. If $\rho$ is high, a bad scenario for one borrower is more likely to be a bad scenario for other borrowers too. The Gaussian copula procedure starts from individual cumulative PDs, converts them into default thresholds, draws correlated credit-state scores, and records which firms default in each scenario. Once we know which firms default, exposures and recoveries convert those default events into portfolio losses.
 
 For the equal-correlation examples in this chapter, a simple one-factor version makes the shared shock visible:
 
@@ -128,7 +128,7 @@ kable(
 
 One detail is worth making explicit before we code. In the Gaussian copula simulation, $\rho$ is the correlation between the standardized normal credit-state scores $X_i$ and $X_j$. These are the continuous credit states we simulate first.
 
-The binary default variable $D_i$ is created after the threshold rule is applied. It equals 1 when firm $i$ defaults and 0 otherwise. The sample correlation between $D_i$ and $D_j$ is therefore a result of the simulation, and it depends on both $\rho$ and the default thresholds. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
+The binary default variable $Y_i(T)$ is created after the threshold rule is applied. It equals 1 when firm $i$ defaults by horizon $T$ and 0 otherwise. We use $Y_i(T)$ here to avoid confusing the default indicator with the promised debt payment $D$ from the Merton chapter. The sample correlation between $Y_i(T)$ and $Y_j(T)$ is therefore a result of the simulation, and it depends on both $\rho$ and the default thresholds. Later in the chapter we compute joint default probabilities directly from the simulated defaults.
 
 We now need one bridge between a default probability and a simulation rule. The bridge is a default threshold. Suppose firm $i$ has cumulative probability of default $Q_i(T)$ by horizon $T$. The Gaussian copula represents the firm's credit state with a standard normal score $X_i$. The threshold is the point on the normal scale that leaves probability $Q_i(T)$ to its left:
 
