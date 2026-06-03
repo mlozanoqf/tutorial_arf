@@ -38,7 +38,7 @@ AUC measures ranking ability: do defaulting borrowers tend to receive higher pre
 
 In this run, the highest AUC belongs to `r best_auc_row$model` with AUC `r round(best_auc_row$auc, 4)`. The lowest Brier score belongs to `r best_brier_row$model` with Brier score `r round(best_brier_row$brier_score, 4)`. These two criteria may point to the same model or to different models because they answer different questions. AUC asks whether the ranking is good. Brier score asks whether the probabilities are numerically close to the realized default outcomes.
 
-The results are useful precisely because they are mixed. XGBoost is a more flexible model class. In this specification, it is close to the logistic benchmark rather than dramatically better on every metric. This is a good reminder that a modern algorithm still has to earn its place out of sample.
+The results are useful precisely because they are mixed. XGBoost is a more flexible model class. In this specification, it is close to the logistic benchmark, with no dramatic improvement on every metric. This is a good reminder that a modern algorithm still has to earn its place out of sample.
 
 ```{r}
 #| label: fig-tree-roc-comparison
@@ -135,9 +135,9 @@ ggplot(calibration_comparison,
 
 Calibration is important because both models produce probabilities of default. A model can rank applicants well and still produce probabilities that are too high or too low. If the calibration curve is far from the dashed line, we should be cautious about interpreting the raw predicted values as literal probabilities.
 
-The dashed line is the ideal reference. A point near 10% on both axes means that applicants assigned an average PD near 10% defaulted about 10% of the time in that decile. A point above the line means realized defaults were higher than predicted in that group. A point below the line means realized defaults were lower than predicted. This plot therefore checks whether the PD numbers can be read as probabilities, not only as ranks.
+The dashed line is the ideal reference. A point near 10% on both axes means that applicants assigned an average PD near 10% defaulted about 10% of the time in that decile. A point above the line means realized defaults were higher than predicted in that group. A point below the line means realized defaults were lower than predicted. This plot therefore checks whether the PD numbers can be read as probabilities as well as ranks.
 
-If a flexible model ranks applicants well while its probabilities need improvement for pricing, provisioning, or stress testing, a common workflow is to keep the ranking model and recalibrate its predicted probabilities using a separate validation sample. Methods such as logistic calibration, sometimes called Platt scaling, or isotonic regression are designed for that purpose. We do not implement recalibration here, but the calibration plot tells us whether such a step may be needed before treating the predicted values as operational probabilities of default.
+If a flexible model ranks applicants well while its probabilities need improvement for pricing, provisioning, or stress testing, a common workflow is to keep the ranking model and recalibrate its predicted probabilities using a separate validation sample. Methods such as logistic calibration, sometimes called Platt scaling, or isotonic regression are designed for that purpose. Recalibration is outside this chapter, and the calibration plot tells us whether such a step may be needed before treating the predicted values as operational probabilities of default.
 
 ```{r}
 #| label: fig-tree-bad-rate-comparison
@@ -217,7 +217,7 @@ strategy_comparison |>
   theme(legend.position = "bottom")
 ```
 
-The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model is not necessarily the model with the highest AUC. It is the model that produces better decisions under the selected payoff rule.
+The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model may differ from the model with the highest AUC. The selected model is the one that produces better decisions under the payoff rule.
 
 The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r round(best_strategy_overall$net_payoff, 2)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
 

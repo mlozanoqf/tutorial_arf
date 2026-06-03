@@ -40,7 +40,7 @@ prop
 
 The proportions of "defaults" and "no defaults" in the train and test datasets are very similar to those in the original dataset, indicating that both samples are representative. Specifically, the proportion of "defaults" in the train and test datasets closely matches that of the original dataset, as does the proportion of "no defaults." This suggests that the random sampling process has preserved the overall distribution of the target variable, ensuring that the train and test sets reflect the characteristics of the full dataset.
 
-This split is enough for the teaching objective of the chapter: it lets us estimate models on one sample and evaluate their behavior on observations that were not used for estimation. In a production workflow, however, we would usually add one more layer. Model choices such as variable selection, cutoffs, and tuning decisions should be made with a training/validation structure or cross-validation, while a final holdout test set should be reserved for the last evaluation. In this book we use the test set repeatedly to make the logic visible, so the results should be read as a controlled learning exercise rather than as a complete production validation design.
+This split is enough for the teaching objective of the chapter. It lets us estimate models on one sample and evaluate their behavior on observations that were held back from estimation. In a production workflow, however, we would usually add one more layer. Model choices such as variable selection, cutoffs, and tuning decisions should be made with a training/validation structure or cross-validation, while a final holdout test set should be reserved for the last evaluation. In this book we use the test set repeatedly to make the logic visible, so the results should be read as a controlled learning exercise with limited claims about production validation.
 
 We begin with a deliberately simple model that uses only age. To keep the mathematical notation separate from the code, let $Y_i$ denote the value stored in `loan_st` for applicant $i$, and let $\text{age}_i$ denote that applicant's age. This first model helps us see the mechanics of logistic regression before adding more predictors.
 
@@ -56,7 +56,7 @@ $$
 \log\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \beta_1 \times \text{age}_i.
 $$
 
-Notice that this equation does not include an additive error term $\varepsilon_i$. In a linear regression, the error term is added to the equation for the observed outcome. In logistic regression, the observed outcome is binary, so the randomness is described by $Y_i \mid \text{age}_i \sim \text{Bernoulli}(p_i)$. The logit equation describes the conditional probability $p_i$, not the realized 0/1 outcome itself.
+This equation intentionally omits an additive error term $\varepsilon_i$. In a linear regression, the error term is added to the equation for the observed outcome. In logistic regression, the observed outcome is binary, so the randomness is described by $Y_i \mid \text{age}_i \sim \text{Bernoulli}(p_i)$. The logit equation describes the conditional probability $p_i$ that generates the realized 0/1 outcome.
 
 Where:
 
@@ -66,7 +66,7 @@ Where:
 
 * $\beta_0$ is the intercept, and $\beta_1$ is the coefficient for the predictor variable `age`.
 
-The dependent variable in logistic regression remains binary: in the data, `loan_st` is either 0 or 1. What the model transforms is not the observed 0/1 outcome itself, but the conditional probability of default, $p_i$. The transformation $\log\left(\frac{p_i}{1-p_i}\right)$, known as the *logit function*, maps probabilities $p_i$, which range between 0 and 1, to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s), such as age, and the transformed probability. The fraction $\frac{p_i}{1-p_i}$, called the *odds*, represents the ratio of the probability of an event happening $p_i$ to the probability of it not happening $1-p_i$, making it a natural choice for modeling binary outcomes.
+The dependent variable in logistic regression remains binary. In the data, `loan_st` is either 0 or 1. The model transforms the conditional probability of default, $p_i$, which generates the observed 0/1 outcome. The transformation $\log\left(\frac{p_i}{1-p_i}\right)$, known as the *logit function*, maps probabilities $p_i$, which range between 0 and 1, to the entire real number line $-\infty$ to $+\infty$. This allows the model to establish a linear relationship between the independent variable(s), such as age, and the transformed probability. The fraction $\frac{p_i}{1-p_i}$, called the *odds*, represents the ratio of the probability of an event happening $p_i$ to the probability of it not happening $1-p_i$, making it a natural choice for modeling binary outcomes.
 
 We estimate the age model with `glm()`.
 
@@ -115,7 +115,7 @@ Substituting $\text{age} = `r age_example_60`$: $p = \frac{\exp(`r fmt_num(beta_
 
 $p = \frac{\exp(`r fmt_num(age_logit_60, 5)`)}{1 + \exp(`r fmt_num(age_logit_60, 5)`)} = \frac{`r fmt_num(age_exp_60, 4)`}{1 + `r fmt_num(age_exp_60, 4)`} = `r fmt_num(age_pd_60, 4)` = `r fmt_pct(age_pd_60, 2)`$.
 
-The default probability estimates at ages 18 and 60 are very close. The model therefore does not generate much separation in predicted default risk, even when evaluated over a wide age range. This is an early warning that age alone is a weak predictor for this credit scoring problem.
+The default probability estimates at ages 18 and 60 are very close. The model therefore generates little separation in predicted default risk, even when evaluated over a wide age range. This is an early warning that age alone is a weak predictor for this credit scoring problem.
 
 The next figure shows the logistic regression model's output. The training data contain ages from `r fmt_num(age_min_train, 0)` to `r fmt_num(age_max_train, 0)`. The model maps those two endpoints to predicted default probabilities of `r fmt_pct(age_pd_min_train, 2)` and `r fmt_pct(age_pd_max_train, 2)`, respectively. The dotted indicators in the figure mark those two observed age limits and their corresponding probabilities.
 
@@ -197,11 +197,11 @@ ggplot(data = data.frame(age = ages, p = p_values), aes(x = age, y = p)) +
   labs(x = "Age", y = "Probability (p)") +
   theme_minimal()
 ```
-The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. The dotted vertical lines show that the realistic age range in the training data is only a small segment of the very wide x-axis needed to display the full sigmoid curve. The dotted horizontal lines show the corresponding predicted probabilities, which move only from `r fmt_pct(age_pd_observed_low, 2)` to `r fmt_pct(age_pd_observed_high, 2)` across the observed age range, a difference of `r fmt_pct(age_pd_observed_width, 2)`. The age-only model therefore does not generate meaningful separation in default probabilities for realistic applicants. To see probabilities close to 0 or 1, the model would require age values that are unrealistic or implausibly extreme.
+The logistic curve derived from this model is unreasonable because the probability $p$ changes very slowly with respect to age. The dotted vertical lines show that the realistic age range in the training data is only a small segment of the very wide x-axis needed to display the full sigmoid curve. The dotted horizontal lines show the corresponding predicted probabilities, which move only from `r fmt_pct(age_pd_observed_low, 2)` to `r fmt_pct(age_pd_observed_high, 2)` across the observed age range, a difference of `r fmt_pct(age_pd_observed_width, 2)`. The age-only model therefore generates little meaningful separation in default probabilities for realistic applicants. To see probabilities close to 0 or 1, the model would require age values that are unrealistic or implausibly extreme.
 
 The AIC value of the age model (`r format(round(aic_age), big.mark = ",")`) is useful when comparing models estimated on the same response variable and sample. The Akaike information criterion (AIC) is a mathematical method for comparing in-sample fit while penalizing model complexity. In statistics, AIC is used to compare different possible models; lower AIC values indicate a better in-sample trade-off between fit and parsimony among the models being compared. At the moment we cannot interpret the AIC very much because we only have one model and we cannot compare it with another AIC.
 
-The next candidate uses the interest rate as the only predictor of `loan_st`. At this stage we are still estimating models on the training set rather than evaluating test-set predictions.
+The next candidate uses the interest rate as the only predictor of `loan_st`. At this stage we are still estimating models on the training set, before evaluating test-set predictions.
 
 ```{r logi_int estimation}
 # Build a glm model with variable interest rate as a predictor.
@@ -257,7 +257,7 @@ round(odds_ratios, 4)
 
 For practical interpretation, the odds-ratio columns are usually more useful than the raw coefficient column. The coefficient is reported because it is what the logistic model estimates, but it is measured in log-odds units. The OR and its 95% interval translate that estimate into a multiplicative effect on the odds of default.
 
-The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed: a one-unit increase in `log(l_amnt)` is not the same as a one-dollar increase in loan amount. Most importantly, odds ratios are not probability changes. They describe multiplicative changes in the odds of default, while the implied change in probability depends on the starting probability. A final check is uncertainty: if the 95% interval for an odds ratio includes 1, the estimated effect is not statistically clear at the usual 5% level, even if the point estimate is above or below 1.
+The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed. A one-unit increase in `log(l_amnt)` differs from a one-dollar increase in loan amount. Most importantly, odds ratios describe multiplicative changes in the odds of default. The implied change in probability depends on the starting probability. A final check is uncertainty: if the 95% interval for an odds ratio includes 1, the estimated effect is statistically unclear at the usual 5% level, even if the point estimate is above or below 1.
 
 The next model uses all predictors available in the teaching dataset. We call it `logi_full` because it is the most complete candidate in this chapter. The purpose is to create a richer score before moving to the test-set evaluation, cutoff rules, bad rates, and bank strategy.
 
@@ -274,5 +274,5 @@ data.frame(
 )
 ```
 
-The AIC table says that `logi_full` has the strongest in-sample fit among the models considered here. That does not settle the problem. It only tells us which candidate fits the training data best after the AIC penalty for complexity. The next section asks a more practical question: when these models face applicants in the test set, do their predicted probabilities support useful lending decisions?
+The AIC table says that `logi_full` has the strongest in-sample fit among the models considered here. This is an in-sample result. It tells us which candidate fits the training data best after the AIC penalty for complexity. The next section asks a more practical question: when these models face applicants in the test set, do their predicted probabilities support useful lending decisions?
 

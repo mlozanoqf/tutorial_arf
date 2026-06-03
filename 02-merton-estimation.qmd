@@ -9,7 +9,7 @@ source("R/format-helpers.R")
 Inputs and Hull equations
 :::
 
-We use Example 24.3 in [@Hull]. The observed inputs are $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, and $D=10$. Here, $D$ is the promised debt payment due at maturity, not the current market value of debt. Using these inputs, we estimate the value of the assets today, $V_0$, and the volatility of the assets, $\sigma_V$. Those estimated asset quantities are then used to calculate the Merton risk-neutral probability of default $pd$, among other results.
+We use Example 24.3 in [@Hull]. The observed inputs are $E_0=3$, $\sigma_E=0.8$, $rf=0.05$, $T=1$, and $D=10$. Here, $D$ is the promised debt payment due at maturity. The current market value of debt is a different quantity. Using these inputs, we estimate the value of the assets today, $V_0$, and the volatility of the assets, $\sigma_V$. Those estimated asset quantities are then used to calculate the Merton risk-neutral probability of default $pd$, among other results.
 
 The risk-free rate appears here because equation 24.3 is a valuation equation. We are not assuming that the firm's assets truly earn the risk-free rate in the real world. We are valuing equity under the risk-neutral measure, which is the same logic used to price a European call option. In that artificial valuation world, default is still the event $V_T < D$. After estimating $V_0$ and $\sigma_V$, we will write the risk-neutral probability of that event as $N(-d_2)$.
 
@@ -60,7 +60,7 @@ $$
 
 This equation matters because equity is levered. Equity volatility is usually higher than asset volatility, and the scaling depends on the option delta $N(d_1)$ and on the ratio between asset value and equity value. Together, equations 24.3 and 24.4 give two conditions for the two unknowns, $V_0$ and $\sigma_V$. The code below writes each condition as an error. The numerical solution is the pair $(V_0,\sigma_V)$ that makes both errors as close to zero as possible.
 
-The numerical search also needs starting values. These starting values do not impose the answer; they only give the algorithm an economically sensible place to begin. For $V_0$, we start with equity value plus the risk-free present value of the promised debt payment, $E_0+De^{-rfT}$. This does not assume that debt is risk-free. It only gives a reasonable starting scale for the unobserved asset value. For $\sigma_V$, we use a simple deleveraging guess, $\sigma_E E_0/(E_0+De^{-rfT})$, because asset volatility is usually lower than equity volatility when equity is levered.
+The numerical search also needs starting values. These starting values give the algorithm an economically sensible place to begin. For $V_0$, we start with equity value plus the risk-free present value of the promised debt payment, $E_0+De^{-rfT}$. This is a starting scale for the unobserved asset value, not an assumption that debt is risk-free. For $\sigma_V$, we use a simple deleveraging guess, $\sigma_E E_0/(E_0+De^{-rfT})$, because asset volatility is usually lower than equity volatility when equity is levered.
 
 ::: {.merton-subhead}
 Solving the two Merton equations
@@ -175,7 +175,7 @@ $$
 Z<-d_2.
 $$
 
-This is only a change of scale. Instead of looking at future assets in units of money, we look at the same event in standard normal units. In our example, $d_2$ is positive, so default is the left-tail event $Z<-d_2$. Therefore:
+This is only a change of scale. We read the same future-asset event in standard normal units. In our example, $d_2$ is positive, so default is the left-tail event $Z<-d_2$. Therefore:
 
 $$
 P^Q(V_T<D)=P^Q(Z<-d_2)=N(-d_2).
@@ -334,7 +334,7 @@ ggplot2::ggplot(slice_v0_data, ggplot2::aes(x = asset_value, y = objective)) +
 
 @fig-hwftvotaactvoaatz is a one-dimensional slice of the minimization problem. In this slice, $\sigma_V$ is held fixed at the estimated value and only $V_0$ changes. The vertical dashed line marks the estimated asset value, and the red circle marks the value of the objective function at that estimate. The curve reaches its lowest point near the estimated $V_0$, so nearby alternatives for the asset value produce larger squared errors in equations 24.3 and 24.4. Economically, moving away from this $V_0$ makes it harder for the model to match both the observed equity value and the observed equity volatility.
 
-This figure is a diagnostic check rather than a separate estimation method. It shows that, conditional on the estimated $\sigma_V$, the optimizer has found a sensible asset value. For completeness, we now make the symmetric check by fixing $V_0$ and varying $\sigma_V$.
+This figure is a diagnostic check separate from the estimation method. It shows that, conditional on the estimated $\sigma_V$, the optimizer has found a sensible asset value. For completeness, we now make the symmetric check by fixing $V_0$ and varying $\sigma_V$.
 
 ```{r}
 #| label: fig-hwftvotaatzactvota
@@ -572,5 +572,7 @@ kable(t(ans), caption = "Merton-implied bond yield spread.")
 
 Numerically, the model-implied market value of debt is `r fmt_num(market_value_debt, 4)`. Since the promised debt payment is `r fmt_num(D, 0)` and maturity is `r fmt_num(TT, 0)` in this example, the implied debt yield is `r fmt_pct(merton_implied_debt_yield, 4)`. With a risk-free rate of `r fmt_pct(rf, 2)`, the Merton-implied spread is `r fmt_pct(merton_implied_spread, 4)`, or about `r fmt_num(10000 * merton_implied_spread, 1)` basis points.
 
-This is a model-implied benchmark, not a market quote and not a complete corporate bond pricing model. It is the spread that makes the model-implied value of debt consistent with the promised debt payment at maturity. In practice, an observed corporate bond spread can differ from this benchmark because of liquidity, taxes, seniority, covenants, multiple debt maturities, and broader risk-premium effects. Still, the comparison is useful: if the market spread is much higher than the Merton-implied spread, the bond is paying more compensation than this structural default model suggests; if it is much lower, the bond is paying less.
+This is a model-implied benchmark. It is the spread that makes the model-implied value of debt consistent with the promised debt payment at maturity. In practice, an observed corporate bond spread can differ from this benchmark because of liquidity, taxes, seniority, covenants, multiple debt maturities, and broader risk-premium effects. Still, the comparison is useful: if the market spread is much higher than the Merton-implied spread, the bond is paying more compensation than this structural default model suggests; if it is much lower, the bond is paying less.
+
+The next chapter develops that comparison directly. It takes default probabilities, recovery assumptions, corporate bond prices, and CDS spreads, then asks how default risk becomes market compensation.
 

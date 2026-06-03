@@ -76,7 +76,7 @@ ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
 
 The training curve helps us see whether the model is learning useful structure or merely memorizing the training data. If training AUC keeps increasing while test AUC stops improving or falls, the model may be overfitting. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
 
-At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The gap between those two values is part of the diagnostic. A very large gap would suggest that the ensemble is fitting details that do not generalize well. Here the learning curve explains the behavior of the model instead of chasing the best-looking test-set point.
+At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The gap between those two values is part of the diagnostic. A very large gap would suggest that the ensemble is fitting training details with poor generalization. Here the learning curve explains the behavior of the model and discourages chasing the best-looking test-set point.
 
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 

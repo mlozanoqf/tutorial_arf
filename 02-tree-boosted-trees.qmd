@@ -54,6 +54,6 @@ $$
 
 where $y_i$ is 1 for default and 0 for no default, and $\hat p_i$ is the predicted probability of default. This loss penalizes confident wrong probabilities heavily. If a borrower defaults and the model assigns a very low probability of default, the loss is large. If a borrower does not default and the model assigns a very high probability of default, the loss is also large. In code, `objective = "binary:logistic"` and `eval_metric = c("logloss", "auc")` connect this mathematical objective to the XGBoost estimation.
 
-The maximum depth limits how complex each individual tree can be. The learning rate controls how strongly each tree contributes. Subsampling and column sampling make the model less dependent on any one subset of rows or variables. These choices are part of the model design, not just computational details.
+The maximum depth limits how complex each individual tree can be. The learning rate controls how strongly each tree contributes. Subsampling and column sampling make the model less dependent on any one subset of rows or variables. These choices are part of the model design and have computational consequences.
 
 The financial interpretation is simple even if the algorithm is more complex. XGBoost is still trying to rank applicants by default risk and assign a usable PD. The extra machinery matters only if it improves those credit decisions out of sample.

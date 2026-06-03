@@ -65,7 +65,7 @@ ggplot2::ggplot(
 
 Figure @fig-so10pota should be read as follows. Each black curve is one risk-neutral path for the firm's asset value, $V_t$. The horizontal red line is the promised debt payment, $D$. The blue point marks the starting value, $V_0$. The open circles at maturity classify the terminal values: green means $V_T>D$ and red means $V_T<D$.
 
-These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate rather than the firm's real-world expected asset return. The formal name is 10 simulated geometric Brownian motion paths under the risk-neutral measure.
+These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate and not the firm's real-world expected asset return. The formal name is 10 simulated geometric Brownian motion paths under the risk-neutral measure.
 
 Before counting defaults at maturity, let's first count the paths in which $V_t<D$ at least once before or at maturity. Here I use $t$, not $T$, because this first count asks whether a path ever crosses below the promised debt payment during the year. That is different from Merton default, which is determined by whether $V_T<D$ at maturity.
 
@@ -259,7 +259,7 @@ ggplot2::ggplot(
 
 Figure @fig-atpwl1asp shows the other side of the crossing story. Every colored path falls below $D$ at least once, but each one finishes above $D$ at maturity. The different colors only separate the paths visually. The financial message is that the path history helps us see the simulated movement of assets, while the basic Merton default event is decided at $T$.
 
-Instead of drawing complete paths, we can also simulate terminal asset values directly from the risk-neutral distribution of $V_T$. The resulting distribution is log-normal. This is useful because the default event depends only on whether the terminal value is below $D$.
+We can also simulate terminal asset values directly from the risk-neutral distribution of $V_T$. The resulting distribution is log-normal. This is useful because the default event depends only on whether the terminal value is below $D$.
 
 The next figure shows how the simulated risk-neutral probability of default changes as the number of simulated terminal values increases. The red bars are simulated terminal values with $V_T<D$. The blue bars are simulated terminal values with $V_T\ge D$. The dashed vertical line is the promised debt payment $D$.
 
@@ -491,9 +491,9 @@ The mapping is direct. The asset value $V_T$ plays the role of the underlying pr
 | Call expires worthless if $S_T<K$ | Equity is zero and the firm defaults if $V_T<D$ |
 | Call payoff, $\max(S_T-K,0)$ | Equity payoff, $\max(V_T-D,0)$ |
 
-This mapping is useful because it turns the credit problem into a contingent-claim problem. Default is the out-of-the-money region of equity. Survival is the in-the-money region. The debt payment $D$ becomes the default boundary. The option formula in section 3.2 is therefore not an unrelated Black-Scholes detour; it is the pricing formula for the equity claim once equity is understood as a call on the firm's assets. Observed equity value and equity volatility can then be used to infer the unobserved asset value and asset volatility, and those asset quantities determine the model-implied probability of default.
+This mapping is useful because it turns the credit problem into a contingent-claim problem. Default is the out-of-the-money region of equity. Survival is the in-the-money region. The debt payment $D$ becomes the default boundary. The option formula in section 3.2 therefore belongs in the credit-risk argument. It is the pricing formula for the equity claim once equity is understood as a call on the firm's assets. Observed equity value and equity volatility can then be used to infer the unobserved asset value and asset volatility, and those asset quantities determine the model-implied probability of default.
 
-It also clarifies what is being valued. The call formula values the equity claim, not the whole firm directly. In the Hull/Merton example, section 3.2 inferred a market asset value of $V_0=`r fmt_num(V0, 4)`$. The observed equity value is $E_0=`r fmt_num(E0, 0)`$, so the model-implied market value of debt is $B_0=V_0-E_0=`r fmt_num(market_value_debt, 4)`$. A buyer of the whole firm as a package of market-value assets would look at $V_0$. A buyer of only the shares would be buying the junior residual claim worth $E_0$. The difference between those two values is the debt claim, not a contradiction in valuation.
+It also clarifies what is being valued. The call formula values the equity claim. The whole-firm market asset value is the broader object. In the Hull/Merton example, section 3.2 inferred a market asset value of $V_0=`r fmt_num(V0, 4)`$. The observed equity value is $E_0=`r fmt_num(E0, 0)`$, so the model-implied market value of debt is $B_0=V_0-E_0=`r fmt_num(market_value_debt, 4)`$. A buyer of the whole firm as a package of market-value assets would look at $V_0$. A buyer of only the shares would be buying the junior residual claim worth $E_0$. The difference between those two values is the debt claim.
 
 This section reads the maturity payoff. The current equity value $E_0$ was already used in section 3.2 to calibrate $V_0$ and $\sigma_V$ through Hull's option-pricing equation. The figure below makes the payoff shape visible.
 

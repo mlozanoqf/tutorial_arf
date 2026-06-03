@@ -6,7 +6,7 @@ Logistic regression is transparent by construction. Its coefficients have a clea
 
 XGBoost is more flexible. It can capture nonlinear patterns and interactions without requiring the analyst to write those interactions into the formula. This can improve ranking, bad rates, or net payoff. That flexibility comes with responsibilities: tuning, validation, calibration, and interpretation cannot be skipped.
 
-The main lesson is that a modern model is not automatically a better credit policy. A better model must still survive several questions:
+The main lesson is that a modern model becomes useful only after it improves the credit policy. A better model must still survive several questions:
 
 1. Does it improve out-of-sample ranking?
 2. Are its probabilities reasonably calibrated?

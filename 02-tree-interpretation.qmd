@@ -18,7 +18,7 @@ xgb_importance |>
 
 Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. Direction and local interpretation require another tool.
 
-This distinction matters in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain is therefore a map of where the model is looking, not a full explanation of what the model predicts for a specific applicant.
+This distinction matters in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain therefore maps where the model is looking. Applicant-level interpretation requires additional tools.
 
 SHAP-style contributions provide a second view. For each observation, XGBoost can decompose the model score into contributions from the encoded variables plus a baseline term:
 
@@ -101,7 +101,7 @@ partial_dependence_data |>
   theme_minimal()
 ```
 
-Partial dependence should be read as model behavior rather than causal evidence. Changing a borrower's age, income, or interest rate in this plot shows how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
+Partial dependence should be read as model behavior, separate from causal evidence. Changing a borrower's age, income, or interest rate in this plot shows how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
 
 A useful way to read the plot is to imagine a controlled model exercise. For the interest-rate panel, for example, we repeatedly give the model the same test-set borrowers but replace the interest rate by one value on the horizontal axis. We then average the predicted PDs. The curve therefore answers a model question: how does the fitted XGBoost score respond when this input changes across the observed range?
 

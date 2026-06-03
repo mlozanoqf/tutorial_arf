@@ -22,6 +22,7 @@ book:
     - 01-logistic.qmd
     - 02-tree-based.qmd
     - 02-merton.qmd
+    - 04-credit-spreads-cds.qmd
     - 03-gaussian-copula.qmd
     - references.qmd
 

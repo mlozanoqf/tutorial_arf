@@ -97,7 +97,7 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
 
 The plot reinforces the same conclusion: at the same acceptance rate, `logi_full` produces a lower bad rate than `logi_age`. The two panels use separate vertical scales so the age-only curve remains readable even though its bad-rate values are very close to each other. The value of a stronger model lies in its capacity to support better business decisions, in this case, more accurate credit evaluations.
 
-The bad rate is useful, but it does not fully describe the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we define a hypothetical *net payoff*. It should be read as a transparent scoring rule rather than an accounting profit measure: accepting a good loan creates a benefit, and accepting a bad loan creates a cost.
+The bad rate is useful, but it only describes part of the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we define a hypothetical *net payoff*. It should be read as a transparent scoring rule, with accepting a good loan treated as a benefit and accepting a bad loan treated as a cost.
 
 Suppose that accepting a loan that does not default gives the bank a payoff of 1, while accepting a loan that defaults costs 5. Rejected loans receive a payoff of 0 because the bank does not issue the loan. Under these assumptions:
 
@@ -215,7 +215,7 @@ data.frame(
 )
 ```
 
-The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The important point is to read these assumed payoffs as a transparent cost-benefit exercise for cutoff selection, rather than as real bank profits.
+The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The assumed payoffs are a transparent cost-benefit exercise for cutoff selection, not real bank profits.
 
 This simple net payoff rule is closely related to the credit-risk idea of expected loss. A standard expected-loss expression is:
 
@@ -425,7 +425,7 @@ The trade-off is financial. A very low cutoff rejects many applicants and tends 
 
 The two extreme policies make the problem clear. Accepting everyone maximizes loan volume but accepts all defaults. Rejecting everyone eliminates accepted defaults but issues no loans. Useful credit policy lives between those extremes.
 
-The @fig-fmibamio contains the full range of possible cutoff values. We evaluate sensitivity and specificity at two acceptance-rate targets reviewed before: 80% and 65%. Here the acceptance rate is not the same thing as the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile. Since the ROC graph uses false positive rate on the horizontal axis, the guide lines below use $1-\text{specificity}$.
+The @fig-fmibamio contains the full range of possible cutoff values. We evaluate sensitivity and specificity at two acceptance-rate targets reviewed before: 80% and 65%. The acceptance rate differs from the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile. Since the ROC graph uses false positive rate on the horizontal axis, the guide lines below use $1-\text{specificity}$.
 
 
 ```{r}

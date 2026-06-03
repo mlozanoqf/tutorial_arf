@@ -78,7 +78,7 @@ The first 10 rows give a quick view of the variables and their coding.
 head(dat, 10)
 ```
 
-Note that `sex` is 1 for female and 0 for male. Instead of looking row by row, we can summarize a categorical variable such as `home` with the `CrossTable()` function.
+Note that `sex` is 1 for female and 0 for male. A categorical variable such as `home` can be summarized with the `CrossTable()` function.
 
 ```{r CrossTable as a way to summarize data}
 CrossTable(dat$home)
@@ -121,7 +121,7 @@ high_income <- dat[(dat$income > 1000000), ]
 high_income
 ```
 
-One individual (ID `r rownames(high_income)[which.max(high_income$age)]`) combines an extremely high income with an age of `r max(high_income$age)`. The age value is not credible, and the income values are extreme relative to the rest of the sample. In this book we continue with an analysis without these extreme observations. This is a discretionary cleaning criterion rather than a universal rule: in an applied project, we would document the decision and usually compare results with and without these observations.
+One individual (ID `r rownames(high_income)[which.max(high_income$age)]`) combines an extremely high income with an age of `r max(high_income$age)`. The age value is implausible, and the income values are extreme relative to the rest of the sample. In this book we continue with an analysis without these extreme observations. This is a discretionary cleaning criterion. In an applied project, we would document the decision and usually compare results with and without these observations.
 
 ```{r}
 high_income_index <- data.frame(value = as.integer(rownames(high_income)))

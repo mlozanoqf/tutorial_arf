@@ -143,7 +143,7 @@ ggplot2::ggplot() +
   )
 ```
 
-The figure is useful because it makes the scoring logic visible. We will use three words carefully. A split node asks a question and sends applicants to lower nodes. A split node is not a leaf, because the applicant still has to continue through the tree. A terminal leaf is where the tree stops and assigns the final predicted PD. A line is one possible answer to a split question. A path is the full route from the root node to one terminal leaf.
+The figure is useful because it makes the scoring logic visible. We will use three words carefully. A split node asks a question and sends applicants to lower nodes. A terminal leaf is where the tree stops and assigns the final predicted PD. A line is one possible answer to a split question. A path is the full route from the root node to one terminal leaf.
 
 In this fitted tree, there are `r sum(!tree_nodes$is_leaf)` split nodes and `r sum(tree_nodes$is_leaf)` terminal leaves. The root is counted as a split node because it creates the first partition of the data. Each box labeled Split is also a split node. None of those split nodes is counted as a leaf. A leaf is counted only when a box has no lines leaving it below. The five terminal boxes are labeled Leaf 1, Leaf 2, Leaf 3, Leaf 4, and Leaf 5 from left to right. A new applicant follows exactly one complete path from the root to one leaf, and the leaf at the end supplies the predicted PD.
 
@@ -214,7 +214,7 @@ knitr::kable(
 
 The lowest-risk leaf in this fitted tree assigns a PD of `r fmt_pct(leaf_summary$default_rate[lowest_leaf_index], 2)`. The highest-risk leaf assigns a PD of `r fmt_pct(leaf_summary$default_rate[highest_leaf_index], 2)`. The highest-risk path is Leaf `r leaf_summary$leaf_number[highest_leaf_index]`: `r leaf_path_plain[highest_leaf_index]`. This range is the main intuition behind a tree score. Applicants are sorted into different regions of the training data, and each region carries its own historical default rate.
 
-However, a single tree has an important weakness: it can be unstable. A small change in the training data can produce a different set of splits. A tree can also be too simple if it is shallow, or too noisy if it is allowed to grow too deep. This creates a natural motivation for ensemble methods, where many trees are combined instead of relying on one tree.
+However, a single tree has an important weakness: it can be unstable. A small change in the training data can produce a different set of splits. A tree can also be too simple if it is shallow, or too noisy if it is allowed to grow too deep. This creates a natural motivation for ensemble methods, where many trees are combined to reduce dependence on one tree.
 
 ```{r Single tree predictions}
 data.frame(

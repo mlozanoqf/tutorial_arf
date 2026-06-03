@@ -2,7 +2,7 @@
 
 
 
-The previous chapters focused on one borrower at a time. A logistic model estimates an individual default probability from borrower characteristics. A tree-based model does the same with a more flexible prediction function. The Merton model links a firm's equity, assets, debt, volatility, and default probability. A lender, bank, or investor usually holds a portfolio, so portfolio credit risk asks a different question.
+The previous chapters focused on one borrower at a time. A logistic model estimates an individual default probability from borrower characteristics. A tree-based model does the same with a more flexible prediction function. The Merton model links a firm's equity, assets, debt, volatility, and default probability. The credit-spread chapter then shows how market prices, bond spreads, and CDS spreads can translate default risk into compensation. A lender, bank, or investor usually holds a portfolio, so portfolio credit risk asks a different question.
 
 > Given individual default probabilities, exposures, recoveries, and a rule for how borrowers can default together, what is the distribution of portfolio defaults and credit losses?
 

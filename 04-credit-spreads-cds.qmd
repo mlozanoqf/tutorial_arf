@@ -1,0 +1,1153 @@
+# Credit Spreads and CDS Valuation
+
+
+
+The previous chapter used Merton to turn equity, debt, volatility, and the risk-free rate into a model-implied probability of default. That was a structural route to credit risk. This chapter uses a market route. It asks how default risk appears in the prices of corporate bonds and in credit default swap spreads.
+
+The financial question is practical:
+
+> Given a corporate bond spread, a recovery assumption, and a default model, is the bond paying enough compensation for credit risk?
+
+This question matters to a credit analyst, a fixed-income investor, a bank treasury desk, and a risk manager. A corporate bond pays coupons and also exposes the investor to the issuer's default risk. A credit spread is the extra yield over a default-free benchmark that investors demand for bearing that risk. A credit default swap, or CDS, prices a related contract: the protection buyer pays a periodic premium, and the protection seller pays if the reference entity defaults.
+
+The chapter stays in discrete time. That choice is deliberate. We will use yearly periods so that survival probabilities, marginal default probabilities, recovery payments, bond cash flows, and CDS cash flows can be read directly from tables. More advanced models often use continuous-time intensities and detailed day-count conventions. Those refinements are useful in professional pricing systems, but the discrete version is enough to see the mechanics.
+
+The route through the chapter is sequential. First, we build the default timeline with survival probabilities. Second, we price a risky zero-coupon bond. Third, we extend the same logic to a coupon bond. Fourth, we separate real-world and risk-neutral default probabilities. Fifth, we value a simple CDS and connect the CDS fair spread to the Merton PD from the previous chapter. Finally, we use a real Ford Motor Credit bond as a frozen market-data example to ask whether the observed spread is high or low relative to a simple default model.
+
+Every section repeats the same valuation discipline. First identify the promised cash flows. Then decide which states produce those cash flows. Then attach survival and default probabilities to those states. Finally discount the probability-weighted cash flows and compare the model value with the market quote. This order matters because a credit spread by itself is only a compact market summary of promised payments, default timing, recovery, discounting, and compensation for credit risk.
+
+The market example uses Ford Motor Credit Company LLC 2.900% notes due February 10, 2029. The note terms are taken from the SEC free writing prospectus for that issue [@FordCreditSEC2022FWP]. The market inputs are frozen for reproducibility: a clean mid price of 94.085 and a mid yield of 5.279% are taken from BondWatch's page for ISIN US345397B934 [@BondWatchFord2029]. The risk-free benchmark is the 3-year U.S. Treasury constant maturity yield of 4.09% reported in the Federal Reserve H.15 release for June 1, 2026 [@FedH152026]. These teaching inputs make the example reproducible; a live trading recommendation would require current bid and ask quotes, accrued interest, curve construction, liquidity analysis, and position-level constraints.
+
+```{r credit-spreads-setup, include=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(ggplot2)
+  library(knitr)
+})
+
+source("R/format-helpers.R")
+source("R/merton-common.R")
+
+fmt_price <- function(x, digits = 3) {
+  fmt_num(x, digits)
+}
+
+discount_factor <- function(r, t) {
+  1 / (1 + r)^t
+}
+
+survival_schedule <- function(h) {
+  h <- as.numeric(h)
+  n <- length(h)
+  survival_start <- c(1, cumprod(1 - h)[-n])
+  marginal_pd <- survival_start * h
+  survival_end <- survival_start - marginal_pd
+  data.frame(
+    period = seq_len(n),
+    h = h,
+    survival_start = survival_start,
+    marginal_pd = marginal_pd,
+    survival_end = survival_end,
+    cumulative_pd = 1 - survival_end
+  )
+}
+
+price_zero_defaultable <- function(face, r, recovery, h) {
+  sched <- survival_schedule(h)
+  maturity <- length(h)
+  recovery_leg <- sum(discount_factor(r, sched$period) * recovery * face * sched$marginal_pd)
+  survival_leg <- discount_factor(r, maturity) * face * sched$survival_end[maturity]
+  recovery_leg + survival_leg
+}
+
+price_coupon_defaultable <- function(face, coupon_rate, r, recovery, h) {
+  sched <- survival_schedule(h)
+  maturity <- length(h)
+  coupon <- face * coupon_rate
+  coupon_leg <- sum(discount_factor(r, sched$period) * coupon * sched$survival_end)
+  recovery_leg <- sum(discount_factor(r, sched$period) * recovery * face * sched$marginal_pd)
+  principal_leg <- discount_factor(r, maturity) * face * sched$survival_end[maturity]
+  coupon_leg + recovery_leg + principal_leg
+}
+
+price_coupon_components <- function(face, coupon_rate, r, recovery, h) {
+  sched <- survival_schedule(h)
+  maturity <- length(h)
+  coupon <- face * coupon_rate
+  coupon_leg <- sum(discount_factor(r, sched$period) * coupon * sched$survival_end)
+  recovery_leg <- sum(discount_factor(r, sched$period) * recovery * face * sched$marginal_pd)
+  principal_leg <- discount_factor(r, maturity) * face * sched$survival_end[maturity]
+  data.frame(
+    component = c("Survival-weighted coupons", "Expected recovery", "Survival-weighted principal"),
+    present_value = c(coupon_leg, recovery_leg, principal_leg)
+  )
+}
+
+price_coupon_risk_free <- function(face, coupon_rate, r, maturity) {
+  coupon <- face * coupon_rate
+  periods <- seq_len(maturity)
+  sum(discount_factor(r, periods) * coupon) +
+    discount_factor(r, maturity) * face
+}
+
+coupon_bond_ytm <- function(price, face, coupon_rate, maturity) {
+  coupon <- face * coupon_rate
+  f <- function(y) {
+    periods <- seq_len(maturity)
+    sum(discount_factor(y, periods) * coupon) +
+      discount_factor(y, maturity) * face - price
+  }
+  uniroot(f, interval = c(-0.95, 1))$root
+}
+
+solve_flat_hazard_from_price <- function(price, face, coupon_rate, r, recovery, maturity) {
+  f <- function(h) {
+    price_coupon_defaultable(
+      face = face,
+      coupon_rate = coupon_rate,
+      r = r,
+      recovery = recovery,
+      h = rep(h, maturity)
+    ) - price
+  }
+  uniroot(f, interval = c(1e-8, 0.95))$root
+}
+
+cds_legs <- function(notional, r, recovery, h, spread) {
+  sched <- survival_schedule(h)
+  discount <- discount_factor(r, sched$period)
+  protection_leg <- notional * (1 - recovery) *
+    sum(discount * sched$marginal_pd)
+  premium_leg <- notional * spread *
+    sum(discount * sched$survival_end)
+  data.frame(
+    protection_leg = protection_leg,
+    premium_leg = premium_leg,
+    cds_value_to_protection_buyer = protection_leg - premium_leg
+  )
+}
+
+cds_fair_spread <- function(r, recovery, h) {
+  sched <- survival_schedule(h)
+  discount <- discount_factor(r, sched$period)
+  (1 - recovery) * sum(discount * sched$marginal_pd) /
+    sum(discount * sched$survival_end)
+}
+```
+
+Before introducing new notation, keep the output of the previous chapter in view. Merton gave a model-implied debt value and a model-implied credit spread for the Hull firm. Those quantities were the spread and debt value that make the structural model internally consistent.
+
+```{r}
+merton_bridge_table <- data.frame(
+  Quantity = c(
+    "Merton risk-neutral PD",
+    "Model-implied debt value",
+    "Promised debt payment",
+    "Merton-implied debt spread"
+  ),
+  Value = c(
+    fmt_pct(pd_merton, 4),
+    fmt_price(market_value_debt, 4),
+    fmt_price(D, 0),
+    paste0(fmt_bps(merton_implied_spread, 1), " bps")
+  )
+)
+kable(merton_bridge_table, caption = "Merton quantities carried into the credit-spread chapter.")
+```
+
+Read the table as a bridge between chapters. The Merton risk-neutral PD tells us how much probability weight the structural model puts on default states. The promised debt payment tells us what creditors are owed at maturity. The model-implied debt value and spread show how the same default risk appears in debt pricing.
+
+This chapter changes the object being priced. The Merton chapter valued the firm's equity as an option on assets. Here we price risky debt and CDS protection directly. The logic remains the same: a default probability becomes useful for valuation only after we specify recovery, discounting, promised cash flows, and the market compensation required for bearing credit risk.
+
+## Default timing in discrete time
+
+Start with one firm and a yearly timeline. Let $h_t$ denote the conditional probability that the firm defaults during year $t$, given that it survived to the beginning of that year. In this chapter, $h_t$ is the discrete default rate for the period.
+
+The conditional wording is important. A year-4 default can happen only for firms that reached the beginning of year 4. For valuation, this means we need two different probability objects. Survival probabilities weight the payments made in non-default states. Marginal default probabilities weight the recovery payments made in default states.
+
+Let $S_t$ denote the probability that the firm survives through the end of year $t$. We begin with $S_0=1$ because the firm is alive at time 0. If the conditional default probability in year $t$ is $h_t$, then:
+
+$$
+S_t=S_{t-1}(1-h_t).
+$$
+
+The marginal probability of default in year $t$ is:
+
+$$
+q_t=S_{t-1}h_t.
+$$
+
+This expression is easy to read. The firm must first reach the beginning of year $t$, which has probability $S_{t-1}$. Then it defaults during year $t$, conditional on being alive, with probability $h_t$.
+
+For example, suppose the conditional default probability is 2.5% per year for five years. Then the default timeline is:
+
+```{r}
+teaching_face <- 100
+teaching_r <- 0.04
+teaching_recovery <- 0.40
+teaching_h <- rep(0.025, 5)
+teaching_sched <- survival_schedule(teaching_h)
+
+teaching_sched_table <- data.frame(
+  Year = teaching_sched$period,
+  Conditional_PD = fmt_pct(teaching_sched$h, 2),
+  Survival_at_start = fmt_pct(teaching_sched$survival_start, 2),
+  Marginal_PD = fmt_pct(teaching_sched$marginal_pd, 2),
+  Survival_at_end = fmt_pct(teaching_sched$survival_end, 2),
+  Cumulative_PD = fmt_pct(teaching_sched$cumulative_pd, 2)
+)
+names(teaching_sched_table) <- c(
+  "Year",
+  "<em>h</em><sub>t</sub>",
+  "<em>S</em><sub>t-1</sub>",
+  "<em>q</em><sub>t</sub>",
+  "<em>S</em><sub>t</sub>",
+  "1 - <em>S</em><sub>t</sub>"
+)
+kable(
+  teaching_sched_table,
+  caption = "Discrete default timeline with a constant 2.5% conditional PD.",
+  escape = FALSE
+)
+```
+
+Notice that the marginal default probability declines slightly through time even though the conditional default probability is constant. The reason is mechanical. Fewer firms remain alive at the beginning of later years. A 2.5% default rate applied to a smaller surviving population gives a smaller unconditional default probability.
+
+The second row shows the logic numerically. The firm reaches the beginning of year 2 with probability `r fmt_pct(teaching_sched$survival_start[2], 2)`. Applying the same conditional PD of `r fmt_pct(teaching_sched$h[2], 2)` gives a year-2 marginal default probability of `r fmt_pct(teaching_sched$marginal_pd[2], 2)`. That marginal probability is the weight used for a recovery payment in year 2.
+
+The cumulative default probability by year 5 is `r fmt_pct(teaching_sched$cumulative_pd[5], 2)`, which is lower than $5 \times 2.5\%=12.5\%$. Compounding matters because the firm cannot default in year 5 if it already defaulted in an earlier year.
+
+The table carries the important accounting. At each horizon, the survival probability and the cumulative default probability add up to 100%. The firm has either defaulted by that date or survived through that date. The rest of the chapter uses exactly these columns: $S_t$ for promised payments that require survival, and $q_t$ for recovery payments that occur only in default states.
+
+## A risky zero-coupon bond
+
+Start with a zero-coupon bond because it has only one promised payment. This keeps the default mechanics visible. Once the single-payment case is clear, a coupon bond is just the same logic repeated across coupon dates.
+
+A risk-free zero-coupon bond with face value $F$ and maturity $T$ pays $F$ with certainty at maturity. Its price is:
+
+$$
+B_0^{rf}=\frac{F}{(1+r)^T}.
+$$
+
+A risky zero-coupon corporate bond pays different amounts in different credit states. If the issuer survives to maturity, the investor receives the face value $F$. If the issuer defaults during year $t$, the investor receives a recovery payment. In this simple example, recovery is a fixed fraction $R$ of face value, paid at the end of the default year. The risky price is:
+
+$$
+B_0^{risky}
+=
+\sum_{t=1}^{T}\frac{R F q_t}{(1+r)^t}
++
+\frac{F S_T}{(1+r)^T}.
+$$
+
+The first term is the present value of expected recovery payments. It uses $q_t$ because recovery is paid in the year default occurs. The second term is the present value of the promised face value weighted by survival to maturity. It uses $S_T$ because the full face value is paid only if the issuer reaches maturity.
+
+The code below implements the equation directly. In `price_zero_defaultable()`, `recovery_leg` is the summation over default years, and `survival_leg` is the survival-weighted face value at maturity.
+
+Use $F=100$, $r=4\%$, $R=40\%$, maturity of five years, and the same 2.5% conditional default probability. The risk-free value and risky value are:
+
+```{r}
+zero_risk_free_price <- teaching_face * discount_factor(teaching_r, 5)
+zero_risky_price <- price_zero_defaultable(
+  face = teaching_face,
+  r = teaching_r,
+  recovery = teaching_recovery,
+  h = teaching_h
+)
+zero_risky_yield <- (teaching_face / zero_risky_price)^(1 / 5) - 1
+zero_spread <- zero_risky_yield - teaching_r
+
+zero_table <- data.frame(
+  Quantity = c(
+    "Risk-free zero-coupon price",
+    "Risky zero-coupon price",
+    "Risky zero-coupon yield",
+    "Credit spread"
+  ),
+  Value = c(
+    fmt_price(zero_risk_free_price, 3),
+    fmt_price(zero_risky_price, 3),
+    fmt_pct(zero_risky_yield, 3),
+    paste0(fmt_bps(zero_spread, 1), " bps")
+  )
+)
+kable(zero_table, caption = "Risk-free and risky zero-coupon valuation.")
+```
+
+The risky bond is worth `r fmt_price(zero_risky_price, 3)`, while the risk-free bond is worth `r fmt_price(zero_risk_free_price, 3)`. The difference of `r fmt_price(zero_risk_free_price - zero_risky_price, 3)` is the present-value cost of default risk under these assumptions. The spread is the extra yield that summarizes this lower price using the promised face value. In this example, the risky yield is `r fmt_pct(zero_risky_yield, 3)`, so the spread over the 4% risk-free rate is `r fmt_bps(zero_spread, 1)` basis points.
+
+This yield is a pricing convention. It is the constant yield that makes the promised face value of 100 match the risky price today. It should be read together with the default assumptions that generated the price.
+
+The approximation many credit analysts remember is:
+
+$$
+s \approx h(1-R).
+$$
+
+In the example, this gives:
+
+$$
+s \approx 0.025(1-0.40)=0.015,
+$$
+
+or about 150 basis points. The exact spread from the five-year zero-coupon calculation is `r fmt_bps(zero_spread, 1)` basis points. The approximation is close because the example uses a flat conditional default probability and a simple recovery assumption.
+
+The approximation is useful as a quick diagnostic. With a 2.5% annual conditional PD and 60% loss given default, the annual expected credit loss is about 1.5% of face value. The full valuation adds discounting, compounding, and the fact that default can occur in different years.
+
+## A risky coupon bond
+
+Most corporate bonds pay coupons. The pricing logic is the same, but now the investor receives coupons only while the issuer survives. Let $C$ denote the annual coupon payment. In this simplified annual-payment model, coupons are paid at the end of each year only if the issuer survives through that year. If default occurs during year $t$, the model pays recovery at the end of that year and stops the remaining promised coupons and principal. The risky coupon bond price is:
+
+$$
+B_0^{risky}
+=
+\sum_{t=1}^{T}\frac{C S_t}{(1+r)^t}
++
+\sum_{t=1}^{T}\frac{R F q_t}{(1+r)^t}
++
+\frac{F S_T}{(1+r)^T}.
+$$
+
+There are three pieces:
+
+1. The expected coupon payments while the firm survives.
+2. The expected recovery payments if the firm defaults.
+3. The expected principal payment if the firm survives to maturity.
+
+The code mirrors this decomposition. In `price_coupon_defaultable()`, the objects named `coupon_leg`, `recovery_leg`, and `principal_leg` correspond to the three terms in the equation. This naming is deliberate because it lets us inspect the valuation directly.
+
+Use a 5-year bond with face value 100 and annual coupon rate 5%. Keep $r=4\%$, $R=40\%$, and the 2.5% conditional default probability. The risk-free coupon bond price and risky coupon bond price are:
+
+```{r}
+coupon_rate_teaching <- 0.05
+coupon_risk_free_price <- price_coupon_risk_free(
+  face = teaching_face,
+  coupon_rate = coupon_rate_teaching,
+  r = teaching_r,
+  maturity = 5
+)
+coupon_risky_price <- price_coupon_defaultable(
+  face = teaching_face,
+  coupon_rate = coupon_rate_teaching,
+  r = teaching_r,
+  recovery = teaching_recovery,
+  h = teaching_h
+)
+coupon_risky_yield <- coupon_bond_ytm(
+  price = coupon_risky_price,
+  face = teaching_face,
+  coupon_rate = coupon_rate_teaching,
+  maturity = 5
+)
+coupon_spread <- coupon_risky_yield - teaching_r
+
+coupon_table <- data.frame(
+  Quantity = c(
+    "Risk-free coupon bond price",
+    "Risky coupon bond price",
+    "Risky coupon bond yield",
+    "Credit spread"
+  ),
+  Value = c(
+    fmt_price(coupon_risk_free_price, 3),
+    fmt_price(coupon_risky_price, 3),
+    fmt_pct(coupon_risky_yield, 3),
+    paste0(fmt_bps(coupon_spread, 1), " bps")
+  )
+)
+kable(coupon_table, caption = "Risk-free and risky coupon bond valuation.")
+```
+
+The risky coupon bond is worth `r fmt_price(coupon_risky_price, 3)`. Its risk-free counterpart is worth `r fmt_price(coupon_risk_free_price, 3)`. The price difference of `r fmt_price(coupon_risk_free_price - coupon_risky_price, 3)` comes from the three probability-weighted cash-flow pieces in the pricing equation. The next table decomposes the risky price.
+
+```{r}
+coupon_components <- price_coupon_components(
+  face = teaching_face,
+  coupon_rate = coupon_rate_teaching,
+  r = teaching_r,
+  recovery = teaching_recovery,
+  h = teaching_h
+)
+coupon_components <- rbind(
+  coupon_components,
+  data.frame(component = "Total risky coupon bond price", present_value = coupon_risky_price)
+)
+coupon_components_table <- data.frame(
+  Component = coupon_components$component,
+  Present_value = fmt_price(coupon_components$present_value, 3),
+  Share_of_risky_price = c(
+    fmt_pct(
+      coupon_components$present_value[-nrow(coupon_components)] / coupon_risky_price,
+      1
+    ),
+    "100.0%"
+  )
+)
+names(coupon_components_table) <- c("Component", "Present value", "Share of risky price")
+kable(coupon_components_table, caption = "Risky coupon bond price decomposition.")
+```
+
+Read the table from top to bottom. The coupon leg is the present value of coupons paid in survival states. The recovery leg appears in default states. The principal leg is the promised principal weighted by survival to maturity. Adding these three pieces gives the risky bond price.
+
+In this example, survival-weighted coupons contribute `r fmt_price(coupon_components$present_value[1], 3)`, expected recovery contributes `r fmt_price(coupon_components$present_value[2], 3)`, and survival-weighted principal contributes `r fmt_price(coupon_components$present_value[3], 3)`. The principal leg is still the largest component because most of the promised value is concentrated at maturity.
+
+The figure below varies the conditional default probability and reprices the coupon bond. This is the valuation mechanics behind the phrase "credit spreads widen." Higher default risk lowers the bond price and raises the yield spread.
+
+```{r}
+#| label: fig-coupon-price-spread
+#| fig-cap: "Coupon bond price and yield spread as conditional default risk changes."
+h_grid <- seq(0.001, 0.10, length.out = 100)
+coupon_sensitivity <- data.frame(
+  h = h_grid,
+  price = sapply(h_grid, function(h) {
+    price_coupon_defaultable(
+      face = teaching_face,
+      coupon_rate = coupon_rate_teaching,
+      r = teaching_r,
+      recovery = teaching_recovery,
+      h = rep(h, 5)
+    )
+  })
+)
+coupon_sensitivity$yield <- sapply(coupon_sensitivity$price, function(price) {
+  coupon_bond_ytm(
+    price = price,
+    face = teaching_face,
+    coupon_rate = coupon_rate_teaching,
+    maturity = 5
+  )
+})
+coupon_sensitivity$spread_bps <- 10000 * (coupon_sensitivity$yield - teaching_r)
+coupon_sensitivity_plot <- rbind(
+  data.frame(
+    h = coupon_sensitivity$h,
+    value = coupon_sensitivity$price,
+    metric = "Bond price"
+  ),
+  data.frame(
+    h = coupon_sensitivity$h,
+    value = coupon_sensitivity$spread_bps,
+    metric = "Credit spread (bps)"
+  )
+)
+coupon_sensitivity_plot$metric <- factor(
+  coupon_sensitivity_plot$metric,
+  levels = c("Bond price", "Credit spread (bps)")
+)
+
+ggplot(coupon_sensitivity_plot, aes(x = h, y = value, color = metric)) +
+  geom_line(linewidth = 1.1) +
+  facet_wrap(~metric, scales = "free_y", ncol = 1) +
+  scale_x_continuous(labels = function(x) paste0(fmt_num(100 * x, 1), "%")) +
+  scale_color_manual(values = c(
+    "Bond price" = "#2C7FB8",
+    "Credit spread (bps)" = "#C0392B"
+  )) +
+  labs(x = "Annual conditional default probability", y = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "none",
+    strip.text = element_text(face = "bold"),
+    strip.background = element_rect(fill = "white", color = NA),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The economic interpretation is direct. As default risk rises, investors pay less today for the same promised coupon and principal. Since the promised cash flows stay the same, the lower price mechanically means a higher yield and a higher credit spread. The two panels are therefore the same credit-risk story in two units: price units on the left and yield-spread units on the right.
+
+## Real-world PDs and risk-neutral PDs
+
+At this point it is tempting to say that the bond spread tells us "the probability of default." That wording is too quick. A bond spread is a market price. A default probability used to price the bond is therefore a pricing probability. In the notation used earlier in the book, it is closer to a risk-neutral or market-implied probability than to a historical default frequency.
+
+This distinction connects directly with the previous chapters. A credit-scoring model estimates how frequently borrowers with certain characteristics default. A Merton model gives a risk-neutral default weight under an option-pricing structure. A bond spread reflects what the market requires to hold a risky cash-flow claim. These objects can inform each other, but they answer different questions.
+
+The distinction matters:
+
+| Question | Probability concept | Typical use |
+|---|---|---|
+| How often do similar borrowers actually default? | Real-world PD | credit scoring, expected loss, underwriting, reserves |
+| What default risk is consistent with market prices? | Risk-neutral or market-implied PD | bond pricing, CDS pricing, relative value, hedging |
+
+The numerical difference can be large even in a simple one-year approximation. Suppose an analyst estimates a real-world one-year PD of 1.00% and assumes 40% recovery. The default-loss-only spread approximation is:
+
+$$
+s_{\mathrm{loss}} \approx h(1-R).
+$$
+
+If the observed market spread is 120 basis points, the spread-implied default rate under the same recovery assumption is higher:
+
+```{r}
+rw_pd_example <- 0.01
+rw_recovery_example <- 0.40
+market_spread_example <- 0.012
+rw_default_loss_spread <- rw_pd_example * (1 - rw_recovery_example)
+spread_implied_h_example <- market_spread_example / (1 - rw_recovery_example)
+extra_spread_example <- market_spread_example - rw_default_loss_spread
+
+pd_spread_example_table <- data.frame(
+  Quantity = c(
+    "Real-world PD assumption",
+    "Recovery assumption",
+    "Default-loss-only spread",
+    "Observed market spread",
+    "Extra spread over default-loss-only amount",
+    "Spread-implied h from market spread"
+  ),
+  Value = c(
+    fmt_pct(rw_pd_example, 2),
+    fmt_pct(rw_recovery_example, 0),
+    paste0(fmt_bps(rw_default_loss_spread, 1), " bps"),
+    paste0(fmt_bps(market_spread_example, 1), " bps"),
+    paste0(fmt_bps(extra_spread_example, 1), " bps"),
+    fmt_pct(spread_implied_h_example, 2)
+  )
+)
+kable(pd_spread_example_table, caption = "Historical PDs and spread-implied PDs answer different questions.")
+```
+
+The real-world expected default loss in this example corresponds to only `r fmt_bps(rw_default_loss_spread, 1)` basis points. The market spread is `r fmt_bps(market_spread_example, 1)` basis points. Reading the whole spread as default compensation would imply a conditional default rate of `r fmt_pct(spread_implied_h_example, 2)`, while the historical estimate was only 1.00%. The gap is the reason we treat spread-implied probabilities as pricing inputs rather than direct historical forecasts.
+
+A real-world PD can be lower than a market-implied PD because investors require compensation for bearing systematic credit risk, illiquidity, tax effects, and uncertainty about recovery. A spread-implied default probability therefore needs adjustment before it is interpreted as a literal forecast.
+
+For valuation, the practical consequence is simple. If the analyst priced the bond with the 1.00% real-world PD alone, the default-loss spread would be `r fmt_bps(rw_default_loss_spread, 1)` basis points. The market spread of `r fmt_bps(market_spread_example, 1)` basis points embeds more compensation than that. The extra compensation may reflect risk premia, liquidity, recovery uncertainty, or model error.
+
+This chapter uses market-implied probabilities for valuation. That is consistent with the Merton chapter. Merton's $N(-d_2)$ is a risk-neutral default weight implied by the option-pricing structure of the model. The next section uses that same idea in a CDS example.
+
+## CDS valuation in annual periods
+
+A CDS is a credit insurance contract in swap form. The protection buyer pays a spread, usually quoted in basis points per year, until maturity or default. The protection seller pays if a credit event occurs. Industry descriptions often call these two sides the premium leg and the protection leg [@CFAInstituteCDS2025].
+
+CDS valuation is useful here because it isolates default compensation. A corporate bond mixes coupon income, principal repayment, interest-rate exposure, and default risk. A CDS focuses on the cost of buying or selling protection against default for a reference entity.
+
+In this simplified annual model, the protection leg is:
+
+$$
+\mathrm{PV}_{\mathrm{protection}}
+=
+N(1-R)\sum_{t=1}^{T}\frac{q_t}{(1+r)^t}.
+$$
+
+The notional is $N$. The loss given default is $1-R$. The marginal default probability in year $t$ is $q_t$. The discount factor brings the expected default payment back to today.
+
+The premium leg is:
+
+$$
+\mathrm{PV}_{\mathrm{premium}}
+=
+sN\sum_{t=1}^{T}\frac{S_t}{(1+r)^t}.
+$$
+
+The spread $s$ is the annual CDS premium as a decimal. The term
+
+$$
+\sum_{t=1}^{T}\frac{S_t}{(1+r)^t}
+$$
+
+is the risky annuity. It is the present value of one unit paid each year while the issuer survives.
+
+The risky annuity is the premium base of the CDS. It is smaller than a risk-free annuity because premium payments stop after default. This is why the denominator matters: a high default probability raises expected protection payments and also reduces the number of premium payments the seller expects to receive.
+
+At inception, the fair CDS spread sets the two legs equal:
+
+$$
+s^*
+=
+\frac{(1-R)\sum_{t=1}^{T}\frac{q_t}{(1+r)^t}}{\sum_{t=1}^{T}\frac{S_t}{(1+r)^t}}.
+$$
+
+The numerator is discounted expected default loss per unit of notional. The denominator is the discounted survival-weighted premium base. This formula is the discrete version of the protection-leg versus premium-leg logic used in CDS pricing. It has the same probability structure as the risky bond: default payments use $q_t$, while payments made only if the issuer remains alive use $S_t$.
+
+The code uses two functions. `cds_fair_spread()` computes the fair spread from the formula above. `cds_legs()` then checks the result by calculating the protection leg and the premium leg separately.
+
+Now connect this to Merton. The previous chapter estimated a one-year Merton risk-neutral default probability. In the Hull example used there, the model-implied PD is `r fmt_pct(pd_merton, 4)`. Treat that as a one-year market-implied input, assume 40% recovery, and value a one-year CDS.
+
+```{r cds-merton-bridge}
+merton_cds_recovery <- 0.40
+merton_cds_h <- pd_merton
+merton_cds_spread <- cds_fair_spread(
+  r = rf,
+  recovery = merton_cds_recovery,
+  h = merton_cds_h
+)
+merton_cds_legs <- cds_legs(
+  notional = 100,
+  r = rf,
+  recovery = merton_cds_recovery,
+  h = merton_cds_h,
+  spread = merton_cds_spread
+)
+
+merton_cds_table <- data.frame(
+  Quantity = c(
+    "Merton risk-neutral one-year PD",
+    "Recovery assumption",
+    "Loss given default",
+    "Fair one-year CDS spread",
+    "PV protection leg per 100 notional",
+    "PV premium leg per 100 notional"
+  ),
+  Value = c(
+    fmt_pct(pd_merton, 4),
+    fmt_pct(merton_cds_recovery, 0),
+    fmt_pct(1 - merton_cds_recovery, 0),
+    paste0(fmt_bps(merton_cds_spread, 1), " bps"),
+    fmt_price(merton_cds_legs$protection_leg, 4),
+    fmt_price(merton_cds_legs$premium_leg, 4)
+  )
+)
+kable(merton_cds_table, caption = "A one-year CDS spread implied by the Merton PD.")
+```
+
+The fair spread is high because the Merton default probability in this teaching example is high. The spread includes the Merton default probability, the 60% loss given default, and the survival-weighted premium base. At the fair spread, the present value of protection, `r fmt_price(merton_cds_legs$protection_leg, 4)`, equals the present value of premiums, `r fmt_price(merton_cds_legs$premium_leg, 4)`.
+
+For a one-year CDS, the formula is especially transparent. The fair spread is:
+
+$$
+s^*=
+\frac{(1-R)q_1}{S_1}.
+$$
+
+Substituting the numbers gives:
+
+$$
+s^*=
+\frac{(1-0.40)\times `r fmt_num(pd_merton, 6)`}{1-`r fmt_num(pd_merton, 6)`}
+=
+`r fmt_pct(merton_cds_spread, 4)`.
+$$
+
+That is `r fmt_bps(merton_cds_spread, 1)` basis points. The CDS spread is therefore a price of protection expressed as an annual premium.
+
+```{r}
+#| label: fig-cds-leg-crossing
+#| fig-cap: "CDS premium leg and protection leg as the spread changes."
+spread_grid <- seq(0, 0.20, length.out = 100)
+cds_crossing <- data.frame(
+  spread = spread_grid,
+  premium_leg = sapply(spread_grid, function(s) {
+    cds_legs(
+      notional = 100,
+      r = rf,
+      recovery = merton_cds_recovery,
+      h = merton_cds_h,
+      spread = s
+    )$premium_leg
+  }),
+  protection_leg = merton_cds_legs$protection_leg
+)
+
+ggplot(cds_crossing, aes(x = spread)) +
+  geom_line(aes(y = protection_leg, color = "Protection leg"), linewidth = 1.1) +
+  geom_line(aes(y = premium_leg, color = "Premium leg"), linewidth = 1.1) +
+  geom_vline(
+    xintercept = merton_cds_spread,
+    linetype = "dashed",
+    linewidth = 0.8,
+    color = "#2C3E50"
+  ) +
+  annotate(
+    "text",
+    x = merton_cds_spread + 0.065,
+    y = merton_cds_legs$protection_leg * 0.55,
+    label = paste0("Fair spread = ", fmt_bps(merton_cds_spread, 1), " bps"),
+    size = 3.5
+  ) +
+  scale_x_continuous(labels = function(x) paste0(fmt_num(100 * x, 1), "%")) +
+  scale_color_manual(values = c(
+    "Protection leg" = "#C0392B",
+    "Premium leg" = "#2C7FB8"
+  )) +
+  labs(x = "Annual CDS spread", y = "Present value per 100 notional", color = NULL) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.key = element_rect(fill = "white", color = NA),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The red line is flat because the protection leg is fixed once the PD and recovery assumptions are fixed. The blue line rises with the spread because a higher spread means larger premium payments. The fair CDS spread is the crossing point. To the left of the crossing point, the buyer pays too little relative to the modeled protection value. To the right, the buyer pays more than the model requires.
+
+## A real corporate bond snapshot
+
+Now use a real corporate bond as a market application. Ford Motor Credit Company LLC issued 2.900% notes due February 10, 2029. The SEC free writing prospectus gives the issuer, coupon, maturity, and note description [@FordCreditSEC2022FWP]. BondWatch reports a clean mid price of 94.085 and a mid yield of 5.279% for ISIN US345397B934 [@BondWatchFord2029]. The Federal Reserve H.15 release reports the 3-year Treasury constant maturity yield as 4.09% for June 1, 2026 [@FedH152026].
+
+We freeze these values in the code to keep the example reproducible. The goal is to show how a credit analyst can translate a quoted spread into a default-risk assumption and then compare that assumption with a simple valuation model.
+
+```{r}
+ford_inputs <- data.frame(
+  issuer = "Ford Motor Credit Company LLC",
+  isin = "US345397B934",
+  coupon_rate = 0.029,
+  maturity_date = "2029-02-10",
+  clean_mid_price = 94.085,
+  mid_yield = 0.05279,
+  treasury_3y = 0.0409,
+  recovery = 0.40,
+  teaching_maturity_years = 3
+)
+
+ford_inputs_table <- data.frame(
+  Quantity = c(
+    "Issuer",
+    "ISIN",
+    "Coupon",
+    "Maturity date",
+    "Clean mid price",
+    "Mid yield",
+    "3-year Treasury benchmark",
+    "Recovery assumption",
+    "Discrete teaching maturity"
+  ),
+  Value = c(
+    ford_inputs$issuer,
+    ford_inputs$isin,
+    fmt_pct(ford_inputs$coupon_rate, 3),
+    ford_inputs$maturity_date,
+    fmt_price(ford_inputs$clean_mid_price, 3),
+    fmt_pct(ford_inputs$mid_yield, 3),
+    fmt_pct(ford_inputs$treasury_3y, 2),
+    fmt_pct(ford_inputs$recovery, 0),
+    paste0(ford_inputs$teaching_maturity_years, " annual periods")
+  )
+)
+kable(ford_inputs_table, caption = "Frozen inputs for the Ford Motor Credit bond example.")
+```
+
+The input table separates three types of information. The coupon, maturity date, and issuer describe the contract. The clean mid price and mid yield summarize the market quote. The Treasury benchmark, recovery assumption, and teaching maturity are modeling choices used to translate the quote into default-risk terms.
+
+The observed yield spread over the 3-year Treasury benchmark is:
+
+$$
+s_{\mathrm{mkt}}=y_{\mathrm{corp}}-y_{\mathrm{Treasury}}.
+$$
+
+With the frozen inputs:
+
+```{r}
+ford_market_spread <- ford_inputs$mid_yield - ford_inputs$treasury_3y
+ford_approx_h <- ford_market_spread / (1 - ford_inputs$recovery)
+ford_implied_h <- solve_flat_hazard_from_price(
+  price = ford_inputs$clean_mid_price,
+  face = 100,
+  coupon_rate = ford_inputs$coupon_rate,
+  r = ford_inputs$treasury_3y,
+  recovery = ford_inputs$recovery,
+  maturity = ford_inputs$teaching_maturity_years
+)
+ford_model_price_at_approx_h <- price_coupon_defaultable(
+  face = 100,
+  coupon_rate = ford_inputs$coupon_rate,
+  r = ford_inputs$treasury_3y,
+  recovery = ford_inputs$recovery,
+  h = rep(ford_approx_h, ford_inputs$teaching_maturity_years)
+)
+ford_model_price_at_implied_h <- price_coupon_defaultable(
+  face = 100,
+  coupon_rate = ford_inputs$coupon_rate,
+  r = ford_inputs$treasury_3y,
+  recovery = ford_inputs$recovery,
+  h = rep(ford_implied_h, ford_inputs$teaching_maturity_years)
+)
+ford_cds_spread_at_implied_h <- cds_fair_spread(
+  r = ford_inputs$treasury_3y,
+  recovery = ford_inputs$recovery,
+  h = rep(ford_implied_h, ford_inputs$teaching_maturity_years)
+)
+
+ford_spread_table <- data.frame(
+  Quantity = c(
+    "Observed yield spread",
+    "Approximate h from s / LGD",
+    "Price-implied flat h",
+    "Model price at approximate h",
+    "Model price at price-implied h",
+    "CDS fair spread at price-implied h"
+  ),
+  Value = c(
+    paste0(fmt_bps(ford_market_spread, 1), " bps"),
+    fmt_pct(ford_approx_h, 3),
+    fmt_pct(ford_implied_h, 3),
+    fmt_price(ford_model_price_at_approx_h, 3),
+    fmt_price(ford_model_price_at_implied_h, 3),
+    paste0(fmt_bps(ford_cds_spread_at_implied_h, 1), " bps")
+  )
+)
+kable(ford_spread_table, caption = "Market spread and default-risk interpretation for the Ford bond.")
+```
+
+The observed spread is `r fmt_bps(ford_market_spread, 1)` basis points. With 40% recovery, the quick spread approximation implies a conditional default probability of `r fmt_pct(ford_approx_h, 3)` per year. Solving the discrete risky-bond pricing equation to match the clean price gives a price-implied conditional default probability of `r fmt_pct(ford_implied_h, 3)` per year. These two numbers are close because the bond is short-dated in this teaching approximation.
+
+The table is the main output of this step. The observed spread is the market compensation. The approximate default rate is the quick credit-spread translation. The price-implied default rate is the value of $h$ that makes the simplified risky-bond model reproduce the observed clean price.
+
+The two model prices also explain why we solve for $h$ after the rule-of-thumb calculation. At the approximate $h$, the model price is `r fmt_price(ford_model_price_at_approx_h, 3)`. At the price-implied $h$, the model price is `r fmt_price(ford_model_price_at_implied_h, 3)`, which matches the observed clean price by construction. The root-solving step forces the model to respect the actual bond price as well as the spread approximation.
+
+The same calculation can be read as a compact credit-spread workflow. This workflow is the applied value of the section: it turns a quoted bond into a default assumption, then turns that default assumption back into a bond or CDS valuation output.
+
+```{r}
+ford_workflow_table <- data.frame(
+  Step = c(
+    "1. Observe the bond quote",
+    "2. Choose valuation assumptions",
+    "3. Translate spread into default risk",
+    "4. Reprice the bond",
+    "5. Convert the same view into CDS terms",
+    "6. Use the result for relative value"
+  ),
+  Question = c(
+    "What compensation is the market offering?",
+    "Which recovery and discounting assumptions will we use?",
+    "What default rate is roughly consistent with the spread?",
+    "Which h reproduces the clean price in the risky-bond model?",
+    "What CDS spread would price the same default-and-recovery view?",
+    "Is the market spread high or low relative to the analyst's view?"
+  ),
+  Ford_output = c(
+    paste0(fmt_bps(ford_market_spread, 1), " bps observed spread"),
+    paste0(fmt_pct(ford_inputs$recovery, 0), " recovery; ", fmt_pct(ford_inputs$treasury_3y, 2), " Treasury rate"),
+    fmt_pct(ford_approx_h, 3),
+    fmt_pct(ford_implied_h, 3),
+    paste0(fmt_bps(ford_cds_spread_at_implied_h, 1), " bps"),
+    "Compare market spread with model spread"
+  )
+)
+names(ford_workflow_table) <- c("Step", "Question", "Ford output")
+kable(ford_workflow_table, caption = "A compact workflow for reading the Ford bond spread.")
+```
+
+The Merton example and the Ford example now sit on the same valuation map. Both convert a default probability and a recovery assumption into a market compensation number. Treat the comparison below as a scale check. It is not an issuer ranking because the Merton firm is a teaching example and the Ford bond is a market snapshot with a different horizon.
+
+```{r}
+cds_comparison_table <- data.frame(
+  Source = c("Merton teaching firm", "Ford bond price-implied view"),
+  Default_input = c(
+    fmt_pct(pd_merton, 4),
+    paste0(fmt_pct(ford_implied_h, 3), " flat h")
+  ),
+  Horizon = c("1 annual period", paste0(ford_inputs$teaching_maturity_years, " annual periods")),
+  Recovery = c(fmt_pct(merton_cds_recovery, 0), fmt_pct(ford_inputs$recovery, 0)),
+  Fair_CDS_spread = c(
+    paste0(fmt_bps(merton_cds_spread, 1), " bps"),
+    paste0(fmt_bps(ford_cds_spread_at_implied_h, 1), " bps")
+  )
+)
+names(cds_comparison_table) <- c("Source", "Default input", "Horizon", "Recovery", "Fair CDS spread")
+kable(cds_comparison_table, caption = "Merton and Ford translated into CDS-style compensation.")
+```
+
+The Merton teaching firm has a much higher default input, so its fair CDS spread is much higher. The Ford bond example has a lower price-implied default rate, so the CDS-style compensation is lower. The useful lesson is the mapping: default input plus recovery produces a protection spread.
+
+## Is the bond cheap or expensive?
+
+The phrase "cheap or expensive" needs a benchmark. A bond with a high yield may be paying fair compensation for high default risk. A credit relative-value decision therefore compares the market compensation with the compensation implied by a specific default-and-recovery view.
+
+The procedure has four steps.
+
+1. Start with the observed market spread:
+
+$$
+s_{\mathrm{mkt}}=y_{\mathrm{corp}}-y_{\mathrm{rf}}.
+$$
+
+For the Ford bond, this is `r fmt_bps(ford_market_spread, 1)` basis points.
+
+2. Choose a pricing view for default and recovery. In this example, the analyst keeps recovery at 40% and tests three possible annual conditional default probabilities.
+
+3. Reprice the bond under each view, solve for the model-implied yield, and compute the model-implied spread:
+
+$$
+s_{\mathrm{model}}(h,R)=y_{\mathrm{model}}(h,R)-y_{\mathrm{rf}}.
+$$
+
+4. Compare market spread with model spread:
+
+$$
+\mathrm{spread\ gap}=s_{\mathrm{mkt}}-s_{\mathrm{model}}(h,R).
+$$
+
+A positive spread gap means that the market offers more spread than the model requires. In price terms, that should correspond to a model fair price above the observed market price. The same comparison can be written as:
+
+$$
+\mathrm{price\ gap}=P_{\mathrm{model}}(h,R)-P_{\mathrm{mkt}}.
+$$
+
+Positive spread gap and positive price gap both point to the same conclusion: the bond looks cheap under that default assumption. Negative values point to an expensive bond under that assumption.
+
+Use the Ford bond as the example. Suppose an analyst believes the fair annual conditional default probability is 1.00%, 2.00%, or 3.00%, with the same 40% recovery and 3-year Treasury benchmark. We also use a 5 basis point neutral band. A spread gap inside that band is treated as near fair value because tiny differences have little economic meaning once bid-ask spreads and model uncertainty are considered. The model-implied price, price gap, spread, and spread gap under each view are:
+
+```{r}
+analyst_h <- c(0.01, 0.02, 0.03)
+relative_value_threshold <- 0.0005
+relative_value <- data.frame(
+  analyst_h = analyst_h,
+  model_price = sapply(analyst_h, function(h) {
+    price_coupon_defaultable(
+      face = 100,
+      coupon_rate = ford_inputs$coupon_rate,
+      r = ford_inputs$treasury_3y,
+      recovery = ford_inputs$recovery,
+      h = rep(h, ford_inputs$teaching_maturity_years)
+    )
+  })
+)
+relative_value$model_yield <- sapply(relative_value$model_price, function(price) {
+  coupon_bond_ytm(
+    price = price,
+    face = 100,
+    coupon_rate = ford_inputs$coupon_rate,
+    maturity = ford_inputs$teaching_maturity_years
+  )
+})
+relative_value$model_spread <- relative_value$model_yield - ford_inputs$treasury_3y
+relative_value$model_minus_market_price <- relative_value$model_price -
+  ford_inputs$clean_mid_price
+relative_value$market_minus_model_spread <- ford_market_spread -
+  relative_value$model_spread
+relative_value$signal <- ifelse(
+  relative_value$market_minus_model_spread > relative_value_threshold,
+  "Cheap on this view",
+  ifelse(
+    relative_value$market_minus_model_spread < -relative_value_threshold,
+    "Expensive on this view",
+    "Near fair value"
+  )
+)
+
+relative_value_table <- data.frame(
+  h = fmt_pct(relative_value$analyst_h, 2),
+  model_price = fmt_price(relative_value$model_price, 3),
+  price_gap = fmt_price(relative_value$model_minus_market_price, 3),
+  model_spread = paste0(fmt_bps(relative_value$model_spread, 1), " bps"),
+  spread_gap = paste0(fmt_bps(relative_value$market_minus_model_spread, 1), " bps"),
+  signal = relative_value$signal
+)
+names(relative_value_table) <- c(
+  "Analyst h",
+  "Model price",
+  "Model - market price",
+  "Model spread",
+  "Market - model spread",
+  "Signal"
+)
+kable(relative_value_table, caption = "Relative-value interpretation under alternative default assumptions.")
+```
+
+Read the first row carefully. With an annual conditional default probability of 1.00%, the model price is above the market price. The model also says that the fair spread should be below the observed market spread. Those two facts are the same relative-value signal expressed in two units. The market price is low relative to the model price, and the market spread is high relative to the model spread. Under this view, the bond looks cheap.
+
+Now read the last row. With an annual conditional default probability of 3.00%, the model requires more spread than the market offers. The model price falls below the market price. Under this more pessimistic default view, the same bond looks expensive.
+
+The important point is that the trade signal depends on the analyst's credit view. The market spread is observable. The model spread is conditional on the assumed default probability and recovery rate.
+
+The middle row is useful because it shows the borderline case. At a 2.00% annual conditional default probability, the model spread is `r paste0(fmt_bps(relative_value$model_spread[2], 1), " bps")`, while the market spread is `r paste0(fmt_bps(ford_market_spread, 1), " bps")`. The gap is small enough to read as near fair value in this simplified framework.
+
+Recovery is part of that credit view. The same market quote can imply a different default rate when recovery changes. A lower recovery means a higher loss given default, so a smaller default probability can explain the same credit compensation. A higher recovery means a lower loss given default, so the same observed spread requires more default risk.
+
+The next table keeps the Ford market price fixed and changes only the recovery assumption. It also shows the relative-value signal if the analyst's default view is fixed at a 2.00% annual conditional default probability.
+
+```{r}
+recovery_grid <- c(0.20, 0.40, 0.60)
+recovery_sensitivity_h <- 0.02
+recovery_sensitivity <- data.frame(
+  recovery = recovery_grid,
+  price_implied_h = sapply(recovery_grid, function(rec) {
+    solve_flat_hazard_from_price(
+      price = ford_inputs$clean_mid_price,
+      face = 100,
+      coupon_rate = ford_inputs$coupon_rate,
+      r = ford_inputs$treasury_3y,
+      recovery = rec,
+      maturity = ford_inputs$teaching_maturity_years
+    )
+  }),
+  model_price = sapply(recovery_grid, function(rec) {
+    price_coupon_defaultable(
+      face = 100,
+      coupon_rate = ford_inputs$coupon_rate,
+      r = ford_inputs$treasury_3y,
+      recovery = rec,
+      h = rep(recovery_sensitivity_h, ford_inputs$teaching_maturity_years)
+    )
+  })
+)
+recovery_sensitivity$model_yield <- sapply(recovery_sensitivity$model_price, function(price) {
+  coupon_bond_ytm(
+    price = price,
+    face = 100,
+    coupon_rate = ford_inputs$coupon_rate,
+    maturity = ford_inputs$teaching_maturity_years
+  )
+})
+recovery_sensitivity$model_spread <- recovery_sensitivity$model_yield -
+  ford_inputs$treasury_3y
+recovery_sensitivity$market_minus_model_spread <- ford_market_spread -
+  recovery_sensitivity$model_spread
+recovery_sensitivity$signal <- ifelse(
+  recovery_sensitivity$market_minus_model_spread > relative_value_threshold,
+  "Cheap on this view",
+  ifelse(
+    recovery_sensitivity$market_minus_model_spread < -relative_value_threshold,
+    "Expensive on this view",
+    "Near fair value"
+  )
+)
+
+recovery_sensitivity_table <- data.frame(
+  Recovery = fmt_pct(recovery_sensitivity$recovery, 0),
+  Price_implied_h = fmt_pct(recovery_sensitivity$price_implied_h, 3),
+  Model_spread_at_2pct_h = paste0(fmt_bps(recovery_sensitivity$model_spread, 1), " bps"),
+  Market_minus_model_spread = paste0(fmt_bps(recovery_sensitivity$market_minus_model_spread, 1), " bps"),
+  Signal = recovery_sensitivity$signal
+)
+names(recovery_sensitivity_table) <- c(
+  "Recovery",
+  "Price-implied h",
+  "Model spread at h = 2%",
+  "Market - model spread",
+  "Signal"
+)
+kable(recovery_sensitivity_table, caption = "Recovery sensitivity for the Ford relative-value signal.")
+```
+
+The recovery assumption changes both sides of the interpretation. It changes the default rate implied by the market price, and it changes the model spread required for a fixed analyst default view. This is why recovery deserves the same attention as the PD assumption in credit-spread work.
+
+The direction is worth making explicit. With 20% recovery, the price-implied default rate is `r fmt_pct(recovery_sensitivity$price_implied_h[1], 3)`. With 60% recovery, it rises to `r fmt_pct(recovery_sensitivity$price_implied_h[3], 3)`. The same bond price requires more default probability when the assumed loss per default is smaller.
+
+```{r}
+#| label: fig-ford-relative-value
+#| fig-cap: "Market spread compared with model-implied spreads under different default assumptions."
+relative_value_plot <- relative_value
+relative_value_plot$h_label <- factor(
+  paste0(fmt_pct(relative_value_plot$analyst_h, 1), " h"),
+  levels = paste0(fmt_pct(relative_value_plot$analyst_h, 1), " h")
+)
+
+ggplot(relative_value_plot, aes(x = h_label, y = 10000 * model_spread)) +
+  geom_col(fill = "#2C7FB8", alpha = 0.88, width = 0.58) +
+  geom_text(
+    aes(label = paste0(fmt_bps(model_spread, 1), " bps")),
+    vjust = -0.45,
+    size = 3.3
+  ) +
+  geom_hline(
+    yintercept = 10000 * ford_market_spread,
+    color = "#C0392B",
+    linewidth = 1,
+    linetype = "dashed"
+  ) +
+  annotate(
+    "text",
+    x = 1.15,
+    y = 10000 * ford_market_spread - 18,
+    label = paste0("Market spread = ", fmt_bps(ford_market_spread, 1), " bps"),
+    size = 3.4
+  ) +
+  labs(
+    x = "Analyst default assumption",
+    y = "Spread (bps)"
+  ) +
+  coord_cartesian(ylim = c(0, max(10000 * relative_value_plot$model_spread, 10000 * ford_market_spread) + 35)) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank())
+```
+
+The dashed red line is the market spread. The blue bars are model-implied spreads under alternative default assumptions. When the bar is below the red line, the market pays more spread than the model requires. When the bar is above the red line, the market spread is too low for that default view.
+
+The same comparison can be shown in price units.
+
+```{r}
+#| label: fig-ford-relative-value-price-gap
+#| fig-cap: "Model price minus market price under different default assumptions."
+relative_value_plot$price_signal <- ifelse(
+  relative_value_plot$model_minus_market_price >= 0,
+  "Model price above market",
+  "Model price below market"
+)
+
+ggplot(relative_value_plot, aes(x = h_label, y = model_minus_market_price, fill = price_signal)) +
+  geom_col(alpha = 0.9, width = 0.58) +
+  geom_hline(yintercept = 0, color = "#2C3E50", linewidth = 0.8) +
+  geom_text(
+    aes(label = fmt_price(model_minus_market_price, 2)),
+    vjust = ifelse(relative_value_plot$model_minus_market_price >= 0, -0.45, 1.25),
+    size = 3.3
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Model price above market" = "#2C7FB8",
+      "Model price below market" = "#C0392B"
+    )
+  ) +
+  labs(
+    x = "Analyst default assumption",
+    y = "Model price minus market price",
+    fill = NULL
+  ) +
+  coord_cartesian(
+    ylim = c(
+      min(relative_value_plot$model_minus_market_price) - 0.35,
+      max(relative_value_plot$model_minus_market_price) + 0.35
+    )
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "bottom",
+    legend.background = element_rect(fill = "white", color = "white")
+  )
+```
+
+Positive bars mean that the analyst's model values the bond above the market price. That is the price version of a cheap-bond signal. Negative bars mean that the model values the bond below the market price. That is the price version of an expensive-bond signal.
+
+This is a useful relative-value discipline, but it is still a simplified model. The Ford example uses an annual teaching grid, a flat conditional default probability, a single Treasury benchmark, fixed recovery, and clean prices. A trading desk would also check accrued interest, the full risk-free curve, coupon dates, day-count conventions, bid-ask spreads, liquidity, seniority, covenants, taxes, funding costs, ratings migration, and whether a comparable CDS quote exists. These items can make the market spread higher than the default-loss-only spread even when the bond is fairly priced.
+
+The model therefore gives a testable credit view. If the analyst can defend the default probability, recovery rate, and curve inputs, then the spread gap becomes a disciplined measure of compensation. If those inputs are weak, the cheap-or-expensive conclusion is weak as well.
+
+## What this chapter adds
+
+The first chapters estimated default risk from borrower data and firm balance-sheet information. This chapter shows how credit risk is priced in debt markets. A risky bond price is the present value of promised cash flows adjusted for survival, default, and recovery. A CDS spread is the premium that equates the expected discounted protection payment with the expected discounted premium payments.
+
+The chapter can be summarized as an analyst checklist. The checklist is useful because it keeps three objects separate: the observed market spread, the model-implied fair spread, and the credit assumptions that connect them.
+
+```{r}
+credit_spread_checklist <- data.frame(
+  Step = c(
+    "1. Define the instrument",
+    "2. Choose the risk-free benchmark",
+    "3. Specify recovery",
+    "4. Translate the market spread",
+    "5. Reprice the bond or CDS",
+    "6. Compare market and model spreads",
+    "7. Stress the assumptions"
+  ),
+  Analyst_question = c(
+    "What promised cash flows are being priced?",
+    "Which default-free curve or benchmark is the comparison point?",
+    "How much value is recovered if default occurs?",
+    "What default rate is roughly implied by the observed spread?",
+    "What spread or price follows from the analyst's default view?",
+    "Does the market pay more or less than the model requires?",
+    "Does the conclusion survive changes in PD, recovery, and liquidity assumptions?"
+  ),
+  Output = c(
+    "coupon, maturity, face value, seniority",
+    "discount factors or benchmark yield",
+    "recovery rate and loss given default",
+    "spread-implied h or PD",
+    "model price, fair spread, or fair CDS spread",
+    "spread gap and price gap",
+    "robust, fragile, or inconclusive signal"
+  )
+)
+names(credit_spread_checklist) <- c("Step", "Analyst question", "Output")
+kable(credit_spread_checklist, caption = "Credit-spread and CDS valuation checklist.")
+```
+
+The key ideas are:
+
+- survival probabilities turn default timing into cash-flow weights;
+- recovery affects both bond values and CDS spreads through loss given default;
+- credit spreads are market prices of default risk and differ from pure historical default frequencies;
+- Merton PDs can be used as risk-neutral inputs for bond or CDS valuation, provided the horizon and recovery assumptions are explicit;
+- relative value means comparing the market spread with a model-implied spread before judging whether a high-yield bond is attractive.
+
+The next chapter moves from one issuer to a portfolio. Once each borrower has a marginal default probability or a spread-implied credit view, the remaining problem is dependence: how likely are several borrowers to default together?

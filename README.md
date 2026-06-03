@@ -11,6 +11,7 @@ The current version focuses on:
 - Logistic credit scoring, predicted PDs, cutoff rules, bad rates, ROC/AUC, calibration, and lending decisions
 - Tree-based credit scoring with a single decision tree and XGBoost
 - Structural credit risk with the Merton model, risk-neutral valuation, and model-implied default probabilities
+- Credit spreads, corporate bond valuation, and CDS valuation in discrete time
 - Portfolio credit risk with Gaussian copulas, t-copulas, correlated defaults, portfolio losses, Credit VaR, expected shortfall, and economic capital
 
 ## Book Structure
@@ -19,6 +20,7 @@ The current version focuses on:
 - `01-logistic.qmd`: logistic credit scoring
 - `02-tree-based.qmd`: tree-based credit scoring
 - `02-merton.qmd`: the Merton model
+- `04-credit-spreads-cds.qmd`: credit spreads and CDS valuation
 - `03-gaussian-copula.qmd`: copula models for portfolio credit risk
 - `references.qmd`: references
 

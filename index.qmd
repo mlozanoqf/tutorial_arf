@@ -25,9 +25,9 @@ write_book_dates()
 ::: {.home-panel}
 This book is written for readers who want to close the gap between credit risk models, the logic behind those models, and the code required to implement them. The aim is to keep intuition, mathematical structure, data analysis, graphical interpretation, and reproducible R code in the same conversation.
 
-The style is deliberately explicit. Credit risk work depends on many small choices: how a default variable is coded, how a model threshold is selected, how a probability is interpreted, how a portfolio loss is simulated, and how a result becomes a lending or risk management decision. For that reason, the book does not treat code as a black box. Each step is meant to explain what is being computed, why it matters, and where its limitations are.
+The style is deliberately explicit. Credit risk work depends on many small choices: how a default variable is coded, how a model threshold is selected, how a probability is interpreted, how a portfolio loss is simulated, and how a result becomes a lending or risk management decision. For that reason, the book treats code as part of the explanation. Each step is meant to explain what is being computed, why it matters, and where its limitations are.
 
-The organizing principle follows the literate programming spirit of @knuth1984literate: the goal is to explain to human beings what we want a computer to do. The book remains under active revision, with the emphasis on clarity, reproducibility, and practical interpretation.
+The organizing principle follows the literate programming spirit of @knuth1984literate. The goal is to explain to human beings what we want a computer to do. The book remains under active revision, with the emphasis on clarity, reproducibility, and practical interpretation.
 :::
 
 ## What's new in this edition {.unnumbered}
@@ -35,5 +35,6 @@ The organizing principle follows the literate programming spirit of @knuth1984li
 - **Credit-scoring workflow:** Chapter 1 now connects logistic PDs with cutoff rules, bad rates, calibration, ROC/AUC, Brier score, and a simple lending payoff exercise.
 - **Tree-based benchmark:** Chapter 2 compares logistic regression, a single tree, and XGBoost using the same test set and the same credit-policy metrics.
 - **Merton model rebuild:** Chapter 3 now gives a fuller risk-neutral valuation bridge, replicates Hull's equations, checks the numerical solution, and links equity to a call payoff on firm assets.
-- **Portfolio credit risk:** Chapter 4 now builds the Gaussian copula model around Hull Example 24.7, correlated defaults, portfolio losses, concentration risk, and capital.
-- **Tail-risk extension:** The final Chapter 4 sections compare Gaussian and t-copula assumptions and connect the simulation logic to Credit VaR, expected shortfall, and economic capital.
+- **Credit-spread bridge:** Chapter 4 now connects default probabilities with corporate bond spreads, recovery assumptions, and CDS valuation.
+- **Portfolio credit risk:** Chapter 5 now builds the Gaussian copula model around Hull Example 24.7, correlated defaults, portfolio losses, concentration risk, and capital.
+- **Tail-risk extension:** The final Chapter 5 sections compare Gaussian and t-copula assumptions and connect the simulation logic to Credit VaR, expected shortfall, and economic capital.

@@ -97,7 +97,7 @@ plot_pd_sensitivity <- function(x, y, current_x, x_label,
 }
 ```
 
-The risk-free-rate grid ranges from 0% to 20%. This keeps the plot focused on a moderate range around the textbook example, rather than on extreme interest-rate environments.
+The risk-free-rate grid ranges from 0% to 20%. This keeps the plot focused on a moderate range around the textbook example and away from extreme interest-rate environments.
 
 ::: {.merton-subhead}
 One-input sensitivity curves
@@ -147,7 +147,7 @@ plot_pd_sensitivity(
 )
 ```
 
-The maturity curve requires a careful reading. In this model-implied sensitivity exercise, changing maturity also triggers a new solution for $V_0$ and $\sigma_V$. For each maturity value on the horizontal axis, the remaining observable inputs are kept fixed, the unobserved asset quantities are re-estimated, and the risk-neutral PD is recomputed. This is a model comparison, not a standalone recommendation about debt negotiation. A real negotiation would also depend on cash flows, covenants, recovery, refinancing risk, and the bank's required spread.
+The maturity curve requires a careful reading. In this model-implied sensitivity exercise, changing maturity also triggers a new solution for $V_0$ and $\sigma_V$. For each maturity value on the horizontal axis, the remaining observable inputs are kept fixed, the unobserved asset quantities are re-estimated, and the risk-neutral PD is recomputed. This is a model comparison. A real debt negotiation would also depend on cash flows, covenants, recovery, refinancing risk, and the bank's required spread.
 
 ```{r}
 #| label: fig-tpodaafotdm
@@ -179,7 +179,7 @@ plot_pd_sensitivity(
 Two-input views
 :::
 
-The previous plots changed one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ do not remain fixed because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated.
+The previous plots changed one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ are re-estimated each time because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated.
 
 The two-input view lets two market inputs move at the same time: $E_0$ and $\sigma_E$. This is financially useful because equity value measures how much market cushion the firm has above the promised debt payment, while equity volatility measures how unstable that cushion is. A firm with low equity value and high equity volatility should imply a higher probability of default than a firm with high equity value and low equity volatility.
 

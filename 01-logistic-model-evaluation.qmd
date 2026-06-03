@@ -35,7 +35,7 @@ colnames(pred_John) <- "Predicted default probability for John Doe."
 pred_John
 ```
 
-In code, `predict(..., type = "response")` returns $\hat p_i$ rather than a final 0/1 label. The values above are close to 0, so the models assign John Doe a low default probability. This single example is only a starting point. We still need a cutoff rule to decide when a predicted probability is low enough to accept an applicant.
+In code, `predict(..., type = "response")` returns $\hat p_i$ as a probability before any final 0/1 label is assigned. The values above are close to 0, so the models assign John Doe a low default probability. This single example is only a starting point. We still need a cutoff rule to decide when a predicted probability is low enough to accept an applicant.
 
 The full evaluation must use all `r format(nrow(test), big.mark = ",")` observations in the test set. The code change is small: replace `newdata = John_Doe` with `newdata = test`. Mathematically, this computes one $\hat p_i$ for every applicant $i$ in the test set.
 
@@ -57,7 +57,7 @@ pred_range
 
 At this point, the models have produced predicted probabilities for all `r format(length(pred_logi_age), big.mark = ",")` applicants in the test set. The first column shows the lowest predicted default probability for each model, and the logistic models produce values in the range of 0 to 1. In this case, the predicted ranges are quite narrow.
 
-Narrow ranges, meaning a small difference between the highest and lowest predicted probabilities, can be a warning sign because the model may struggle to discriminate between defaults (predictions closer to 1) and non-defaults (predictions closer to 0), as suggested in @fig-scolcam. The AIC gives a separate in-sample comparison. The higher the AIC, the worse the fit-parsimony trade-off among comparable models. The prediction range only tells us how spread out the predicted probabilities are, so it should be read as an early diagnostic rather than a performance metric. Confusion matrices, bad rates, and ROC/AUC are still needed to evaluate predictive performance on the test set.
+Narrow ranges, meaning a small difference between the highest and lowest predicted probabilities, can be a warning sign because the model may struggle to discriminate between defaults (predictions closer to 1) and non-defaults (predictions closer to 0), as suggested in @fig-scolcam. The AIC gives a separate in-sample comparison. The higher the AIC, the worse the fit-parsimony trade-off among comparable models. The prediction range tells us how spread out the predicted probabilities are. It is an early diagnostic, while confusion matrices, bad rates, and ROC/AUC are still needed to evaluate predictive performance on the test set.
 
 The next figure shows all `logi_age` predicted probabilities across the test set.
 
@@ -88,7 +88,7 @@ ggplot(data.frame(pred_logi_age), aes(x = pred_logi_age)) +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
 
-The `logi_age` predictions are concentrated in a very narrow probability range. A useful model need not cover the full 0-to-1 interval, but it does need enough separation to rank applicants by risk. Here the age-only model assigns very similar predicted default probabilities to most applicants, so it has little ability to distinguish likely defaults from likely non-defaults.
+The `logi_age` predictions are concentrated in a very narrow probability range. A useful model can cover a limited interval, provided it still creates enough separation to rank applicants by risk. Here the age-only model assigns very similar predicted default probabilities to most applicants, so it has little ability to distinguish likely defaults from likely non-defaults.
 
 The comparison now moves to `logi_int` and `logi_multi`. First, we collect the predictions in a single data frame.
 
@@ -403,7 +403,7 @@ head(cbind(pred_logi_full,
 
 These are only the first 6 rows in the test set. The rule is doing exactly what the equation says: every estimated default probability below or equal to 0.15 is coded as 0 (predicted no-default), and every estimated default probability above 0.15 is coded as 1 (predicted default). The table above shows the conversion from a probability, `pred_logi_full`, to a binary prediction, `pred_cutoff_15`.
 
-The row numbers in the table above are not necessarily consecutive because the `test` rows were selected randomly out of `dat`. They correspond to the original row positions in `dat`.
+The row numbers in the table above may be nonconsecutive because the `test` rows were selected randomly out of `dat`. They correspond to the original row positions in `dat`.
 
 To see whether `logi_full` is making useful decisions, we compare predictions with realized outcomes. The first column is the logistic model prediction, the second column is the binary prediction at the 0.15 cutoff, and the third column is the observed outcome. The sample below shows individual correct and incorrect classifications before we move to a full confusion matrix.
 
@@ -695,5 +695,5 @@ bad_rate_65 <- sum(accepted_loans == 1)/length(accepted_loans)
 bad_rate_65
 ```
 
-The bad rate falls from `r fmt_pct(bad_rate_80, 2)` to `r fmt_pct(bad_rate_65, 2)` when the acceptance rate is reduced from 80% to 65%. This illustrates the trade-off. A lower acceptance rate usually means fewer accepted defaults and fewer accepted customers. In the extreme, accepting 0 applications would produce a bad rate of zero and no loan business at all. The next section evaluates this trade-off across many acceptance rates instead of checking only 80% and 65%.
+The bad rate falls from `r fmt_pct(bad_rate_80, 2)` to `r fmt_pct(bad_rate_65, 2)` when the acceptance rate is reduced from 80% to 65%. This illustrates the trade-off. A lower acceptance rate usually means fewer accepted defaults and fewer accepted customers. In the extreme, accepting 0 applications would produce a bad rate of zero and no loan business at all. The next section evaluates this trade-off across many acceptance rates after the two benchmark cases, 80% and 65%.
 
