@@ -10,9 +10,9 @@ The financial question is practical:
 
 This question matters to a credit analyst, a fixed-income investor, a bank treasury desk, and a risk manager. A corporate bond pays coupons and also exposes the investor to the issuer's default risk. A credit spread is the extra yield over a default-free benchmark that investors demand for bearing that risk. A credit default swap, or CDS, prices a related contract: the protection buyer pays a periodic premium, and the protection seller pays if the reference entity defaults.
 
-The chapter stays in discrete time. That choice is deliberate. We will use yearly periods so that survival probabilities, marginal default probabilities, recovery payments, bond cash flows, and CDS cash flows can be read directly from tables. More advanced models often use continuous-time intensities and detailed day-count conventions. Those refinements are useful in professional pricing systems, but the discrete version is enough to see the mechanics.
+Most of the chapter stays in discrete time. That choice is deliberate. We will use yearly periods so that survival probabilities, marginal default probabilities, recovery payments, bond cash flows, and CDS cash flows can be read directly from tables. When we replicate Hull's CDS valuation example, we keep the annual payment grid but use Hull's continuous hazard-rate and discounting conventions. That small change lets us match the book's CDS numbers while preserving the same table-by-table valuation logic.
 
-The route through the chapter is sequential. First, we build the default timeline with survival probabilities. Second, we price a risky zero-coupon bond. Third, we extend the same logic to a coupon bond. Fourth, we separate real-world and risk-neutral default probabilities. Fifth, we value a simple CDS and connect the CDS fair spread to the Merton PD from the previous chapter. Finally, we use a real Ford Motor Credit bond as a frozen market-data example to ask whether the observed spread is high or low relative to a simple default model.
+The route through the chapter is sequential. First, we build the default timeline with survival probabilities. Second, we price a risky zero-coupon bond. Third, we extend the same logic to a coupon bond. Fourth, we separate real-world and risk-neutral default probabilities. Fifth, we value a simple CDS, connect the CDS fair spread to the Merton PD from the previous chapter, and use Hull's accrued-premium example as a benchmark for sensitivity and mark-to-market analysis. Finally, we use a real Ford Motor Credit bond as a frozen market-data example to ask whether the observed spread is high or low relative to a simple default model.
 
 Every section repeats the same valuation discipline. First identify the promised cash flows. Then decide which states produce those cash flows. Then attach survival and default probabilities to those states. Finally discount the probability-weighted cash flows and compare the model value with the market quote. This order matters because a credit spread by itself is only a compact market summary of promised payments, default timing, recovery, discounting, and compensation for credit risk.
 
@@ -132,6 +132,55 @@ cds_fair_spread <- function(r, recovery, h) {
   discount <- discount_factor(r, sched$period)
   (1 - recovery) * sum(discount * sched$marginal_pd) /
     sum(discount * sched$survival_end)
+}
+
+hull_cds_schedule <- function(hazard_rate, r, recovery, maturity) {
+  year <- seq_len(maturity)
+  survival_start <- exp(-hazard_rate * (year - 1))
+  survival_end <- exp(-hazard_rate * year)
+  default_probability <- survival_start - survival_end
+  premium_discount <- exp(-r * year)
+  default_time <- year - 0.5
+  default_discount <- exp(-r * default_time)
+  data.frame(
+    year = year,
+    survival_probability = survival_end,
+    default_probability = default_probability,
+    premium_discount = premium_discount,
+    default_time = default_time,
+    default_discount = default_discount,
+    premium_annuity_piece = survival_end * premium_discount,
+    protection_piece = default_probability * (1 - recovery) * default_discount,
+    accrual_annuity_piece = 0.5 * default_probability * default_discount
+  )
+}
+
+hull_cds_components <- function(hazard_rate, r, recovery, maturity, notional = 1) {
+  sched <- hull_cds_schedule(hazard_rate, r, recovery, maturity)
+  premium_annuity <- notional * sum(sched$premium_annuity_piece)
+  protection_leg <- notional * sum(sched$protection_piece)
+  accrual_annuity <- notional * sum(sched$accrual_annuity_piece)
+  fair_spread <- protection_leg / (premium_annuity + accrual_annuity)
+  list(
+    schedule = sched,
+    premium_annuity = premium_annuity,
+    protection_leg = protection_leg,
+    accrual_annuity = accrual_annuity,
+    risky_annuity_with_accrual = premium_annuity + accrual_annuity,
+    fair_spread = fair_spread
+  )
+}
+
+solve_hull_hazard_from_spread <- function(spread, r, recovery, maturity) {
+  f <- function(hazard_rate) {
+    hull_cds_components(
+      hazard_rate = hazard_rate,
+      r = r,
+      recovery = recovery,
+      maturity = maturity
+    )$fair_spread - spread
+  }
+  uniroot(f, interval = c(1e-8, 1))$root
 }
 ```
 
@@ -668,6 +717,502 @@ ggplot(cds_crossing, aes(x = spread)) +
 
 The red line is flat because the protection leg is fixed once the PD and recovery assumptions are fixed. The blue line rises with the spread because a higher spread means larger premium payments. The fair CDS spread is the crossing point. To the left of the crossing point, the buyer pays too little relative to the modeled protection value. To the right, the buyer pays more than the model requires.
 
+## A Hull-style CDS valuation with accrued premium
+
+The annual CDS formula above is useful because it shows the main economic trade. The protection buyer pays a premium while the issuer survives. The protection seller pays loss given default if the issuer defaults. Section 25.2 of Hull's book adds two timing details that are important in practice [@Hull].
+
+First, default can occur between premium payment dates. For a yearly teaching grid, Hull assumes default occurs halfway through the year in which it happens. Second, if default occurs between premium dates, the protection buyer still owes the premium accrued from the last payment date to the default date. With a midpoint assumption, the accrued premium is one-half of the annual spread for that default year.
+
+The example uses a 5-year CDS, a flat 2.00% hazard rate, a 5.00% continuously compounded risk-free rate, 40% recovery, and notional equal to 1. Let $a$ denote the flat hazard rate. The survival probability to time $t$ is:
+
+$$
+S(t)=e^{-at}.
+$$
+
+The probability of default during year $t$ is the probability of surviving to the start of that year minus the probability of surviving to the end of that year:
+
+$$
+q_t=S(t-1)-S(t).
+$$
+
+The following code sets up the Hull-style inputs and creates the survival and default schedule.
+
+```{r hull-cds-inputs}
+hull_hazard <- 0.02
+hull_r <- 0.05
+hull_recovery <- 0.40
+hull_maturity <- 5
+hull_notional <- 1
+
+hull_components <- hull_cds_components(
+  hazard_rate = hull_hazard,
+  r = hull_r,
+  recovery = hull_recovery,
+  maturity = hull_maturity,
+  notional = hull_notional
+)
+hull_schedule <- hull_components$schedule
+
+hull_default_table <- data.frame(
+  Year = hull_schedule$year,
+  Survival_to_year_end = fmt_num(hull_schedule$survival_probability, 4),
+  Default_during_year = fmt_num(hull_schedule$default_probability, 4)
+)
+names(hull_default_table) <- c("Year", "Survival to year end", "Default during year")
+kable(
+  hull_default_table,
+  caption = "Hull-style survival and default probabilities for a 2% hazard rate."
+)
+```
+
+Read one row slowly. At the start of year 3, the issuer has survived two years, so $S(2)=e^{-0.02\times 2}$, which equals `r fmt_num(exp(-hull_hazard * 2), 4)`. At the end of year 3, $S(3)=e^{-0.02\times 3}$, which equals `r fmt_num(exp(-hull_hazard * 3), 4)`. The difference, `r fmt_num(exp(-hull_hazard * 2) - exp(-hull_hazard * 3), 4)`, is the unconditional probability of default during year 3.
+
+Now value the regular premium payments. If the annual CDS spread is $s$, a surviving contract pays $s$ at each year end. The present value of one expected premium payment is:
+
+$$
+s \times S(t) \times e^{-rt}.
+$$
+
+The table keeps the unknown spread $s$ outside the numeric value. This lets us compute the risky annuity first and solve for the fair spread later.
+
+```{r hull-cds-premium-leg}
+hull_premium_table <- data.frame(
+  Time_years = hull_schedule$year,
+  Survival_probability = fmt_num(hull_schedule$survival_probability, 4),
+  Discount_factor = fmt_num(hull_schedule$premium_discount, 4),
+  PV_of_expected_payment = paste0(fmt_num(hull_schedule$premium_annuity_piece, 4), " x s")
+)
+names(hull_premium_table) <- c(
+  "Time (years)",
+  "Survival probability",
+  "Discount factor",
+  "PV of expected payment"
+)
+kable(
+  hull_premium_table,
+  caption = "Present value of expected CDS premium payments in the Hull-style example."
+)
+```
+
+Adding the last column gives a regular premium annuity of `r fmt_num(hull_components$premium_annuity, 4)`. Therefore, the present value of regular premium payments is `r fmt_num(hull_components$premium_annuity, 4)` times the annual spread $s$.
+
+The protection leg is paid if default occurs. With 40% recovery, the loss given default is 60% of notional. Hull's midpoint convention discounts each expected protection payment from the middle of the corresponding year:
+
+$$
+(1-R) \times q_t \times e^{-r(t-0.5)}.
+$$
+
+```{r hull-cds-protection-leg}
+hull_protection_table <- data.frame(
+  Time_years = fmt_num(hull_schedule$default_time, 1),
+  Default_probability = fmt_num(hull_schedule$default_probability, 4),
+  Recovery_rate = fmt_pct(hull_recovery, 0),
+  Expected_payoff = fmt_num(hull_schedule$default_probability * (1 - hull_recovery), 4),
+  Discount_factor = fmt_num(hull_schedule$default_discount, 4),
+  PV_of_expected_payoff = fmt_num(hull_schedule$protection_piece, 4)
+)
+names(hull_protection_table) <- c(
+  "Time (years)",
+  "Default probability",
+  "Recovery",
+  "Expected payoff",
+  "Discount factor",
+  "PV of expected payoff"
+)
+kable(
+  hull_protection_table,
+  caption = "Present value of expected protection payoff in the Hull-style example."
+)
+```
+
+The sum of the protection column is `r fmt_num(hull_components$protection_leg, 4)`. This is the model value of the default payment per 1 of notional.
+
+There is one more premium component. If default occurs halfway through a year, the protection buyer has used half a year of protection since the last payment date. The accrued premium for that default scenario is therefore:
+
+$$
+0.5 \times s \times q_t \times e^{-r(t-0.5)}.
+$$
+
+```{r hull-cds-accrual-leg}
+hull_accrual_table <- data.frame(
+  Time_years = fmt_num(hull_schedule$default_time, 1),
+  Default_probability = fmt_num(hull_schedule$default_probability, 4),
+  Expected_accrual = paste0(fmt_num(0.5 * hull_schedule$default_probability, 4), " x s"),
+  Discount_factor = fmt_num(hull_schedule$default_discount, 4),
+  PV_of_expected_accrual = paste0(fmt_num(hull_schedule$accrual_annuity_piece, 4), " x s")
+)
+names(hull_accrual_table) <- c(
+  "Time (years)",
+  "Default probability",
+  "Expected accrued premium",
+  "Discount factor",
+  "PV of expected accrued premium"
+)
+kable(
+  hull_accrual_table,
+  caption = "Present value of expected accrued premium in the Hull-style example."
+)
+```
+
+The accrued-premium annuity is `r fmt_num(hull_components$accrual_annuity, 4)`. The total premium base is therefore the regular premium annuity plus the accrued-premium annuity.
+
+```{r hull-cds-fair-spread}
+hull_summary <- data.frame(
+  Quantity = c(
+    "PV regular premium annuity",
+    "PV accrued premium annuity",
+    "Total risky annuity",
+    "PV protection leg",
+    "Fair CDS spread"
+  ),
+  Value = c(
+    paste0(fmt_num(hull_components$premium_annuity, 4), " x s"),
+    paste0(fmt_num(hull_components$accrual_annuity, 4), " x s"),
+    paste0(fmt_num(hull_components$risky_annuity_with_accrual, 4), " x s"),
+    fmt_num(hull_components$protection_leg, 4),
+    paste0(fmt_bps(hull_components$fair_spread, 1), " bps")
+  )
+)
+kable(
+  hull_summary,
+  caption = "Hull-style fair CDS spread from premium, accrual, and protection legs."
+)
+```
+
+At inception, the fair spread makes the value of the two sides equal:
+
+$$
+(\text{regular premium annuity}+\text{accrued premium annuity})s
+=
+\text{protection leg}.
+$$
+
+With the numbers above:
+
+$$
+\left(`r fmt_num(hull_components$premium_annuity, 4)`+`r fmt_num(hull_components$accrual_annuity, 4)`\right)s=`r fmt_num(hull_components$protection_leg, 4)`.
+$$
+
+Solving for $s$ gives `r fmt_pct(hull_components$fair_spread, 4)`, or `r fmt_bps(hull_components$fair_spread, 1)` basis points. This reproduces the key numerical result in Hull's CDS valuation example while keeping each cash-flow component visible.
+
+The same decomposition also explains mark-to-market value. Suppose an existing 5-year CDS contract was written at 150 basis points, while the current model inputs imply a fair spread of `r fmt_bps(hull_components$fair_spread, 1)` basis points. The protection seller is receiving more premium than a new fair contract would require under these inputs, so the existing contract has positive value to the seller.
+
+```{r hull-cds-mtm}
+hull_contract_spread <- 0.015
+hull_mtm_seller <- hull_components$risky_annuity_with_accrual * hull_contract_spread -
+  hull_components$protection_leg
+hull_mtm_buyer <- -hull_mtm_seller
+
+hull_mtm_table <- data.frame(
+  Quantity = c(
+    "Contractual spread",
+    "Current fair spread",
+    "PV contractual premium leg",
+    "PV protection leg",
+    "Value to protection seller",
+    "Value to protection buyer"
+  ),
+  Value = c(
+    paste0(fmt_bps(hull_contract_spread, 1), " bps"),
+    paste0(fmt_bps(hull_components$fair_spread, 1), " bps"),
+    fmt_num(hull_components$risky_annuity_with_accrual * hull_contract_spread, 4),
+    fmt_num(hull_components$protection_leg, 4),
+    fmt_num(hull_mtm_seller, 4),
+    fmt_num(hull_mtm_buyer, 4)
+  )
+)
+kable(
+  hull_mtm_table,
+  caption = "Mark-to-market value of an existing CDS in the Hull-style example."
+)
+```
+
+The value to the protection seller is `r fmt_num(hull_mtm_seller, 4)` per 1 of notional. The value to the protection buyer is the same number with the opposite sign. A CDS is a zero-value contract only when it is initiated at the current fair spread. After the market spread or default assumptions move, an old spread becomes valuable to one side and costly to the other.
+
+Hull also uses the CDS spread in the reverse direction. If the observed 5-year CDS spread is 100 basis points, and we keep the same risk-free rate and recovery assumption, we can solve for the flat hazard rate that makes the CDS fair spread equal to the observed quote.
+
+```{r hull-cds-implied-hazard}
+hull_observed_spread <- 0.01
+hull_implied_hazard <- solve_hull_hazard_from_spread(
+  spread = hull_observed_spread,
+  r = hull_r,
+  recovery = hull_recovery,
+  maturity = hull_maturity
+)
+hull_implied_components <- hull_cds_components(
+  hazard_rate = hull_implied_hazard,
+  r = hull_r,
+  recovery = hull_recovery,
+  maturity = hull_maturity,
+  notional = hull_notional
+)
+
+hull_implied_table <- data.frame(
+  Quantity = c(
+    "Observed CDS spread",
+    "Implied flat hazard rate",
+    "Repriced fair spread at implied hazard"
+  ),
+  Value = c(
+    paste0(fmt_bps(hull_observed_spread, 1), " bps"),
+    fmt_pct(hull_implied_hazard, 3),
+    paste0(fmt_bps(hull_implied_components$fair_spread, 1), " bps")
+  )
+)
+kable(
+  hull_implied_table,
+  caption = "Implied hazard rate from a CDS spread in the Hull-style example."
+)
+```
+
+This is the CDS version of the spread-implied default probability idea. The market spread is observed. Recovery, maturity, and discounting are modeling choices. The hazard rate is the value that makes the premium leg and protection leg balance.
+
+There is a useful recovery lesson here. In a plain-vanilla CDS, the same recovery assumption affects both sides of the calculation when the hazard rate is implied from the CDS spread. A lower recovery raises loss given default, but it also lowers the hazard rate needed to reproduce a given spread. These two effects partially offset each other. In this chapter, recovery remains important because we also use it to interpret risky bond prices and relative-value signals, where the bond's coupons, principal, and recovery timing all matter.
+
+Replicating Hull is the starting point. The added value for this chapter is to turn that replication into a diagnostic tool. Once the premium annuity, accrued premium, protection leg, and fair spread are explicit, we can ask four practical questions: how close is the quick approximation, how sensitive is the spread to default and recovery assumptions, how valuable is an old contract when its contractual spread differs from the current fair spread, and how much value moves for a one-basis-point spread change?
+
+A first benchmark is the quick approximation:
+
+$$
+s \approx a(1-R).
+$$
+
+This approximation says that the annual CDS spread should be close to the hazard rate times loss given default. It is useful because it gives the analyst a fast mental check. With Hull's inputs, the approximation is:
+
+$$
+s \approx 0.02(1-0.40)=0.0120.
+$$
+
+That is 120 basis points. The full Hull-style valuation gives `r fmt_bps(hull_components$fair_spread, 1)` basis points. The difference is small, but it is meaningful because the full valuation includes survival weighting, discounting, midpoint default timing, and accrued premium.
+
+```{r hull-cds-approximation}
+hull_quick_spread <- hull_hazard * (1 - hull_recovery)
+hull_no_accrual_spread <- hull_components$protection_leg / hull_components$premium_annuity
+
+hull_approx_table <- data.frame(
+  Method = c(
+    "Quick approximation",
+    "Hull timing without accrued premium",
+    "Hull timing with accrued premium"
+  ),
+  Calculation = c(
+    "hazard x LGD",
+    "protection leg / regular premium annuity",
+    "protection leg / total risky annuity"
+  ),
+  Fair_spread = c(
+    paste0(fmt_bps(hull_quick_spread, 1), " bps"),
+    paste0(fmt_bps(hull_no_accrual_spread, 1), " bps"),
+    paste0(fmt_bps(hull_components$fair_spread, 1), " bps")
+  ),
+  Difference_from_Hull_full = c(
+    paste0(fmt_bps(hull_quick_spread - hull_components$fair_spread, 1), " bps"),
+    paste0(fmt_bps(hull_no_accrual_spread - hull_components$fair_spread, 1), " bps"),
+    "0.0 bps"
+  )
+)
+names(hull_approx_table) <- c(
+  "Method",
+  "Calculation",
+  "Fair spread",
+  "Difference from full Hull"
+)
+kable(
+  hull_approx_table,
+  caption = "Quick CDS spread approximation compared with the Hull-style valuation."
+)
+```
+
+The quick approximation is deliberately simple. It treats the spread as expected annual loss. The full Hull-style spread is slightly higher than the quick approximation because the valuation tracks the exact timing of expected premium and protection payments. The version without accrued premium is slightly higher than the full version because it leaves out a payment that benefits the protection seller when default occurs between payment dates. Adding accrued premium increases the premium base, so the fair spread required to balance the protection leg falls.
+
+The next graph turns the same machinery into a sensitivity analysis. Keep the 5-year maturity and 5.00% risk-free rate fixed. Change only the flat hazard rate and recovery assumption. Each point reprices the CDS with the same Hull-style functions used above.
+
+```{r}
+#| label: fig-hull-cds-spread-sensitivity
+#| fig-cap: "Fair CDS spread under hazard and recovery assumptions."
+hull_hazard_grid <- seq(0.005, 0.06, by = 0.005)
+hull_recovery_grid <- c(0.20, 0.40, 0.60)
+hull_cds_sensitivity <- expand.grid(
+  hazard_rate = hull_hazard_grid,
+  recovery = hull_recovery_grid
+)
+hull_cds_sensitivity$fair_spread <- mapply(
+  function(hazard_rate, recovery) {
+    hull_cds_components(
+      hazard_rate = hazard_rate,
+      r = hull_r,
+      recovery = recovery,
+      maturity = hull_maturity,
+      notional = hull_notional
+    )$fair_spread
+  },
+  hull_cds_sensitivity$hazard_rate,
+  hull_cds_sensitivity$recovery
+)
+hull_cds_sensitivity$recovery_label <- factor(
+  paste0("Recovery ", fmt_pct(hull_cds_sensitivity$recovery, 0)),
+  levels = paste0("Recovery ", fmt_pct(hull_recovery_grid, 0))
+)
+
+hull_base_point <- data.frame(
+  hazard_rate = hull_hazard,
+  fair_spread = hull_components$fair_spread,
+  recovery_label = factor(
+    paste0("Recovery ", fmt_pct(hull_recovery, 0)),
+    levels = paste0("Recovery ", fmt_pct(hull_recovery_grid, 0))
+  )
+)
+
+ggplot(
+  hull_cds_sensitivity,
+  aes(x = hazard_rate, y = 10000 * fair_spread, color = recovery_label)
+) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 2.1, alpha = 0.78) +
+  geom_point(
+    data = hull_base_point,
+    aes(x = hazard_rate, y = 10000 * fair_spread),
+    inherit.aes = FALSE,
+    color = "#111111",
+    fill = "#F9E79F",
+    shape = 21,
+    stroke = 0.8,
+    size = 3.8
+  ) +
+  annotate(
+    "text",
+    x = hull_hazard + 0.010,
+    y = 10000 * hull_components$fair_spread + 26,
+    label = "Hull input",
+    size = 3.4
+  ) +
+  scale_x_continuous(labels = function(x) paste0(fmt_num(100 * x, 1), "%")) +
+  scale_color_manual(values = c(
+    "Recovery 20%" = "#C0392B",
+    "Recovery 40%" = "#2C7FB8",
+    "Recovery 60%" = "#2CA25F"
+  )) +
+  labs(
+    x = "Flat hazard rate",
+    y = "Fair CDS spread (bps)",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    legend.background = element_rect(fill = "white", color = NA),
+    legend.key = element_rect(fill = "white", color = NA),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The graph gives a useful reading rule. Moving to the right raises the probability of default and therefore raises the protection leg. Moving from low recovery to high recovery lowers loss given default and therefore lowers the spread. The Hull input sits on the 40% recovery line at a 2.00% hazard rate, producing a fair spread of `r fmt_bps(hull_components$fair_spread, 1)` basis points.
+
+The sensitivity is also a warning about interpretation. A CDS spread by itself does not reveal a unique default probability unless recovery and maturity are specified. A 120-basis-point spread can be consistent with different hazard rates under different recovery assumptions.
+
+Now use the Hull fair spread as a mark-to-market benchmark. The existing contract in the example pays 150 basis points. The value to the protection seller is:
+
+$$
+V_{\mathrm{seller}}
+=
+A_{\mathrm{risky}}(s_{\mathrm{contract}}-s_{\mathrm{fair}}),
+$$
+
+where $A_{\mathrm{risky}}$ is the total risky annuity, including accrued premium. With the Hull numbers:
+
+$$
+V_{\mathrm{seller}}
+=
+`r fmt_num(hull_components$risky_annuity_with_accrual, 4)`(0.0150-`r fmt_num(hull_components$fair_spread, 4)`)
+=
+`r fmt_num(hull_mtm_seller, 4)`.
+$$
+
+The next graph plots the same value for a range of contractual spreads.
+
+```{r}
+#| label: fig-hull-cds-mtm-curve
+#| fig-cap: "Mark-to-market value to the protection seller as the contractual spread changes."
+hull_contract_spread_grid <- seq(0.005, 0.020, length.out = 160)
+hull_mtm_curve <- data.frame(
+  contractual_spread = hull_contract_spread_grid,
+  seller_value = hull_components$risky_annuity_with_accrual * hull_contract_spread_grid -
+    hull_components$protection_leg
+)
+
+ggplot(hull_mtm_curve, aes(x = contractual_spread, y = seller_value)) +
+  geom_hline(yintercept = 0, color = "#2C3E50", linewidth = 0.7) +
+  geom_vline(
+    xintercept = hull_components$fair_spread,
+    color = "#2C3E50",
+    linewidth = 0.8,
+    linetype = "dashed"
+  ) +
+  geom_line(color = "#2C7FB8", linewidth = 1.15) +
+  geom_point(
+    data = data.frame(
+      contractual_spread = hull_contract_spread,
+      seller_value = hull_mtm_seller
+    ),
+    aes(x = contractual_spread, y = seller_value),
+    color = "#C0392B",
+    size = 3.2
+  ) +
+  annotate(
+    "text",
+    x = hull_components$fair_spread + 0.0017,
+    y = -0.012,
+    label = paste0("Fair = ", fmt_bps(hull_components$fair_spread, 1), " bps"),
+    size = 3.3
+  ) +
+  annotate(
+    "text",
+    x = hull_contract_spread + 0.0015,
+    y = hull_mtm_seller + 0.004,
+    label = paste0("150 bps contract\nvalue = ", fmt_num(hull_mtm_seller, 4)),
+    size = 3.3
+  ) +
+  scale_x_continuous(labels = function(x) paste0(fmt_bps(x, 0), " bps")) +
+  labs(
+    x = "Contractual CDS spread",
+    y = "Value to protection seller per 1 notional"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank())
+```
+
+The vertical dashed line is the current fair spread. At that spread, the contract has zero value at inception. To the right of the dashed line, the contractual spread is higher than the fair spread, so the protection seller receives excess premium and the position has positive value. To the left, the protection buyer has the favorable contract.
+
+The risky annuity also gives a professional risk measure. A one-basis-point move in the contractual spread changes the value by approximately:
+
+$$
+\mathrm{CDS01}=A_{\mathrm{risky}}\times 0.0001.
+$$
+
+```{r hull-cds01}
+hull_cds01_per_unit <- hull_components$risky_annuity_with_accrual * 0.0001
+hull_cds01_notional <- hull_cds01_per_unit * 100000000
+
+hull_cds01_table <- data.frame(
+  Quantity = c(
+    "Total risky annuity",
+    "Value change for 1 bp per 1 notional",
+    "Value change for 1 bp on 100 million notional"
+  ),
+  Value = c(
+    fmt_num(hull_components$risky_annuity_with_accrual, 4),
+    fmt_num(hull_cds01_per_unit, 7),
+    paste0("$", format(round(hull_cds01_notional, 0), big.mark = ","))
+  )
+)
+kable(
+  hull_cds01_table,
+  caption = "CDS01 implied by the Hull-style risky annuity."
+)
+```
+
+For a 100 million notional CDS, a one-basis-point spread change is worth about `r paste0("$", format(round(hull_cds01_notional, 0), big.mark = ","))` under these assumptions. This is why the risky annuity matters beyond the fair-spread calculation. It converts spread movements into money.
+
 ## A real corporate bond snapshot
 
 Now use a real corporate bond as a market application. Ford Motor Credit Company LLC issued 2.900% notes due February 10, 2029. The SEC free writing prospectus gives the issuer, coupon, maturity, and note description [@FordCreditSEC2022FWP]. BondWatch reports a clean mid price of 94.085 and a mid yield of 5.279% for ISIN US345397B934 [@BondWatchFord2029]. The Federal Reserve H.15 release reports the 3-year Treasury constant maturity yield as 4.09% for June 1, 2026 [@FedH152026].
@@ -815,27 +1360,53 @@ names(ford_workflow_table) <- c("Step", "Question", "Ford output")
 kable(ford_workflow_table, caption = "A compact workflow for reading the Ford bond spread.")
 ```
 
-The Merton example and the Ford example now sit on the same valuation map. Both convert a default probability and a recovery assumption into a market compensation number. Treat the comparison below as a scale check. It is not an issuer ranking because the Merton firm is a teaching example and the Ford bond is a market snapshot with a different horizon.
+The Merton example, the Hull CDS benchmark, and the Ford bond now sit on the same valuation map. Each one starts from a credit-risk input, combines it with recovery and discounting assumptions, and produces a spread-like compensation number. Treat the comparison below as a scale check. It is not an issuer ranking because the Merton firm is a teaching example, Hull's CDS is a benchmark contract, and the Ford bond is a market snapshot with a different horizon.
 
 ```{r}
 cds_comparison_table <- data.frame(
-  Source = c("Merton teaching firm", "Ford bond price-implied view"),
+  Source = c(
+    "Merton teaching firm",
+    "Hull CDS benchmark",
+    "Ford bond price-implied view"
+  ),
   Default_input = c(
     fmt_pct(pd_merton, 4),
+    paste0(fmt_pct(hull_hazard, 3), " flat hazard"),
     paste0(fmt_pct(ford_implied_h, 3), " flat h")
   ),
-  Horizon = c("1 annual period", paste0(ford_inputs$teaching_maturity_years, " annual periods")),
-  Recovery = c(fmt_pct(merton_cds_recovery, 0), fmt_pct(ford_inputs$recovery, 0)),
+  Horizon = c(
+    "1 annual period",
+    paste0(hull_maturity, " years"),
+    paste0(ford_inputs$teaching_maturity_years, " annual periods")
+  ),
+  Recovery = c(
+    fmt_pct(merton_cds_recovery, 0),
+    fmt_pct(hull_recovery, 0),
+    fmt_pct(ford_inputs$recovery, 0)
+  ),
   Fair_CDS_spread = c(
     paste0(fmt_bps(merton_cds_spread, 1), " bps"),
+    paste0(fmt_bps(hull_components$fair_spread, 1), " bps"),
     paste0(fmt_bps(ford_cds_spread_at_implied_h, 1), " bps")
+  ),
+  Use_in_chapter = c(
+    "structural model input",
+    "pricing benchmark",
+    "market-implied view"
   )
 )
-names(cds_comparison_table) <- c("Source", "Default input", "Horizon", "Recovery", "Fair CDS spread")
-kable(cds_comparison_table, caption = "Merton and Ford translated into CDS-style compensation.")
+names(cds_comparison_table) <- c(
+  "Source",
+  "Default input",
+  "Horizon",
+  "Recovery",
+  "Fair CDS spread",
+  "Use"
+)
+kable(cds_comparison_table, caption = "Merton, Hull, and Ford translated into CDS-style compensation.")
 ```
 
-The Merton teaching firm has a much higher default input, so its fair CDS spread is much higher. The Ford bond example has a lower price-implied default rate, so the CDS-style compensation is lower. The useful lesson is the mapping: default input plus recovery produces a protection spread.
+The Merton teaching firm has a much higher default input, so its fair CDS spread is much higher. The Hull row is the clean benchmark because the hazard rate, recovery, maturity, and discounting assumptions are all controlled. The Ford row shows the market application because the bond price is translated into a default view and then into CDS-style compensation. The useful lesson is the mapping. Default input plus recovery produces a protection spread, and the same mapping can be used for structural models, benchmark contracts, and observed bonds.
 
 ## Is the bond cheap or expensive?
 
@@ -1148,6 +1719,8 @@ The key ideas are:
 - recovery affects both bond values and CDS spreads through loss given default;
 - credit spreads are market prices of default risk and differ from pure historical default frequencies;
 - Merton PDs can be used as risk-neutral inputs for bond or CDS valuation, provided the horizon and recovery assumptions are explicit;
+- CDS valuation compares the protection leg with the premium leg, and accrued premium matters when default occurs between payment dates;
+- CDS sensitivity analysis turns hazard, recovery, and spread movements into fair spreads, mark-to-market values, and CDS01;
 - relative value means comparing the market spread with a model-implied spread before judging whether a high-yield bond is attractive.
 
 The next chapter moves from one issuer to a portfolio. Once each borrower has a marginal default probability or a spread-implied credit view, the remaining problem is dependence: how likely are several borrowers to default together?
