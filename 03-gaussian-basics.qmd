@@ -37,7 +37,7 @@ names(copula_input_table) <- c("Object", "Code", "Financial role")
 
 Imagine a bank with loans to ten manufacturing firms. The credit team may know the 5-year cumulative PD of each firm. That information is useful, but it answers a borrower-level question. It says how often each name defaults over five years. The portfolio manager also needs a portfolio-level answer. Do defaults tend to arrive one by one, or can several borrowers fail in the same bad credit environment?
 
-That second question is the co-default problem. Co-default means that several borrowers default within the same horizon. It matters because a lender can absorb isolated defaults more easily than a cluster of defaults arriving together.
+That second question is the co-default problem. Co-default means that several borrowers default within the same horizon. A lender can absorb isolated defaults more easily than a cluster of defaults arriving together, so co-default directly affects portfolio loss risk.
 
 Defaults cluster for economic reasons. Firms in the same industry can face the same fall in demand. Firms in the same country can face the same interest-rate, exchange-rate, or funding shock. A supplier can be hurt when a large customer defaults. A borrower that depends on refinancing can become fragile when market liquidity dries up. These shared forces leave diversification incomplete even when a portfolio contains many borrowers.
 
@@ -56,6 +56,43 @@ X_i=\sqrt{\rho}\,Z_0+\sqrt{1-\rho}\,Z_i.
 $$
 
 The score $X_i$ is the simulated credit state of firm $i$. The variable $Z_0$ is the common credit shock in the scenario, such as a recession, a funding squeeze, or a sector-wide stress event. The variable $Z_i$ is the firm-specific shock. If $Z_0$ is very low, many firms receive weak credit-state scores in the same simulation. The parameter $\rho$ controls how much each firm's score depends on that common shock. This is the mechanism that creates co-default risk.
+
+In an applied model, $\rho$ must be defended. It is a portfolio dependence assumption, so it should come from evidence, policy, or a transparent sensitivity exercise. The chapter treats $\rho$ as a controlled input because the pedagogical goal is to isolate the effect of co-default behavior on losses.
+
+```{r rho-selection-table}
+rho_selection_table <- data.frame(
+  Source = c(
+    "Historical defaults or migrations",
+    "Equity or asset-return proxies",
+    "CDS or bond-spread co-movement",
+    "Regulatory or internal-model benchmark",
+    "Stress and sensitivity analysis"
+  ),
+  `How it helps` = c(
+    "Uses observed credit events by sector, rating, or region.",
+    "Uses market data for public firms when default histories are sparse.",
+    "Uses credit-market prices that react quickly to common stress.",
+    "Uses a documented benchmark when a portfolio policy or capital framework requires one.",
+    "Reports low, base, and high dependence cases when direct calibration is uncertain."
+  ),
+  `Main caution` = c(
+    "Defaults are rare, so estimates can be noisy.",
+    "Equity and asset returns are proxies for credit states, not defaults themselves.",
+    "Spread co-movement includes liquidity, risk premia, and technical market effects.",
+    "Benchmarks can be too coarse for a specific portfolio.",
+    "Scenario choices need a clear reason; otherwise the parameter becomes arbitrary."
+  ),
+  check.names = FALSE
+)
+
+kable(
+  rho_selection_table,
+  caption = "Practical ways to justify the copula correlation input.",
+  row.names = FALSE
+)
+```
+
+A good credit report would state the base value of $\rho$, explain why it is reasonable for the portfolio, and show how the loss tail changes when $\rho$ moves. That is why the examples below repeatedly change $\rho$ while holding the marginal PDs fixed. The exercise is not cosmetic. It reveals how much of the portfolio loss comes from default clustering rather than from the individual default probabilities alone.
 
 ```{r}
 #| label: fig-copula-credit-risk-pipeline

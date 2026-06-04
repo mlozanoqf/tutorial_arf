@@ -3,8 +3,8 @@ project:
   output-dir: _book
 
 book:
-  title: "Credit Risk with R"
-  subtitle: "Book"
+  title: "Applied Credit Risk Modeling with R"
+  subtitle: "A Step-by-Step Guide for Business, Finance, and Risk Analysts"
   author: "Dr. Martin Lozano"
   page-navigation: true
   search: true
@@ -14,16 +14,17 @@ book:
     style: docked
     collapse-level: 1
   page-footer:
-    left: "Credit Risk with R"
+    left: "Applied Credit Risk Modeling with R"
     right: 'Dr. Martin Lozano &middot; <a href="mailto:mlozanoqf@gmail.com">mlozanoqf@gmail.com</a> &middot; <a href="https://mlozanoqf.github.io/">mlozanoqf.github.io</a>'
   chapters:
-    - text: "Credit Risk with R"
+    - text: "Contents"
       href: index.qmd
     - 01-logistic.qmd
     - 02-tree-based.qmd
     - 02-merton.qmd
     - 04-credit-spreads-cds.qmd
     - 03-gaussian-copula.qmd
+    - 06-climate-credit-risk.qmd
     - references.qmd
 
 bibliography: references.bib

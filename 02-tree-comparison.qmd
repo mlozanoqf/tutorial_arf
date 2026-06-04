@@ -23,15 +23,25 @@ best_strategy_by_model <- strategy_comparison |>
 
 best_strategy_overall <- best_strategy_by_model |>
   slice_max(net_payoff, n = 1, with_ties = FALSE)
+
+fmt_dollar <- function(x) {
+  paste0(ifelse(x < 0, "-$", "$"), fmt_int(abs(x)))
+}
 ```
 
 ```{r Model comparison metrics}
-model_metrics |>
+model_metrics_table <- model_metrics |>
   mutate(
-    auc = round(auc, 4),
-    brier_score = round(brier_score, 4),
-    brier_skill = round(brier_skill, 4)
+    auc = fmt_num(auc, 4),
+    brier_score = fmt_num(brier_score, 4),
+    brier_skill = fmt_num(brier_skill, 4)
   )
+
+knitr::kable(
+  model_metrics_table,
+  caption = "Out-of-sample performance of the credit-scoring models.",
+  row.names = FALSE
+)
 ```
 
 AUC measures ranking ability: do defaulting borrowers tend to receive higher predicted probabilities than non-defaulting borrowers? The Brier score measures probability error: are the predicted probabilities numerically close to the observed outcomes? Brier skill expresses improvement relative to the constant default-rate benchmark. A positive value means the model improves on assigning every applicant the same default probability. In code, `model_metrics` collects these three criteria for the logistic benchmark, the single tree, and XGBoost.
@@ -217,18 +227,18 @@ strategy_comparison |>
   theme(legend.position = "bottom")
 ```
 
-The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff 1, accepting a default has cost 5, and rejecting an application has payoff 0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model may differ from the model with the highest AUC. The selected model is the one that produces better decisions under the payoff rule.
+The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff \$1, accepting a default has cost \$5, and rejecting an application has payoff \$0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model may differ from the model with the highest AUC. The selected model is the one that produces better decisions under the payoff rule.
 
-The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r round(best_strategy_overall$net_payoff, 2)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
+The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r fmt_dollar(best_strategy_overall$net_payoff)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
 
 The payoff calculation for that row is the same one used in Chapter 1:
 
 $$
-`r best_strategy_overall$accepted_good`(1)
+`r best_strategy_overall$accepted_good`(\text{\$1})
 -
-`r best_strategy_overall$accepted_defaults`(5)
+`r best_strategy_overall$accepted_defaults`(\text{\$5})
 =
-`r best_strategy_overall$net_payoff`.
+\text{\$`r fmt_int(best_strategy_overall$net_payoff)`}.
 $$
 
 ```{r Best net payoff numerical check}
@@ -237,19 +247,19 @@ best_strategy_overall_check <- data.frame(
     "Model",
     "Acceptance rate",
     "Accepted good loans",
-    "Payoff from good loans",
+    "Payoff from good loans ($1 each)",
     "Accepted default loans",
-    "Cost from default loans",
+    "Cost from default loans ($5 each)",
     "Net payoff"
   ),
   Value = c(
     best_strategy_overall$model,
     fmt_pct(best_strategy_overall$accept_rate, 0),
     fmt_int(best_strategy_overall$accepted_good),
-    fmt_int(best_strategy_overall$accepted_good * 1),
+    fmt_dollar(best_strategy_overall$accepted_good * 1),
     fmt_int(best_strategy_overall$accepted_defaults),
-    paste0("-", fmt_int(best_strategy_overall$accepted_defaults * 5)),
-    fmt_int(best_strategy_overall$net_payoff)
+    fmt_dollar(-best_strategy_overall$accepted_defaults * 5),
+    fmt_dollar(best_strategy_overall$net_payoff)
   )
 )
 
@@ -261,11 +271,24 @@ knitr::kable(
 ```
 
 ```{r Best net payoff by model}
-strategy_comparison |>
+best_strategy_by_model_table <- strategy_comparison |>
   group_by(model) |>
   slice_max(net_payoff, n = 1, with_ties = FALSE) |>
   ungroup() |>
-  select(model, accept_rate, cutoff, accepted_defaults, bad_rate, net_payoff)
+  select(model, accept_rate, cutoff, accepted_defaults, bad_rate, net_payoff) |>
+  mutate(
+    accept_rate = fmt_pct(accept_rate, 0),
+    cutoff = fmt_pct(cutoff, 2),
+    accepted_defaults = fmt_int(accepted_defaults),
+    bad_rate = fmt_pct(bad_rate, 2),
+    net_payoff = fmt_dollar(net_payoff)
+  )
+
+knitr::kable(
+  best_strategy_by_model_table,
+  caption = "Best net-payoff row by model.",
+  row.names = FALSE
+)
 ```
 
 This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. The same decision framework allows us to see where a more flexible model changes the lending strategy and where it gives a similar answer.

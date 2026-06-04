@@ -124,6 +124,12 @@ body:has(.home-panel) #quarto-header .quarto-page-breadcrumbs {
   margin-block-end: 0.5rem;
 }
 
+.book-edition-line {
+  color: var(--book-muted);
+  font-size: 0.95rem;
+  margin: 0.35rem 0 0;
+}
+
 .book-edition-code {
   background: var(--book-soft-surface);
   border: 1px solid var(--book-card-border);

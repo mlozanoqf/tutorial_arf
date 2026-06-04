@@ -217,14 +217,30 @@ The lowest-risk leaf in this fitted tree assigns a PD of `r fmt_pct(leaf_summary
 However, a single tree has an important weakness: it can be unstable. A small change in the training data can produce a different set of splits. A tree can also be too simple if it is shallow, or too noisy if it is allowed to grow too deep. This creates a natural motivation for ensemble methods, where many trees are combined to reduce dependence on one tree.
 
 ```{r Single tree predictions}
-data.frame(
-  min_predicted_pd = min(pred_tree_simple),
-  max_predicted_pd = max(pred_tree_simple),
-  auc = as.numeric(auc(ROC_tree_simple)),
-  brier_score = brier_score(actual_default_tree, pred_tree_simple)
+single_tree_prediction_summary <- data.frame(
+  Quantity = c(
+    "Minimum predicted PD",
+    "Maximum predicted PD",
+    "Distinct predicted PD values",
+    "Test-set AUC",
+    "Test-set Brier score"
+  ),
+  Value = c(
+    fmt_pct(min(pred_tree_simple), 2),
+    fmt_pct(max(pred_tree_simple), 2),
+    fmt_int(length(unique(pred_tree_simple))),
+    fmt_num(as.numeric(auc(ROC_tree_simple)), 4),
+    fmt_num(brier_score(actual_default_tree, pred_tree_simple), 4)
+  )
+)
+
+knitr::kable(
+  single_tree_prediction_summary,
+  caption = "Single-tree prediction summary on the test set.",
+  row.names = FALSE
 )
 ```
 
 The single tree already produces default probabilities and can be evaluated like the logistic model. In code, `simple_tree <- rpart(...)` learns the leaves, and `predict(simple_tree, newdata = test, type = "prob")[, "1"]` returns the leaf default rate assigned to each test applicant. This is the code counterpart of $\hat p_L = d_L/n_L$. The main role of the single tree in this chapter is conceptual: it shows the basic building block used by more powerful tree-based methods.
 
-The prediction range in the table also shows the limitation of a single tree. The fitted tree has `r sum(tree_nodes$is_leaf)` terminal leaves, so the test-set predictions can only take a small number of distinct leaf-level values. This is useful for explanation, but it can be too coarse for a scoring system that needs a smoother risk ranking across many applicants.
+The prediction range in the table also shows the limitation of a single tree. The fitted tree has `r sum(tree_nodes$is_leaf)` terminal leaves and produces only `r fmt_int(length(unique(pred_tree_simple)))` distinct PD values on the test set. This is useful for explanation because every probability can be traced to a leaf, but it can be too coarse for a scoring system that needs a smoother risk ranking across many applicants.

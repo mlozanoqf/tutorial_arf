@@ -52,3 +52,7 @@ vignettes/*.pdf
 
 # Local reference files not intended for publication.
 /Hull 11th.pdf
+
+# Local Codex routers
+AGENTS.md
+agents_*.md

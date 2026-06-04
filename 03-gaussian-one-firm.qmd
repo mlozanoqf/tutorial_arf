@@ -50,7 +50,7 @@ one_firm_threshold <- qnorm(0.15)
 set.seed(130575)
 one_firm_x <- rnorm(one_firm_sims)
 one_firm_default <- one_firm_x <= one_firm_threshold
-mean(one_firm_default)
+one_firm_simulated_pd_from_code <- mean(one_firm_default)
 ```
 
 The object `one_firm_default` is a TRUE/FALSE vector. R treats TRUE as 1 and FALSE as 0 when it computes a mean, so `mean(one_firm_default)` is the fraction of simulations in which the firm defaults.

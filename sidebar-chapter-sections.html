@@ -6,6 +6,24 @@ function initSidebarChapterSections() {
     return;
   }
 
+  function applySidebarTitle() {
+    var titleLink = sidebar.querySelector(".sidebar-title a");
+    var title = sidebar.querySelector(".sidebar-title");
+
+    if (titleLink) {
+      titleLink.textContent = "Contents";
+      titleLink.setAttribute("aria-label", "Contents");
+      return;
+    }
+
+    if (title) {
+      title.textContent = "Contents";
+      title.setAttribute("aria-label", "Contents");
+    }
+  }
+
+  applySidebarTitle();
+
   var chapters = [
     {
       page: "01-logistic.html",
@@ -67,6 +85,19 @@ function initSidebarChapterSections() {
         { id: "concentration-risk-with-different-exposure-weights", text: "5.7 Concentration risk with different exposure weights" },
         { id: "tail-dependence-with-a-t-copula", text: "5.8 Tail dependence with a t-copula" },
         { id: "credit-var-under-copula-model-risk", text: "5.9 Credit VaR under copula model risk" }
+      ]
+    },
+    {
+      page: "06-climate-credit-risk.html",
+      sections: [
+        { id: "from-climate-scenarios-to-credit-quantities", text: "6.1 From climate scenarios to credit quantities" },
+        { id: "downloading-ngfs-data", text: "6.2 Downloading NGFS data" },
+        { id: "physical-risk-is-local", text: "6.3 Physical risk is local" },
+        { id: "expected-loss-with-climate-adjusted-pds", text: "6.4 Expected loss with climate-adjusted PDs" },
+        { id: "which-sectors-drive-the-increase", text: "6.5 Which sectors drive the increase" },
+        { id: "spreads-bond-prices-and-cds-compensation", text: "6.6 Spreads, bond prices, and CDS compensation" },
+        { id: "portfolio-loss-simulation", text: "6.7 Portfolio loss simulation" },
+        { id: "what-the-chapter-adds", text: "6.8 What the chapter adds" }
       ]
     }
   ];

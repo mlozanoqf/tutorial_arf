@@ -11,7 +11,28 @@ Throughout this section, $pd$ means the Merton risk-neutral/implied probability 
 ```{r}
 # Evaluate the case of the textbook example.
 pd1 <- pd(3, 0.8, 0.05, 1, 10)
-pd1
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Observed equity value",
+      "Observed equity volatility",
+      "Risk-free rate",
+      "Debt maturity",
+      "Promised debt payment",
+      "Merton risk-neutral PD"
+    ),
+    Value = c(
+      fmt_num(E0, 0),
+      fmt_pct(se, 0),
+      fmt_pct(rf, 0),
+      fmt_num(TT, 0),
+      fmt_num(D, 0),
+      fmt_pct(pd1, 2)
+    )
+  ),
+  caption = "Original Hull/Merton input position for the sensitivity analysis.",
+  row.names = FALSE
+)
 ```
 
 The code below creates input grids and evaluates the `pd` function across those grids.
@@ -117,7 +138,7 @@ plot_pd_sensitivity(
 )
 ```
 
-These relationships between the observable inputs and the risk-neutral probability of default are nonlinear. The current level of each input matters because the same absolute change can have a high or low impact depending on where the firm starts.
+These relationships between the observable inputs and the risk-neutral probability of default are nonlinear. The current level of each input shapes the result because the same absolute change can have a high or low impact depending on where the firm starts.
 
 ```{r}
 #| label: fig-tpodaafotrfr
@@ -171,6 +192,48 @@ plot_pd_sensitivity(
   current_x = se,
   x_label = "Equity volatility",
   x_as_percent = TRUE
+)
+```
+
+The five one-input figures are easier to use when their messages are read together. The next table summarizes the grid calculation behind the plots. Each row changes one observed input, solves the Merton equations again, and reports the lowest and highest risk-neutral PD on that grid.
+
+```{r}
+sensitivity_summary_table <- data.frame(
+  Input = c(
+    "$E_0$",
+    "$r_f$",
+    "$D$",
+    "$T$",
+    "$\\sigma_E$"
+  ),
+  `Grid range` = c(
+    paste0(fmt_num(min(x.E), 0), " to ", fmt_num(max(x.E), 0)),
+    paste0(fmt_pct(min(x.rf), 0), " to ", fmt_pct(max(x.rf), 0)),
+    paste0(fmt_num(min(x.D), 0), " to ", fmt_num(max(x.D), 0)),
+    paste0(fmt_num(min(x.T), 1), " to ", fmt_num(max(x.T), 0), " years"),
+    paste0(fmt_pct(min(x.se), 0), " to ", fmt_pct(max(x.se), 0))
+  ),
+  `PD range on grid` = c(
+    paste0(fmt_pct(min(pd.E, na.rm = TRUE), 2), " to ", fmt_pct(max(pd.E, na.rm = TRUE), 2)),
+    paste0(fmt_pct(min(pd.rf, na.rm = TRUE), 2), " to ", fmt_pct(max(pd.rf, na.rm = TRUE), 2)),
+    paste0(fmt_pct(min(pd.D, na.rm = TRUE), 2), " to ", fmt_pct(max(pd.D, na.rm = TRUE), 2)),
+    paste0(fmt_pct(min(pd.T, na.rm = TRUE), 2), " to ", fmt_pct(max(pd.T, na.rm = TRUE), 2)),
+    paste0(fmt_pct(min(pd.se, na.rm = TRUE), 2), " to ", fmt_pct(max(pd.se, na.rm = TRUE), 2))
+  ),
+  `Financial reading` = c(
+    "More equity market value gives the firm a larger cushion above the promised debt payment.",
+    "The effect is small in this example because the option valuation equation and asset re-estimation both move.",
+    "A higher promised debt payment raises the default boundary.",
+    "More time gives the asset value more room to move under the risk-neutral distribution.",
+    "Higher observed equity volatility implies a more unstable residual claim and usually higher asset risk."
+  )
+)
+
+knitr::kable(
+  sensitivity_summary_table,
+  caption = "Reading the one-input Merton sensitivity curves.",
+  escape = FALSE,
+  row.names = FALSE
 )
 ```
 

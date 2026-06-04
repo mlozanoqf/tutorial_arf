@@ -67,7 +67,14 @@ Several variable names can be shortened without losing their meaning. We rename 
 old_names <- colnames(dat)
 colnames(dat) <- c("loan_st", "l_amnt", "int", "grade", "emp_len", 
                    "home", "income", "age", "sex", "region")
-data.frame(old_names, "new_names" = colnames(dat))
+knitr::kable(
+  data.frame(
+    `Original name` = old_names,
+    `Book name` = colnames(dat)
+  ),
+  caption = "Variable names used in the chapter.",
+  row.names = FALSE
+)
 ```
 
 The dataset now has shorter variable names. 
@@ -75,7 +82,11 @@ The dataset now has shorter variable names.
 The first 10 rows give a quick view of the variables and their coding.
 
 ```{r First 10 rows of loan data}
-head(dat, 10)
+knitr::kable(
+  head(dat, 10),
+  caption = "First 10 rows of the cleaned loan data.",
+  row.names = FALSE
+)
 ```
 
 Note that `sex` is 1 for female and 0 for male. A categorical variable such as `home` can be summarized with the `CrossTable()` function.
@@ -91,17 +102,42 @@ CrossTable(dat$home, dat$loan_st, prop.r = TRUE,
            prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
 ```
 
-The table reports defaults by home ownership. For numerical variables, plots are often easier to read than raw tables. The next figure shows the interest-rate distribution.
+```{r Home ownership default-rate summary}
+home_default_summary <- dat |>
+  mutate(default = as.numeric(as.character(loan_st))) |>
+  group_by(home) |>
+  summarize(
+    loans = n(),
+    defaults = sum(default == 1),
+    default_rate = mean(default == 1),
+    .groups = "drop"
+  )
+
+home_default_summary |>
+  mutate(default_rate = fmt_pct(default_rate, 2)) |>
+  knitr::kable(
+    caption = "Default rate by home-ownership category.",
+    row.names = FALSE
+  )
+```
+
+The table reports defaults by home ownership. The row percentages in `CrossTable()` answer a credit-risk question: conditional on belonging to a given home-ownership category, what fraction of loans defaulted? The compact table repeats the same idea as a default rate. For example, the mortgage row says that loans associated with borrowers in the mortgage category have a default rate of `r fmt_pct(home_default_summary$default_rate[home_default_summary$home == "MORTGAGE"], 2)` in this sample. This is not yet a causal statement. It is a descriptive relationship that helps us see whether home ownership may contain useful information for credit scoring.
+
+For numerical variables, plots are often easier to read than raw tables. The next figure shows the interest-rate distribution.
 
 ```{r}
 #| label: fig-irh
 #| fig-cap: "Interest rate histogram."
+interest_quantiles <- quantile(dat$int, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
 ggplot(dat, aes(x = int)) + 
   geom_histogram(aes(y=..density..), binwidth = 0.5, colour = "black", 
                  fill = "white") +
   labs(y = "Density", x = "Interest rate") +
   theme(legend.position = "bottom", legend.title = element_blank())
 ```
+
+The histogram shows where the observed loan interest rates are concentrated before modeling. Most of the mass lies between the first and third quartiles, from `r fmt_num(interest_quantiles[[1]], 2)` to `r fmt_num(interest_quantiles[[3]], 2)`, with a median of `r fmt_num(interest_quantiles[[2]], 2)`. This affects interpretation because the model will learn the relationship between interest rates and default mainly from the range where many loans are observed. Sparse tails should be read with more caution.
 
 The next dotplot shows annual income.
 

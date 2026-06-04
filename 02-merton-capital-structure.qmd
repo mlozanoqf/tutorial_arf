@@ -120,6 +120,60 @@ plot_capital_structure <- function(curve_data, color_values,
 }
 ```
 
+Before reading the figures, keep the three scenario comparisons in one place. Each row reports the starting position, the two actions considered, and the model-implied PD after each action.
+
+```{r capital-structure-scenario-summary}
+capital_structure_summary <- data.frame(
+  Scenario = c(
+    "1. Initial Hull position",
+    "2. Lower-equity/lower-debt position",
+    "3. Liquidity and maturity choice"
+  ),
+  `Initial position` = c(
+    paste0("E0 = ", fmt_num(E0, 0), ", D = ", fmt_num(D, 0), ", T = ", fmt_num(TT, 0)),
+    paste0("E0 = ", fmt_num(scenario2_E0, 0), ", D = ", fmt_num(scenario2_D, 0), ", T = ", fmt_num(TT, 0)),
+    paste0("E0 = ", fmt_num(E0, 0), ", D = ", fmt_num(scenario3_D, 0), ", T = ", fmt_num(scenario3_T, 1))
+  ),
+  `Initial PD` = c(
+    fmt_pct(pd_initial, 2),
+    fmt_pct(pd_scenario_2_initial, 2),
+    fmt_pct(pd_scenario_3_initial, 2)
+  ),
+  `Action A` = c(
+    paste0("Reduce D to ", fmt_num(D - 2, 0)),
+    paste0("Reduce D to ", fmt_num(scenario2_D - 1, 0)),
+    paste0("Raise D to ", fmt_num(scenario3_D + 2, 0))
+  ),
+  `PD after A` = c(
+    fmt_pct(scenario1_reduce_D, 2),
+    fmt_pct(scenario2_reduce_D, 2),
+    fmt_pct(scenario3_more_debt, 2)
+  ),
+  `Action B` = c(
+    paste0("Raise E0 to ", fmt_num(E0 + 2, 0)),
+    paste0("Raise E0 to ", fmt_num(scenario2_E0 + 1, 0)),
+    paste0("Extend T to ", fmt_num(scenario3_T + 0.5, 1))
+  ),
+  `PD after B` = c(
+    fmt_pct(scenario1_raise_E, 2),
+    fmt_pct(scenario2_raise_E, 2),
+    fmt_pct(scenario3_more_time, 2)
+  ),
+  `Lower-PD alternative` = c(
+    "Action B: equity injection",
+    "Action A: debt reduction",
+    "Action A: higher promised payment"
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  capital_structure_summary,
+  caption = "Capital-structure scenario summary under the Merton model.",
+  row.names = FALSE
+)
+```
+
 @fig-gppodacs shows the first comparison area. The horizontal axis changes the promised debt payment due at maturity, $D$. Each colored curve fixes one equity value, $E_0$, and recomputes the Merton risk-neutral PD for different levels of $D$. The black curve is the original equity value, $E_0=`r fmt_num(E0, 0)`$. The vertical dashed line marks the original promised debt payment, $D=`r fmt_num(D, 0)`$, and the horizontal dashed line marks the original risk-neutral PD. Their intersection is the initial firm position.
 
 ```{r}
@@ -329,3 +383,5 @@ plot_capital_structure(
 ```
 
 In the third scenario, increasing the promised debt payment from $D=`r fmt_num(scenario3_D, 0)`$ to $D=`r fmt_num(scenario3_D + 2, 0)`$ while keeping maturity at $T=`r fmt_num(scenario3_T, 1)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_debt, 2)`. Extending maturity from $T=`r fmt_num(scenario3_T, 1)`$ to $T=`r fmt_num(scenario3_T + 0.5, 1)`$ while keeping $D=`r fmt_num(scenario3_D, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario3_more_time, 2)`. Both alternatives increase the PD relative to the initial `r fmt_pct(pd_scenario_3_initial, 2)`. The smaller increase comes from increasing the promised debt payment. In this configuration, giving the assets more time to move creates a larger increase in model-implied default risk than the extra promised payment. This is a structural-model comparison. A real financing decision would also require cash-flow projections, funding spreads, covenants, and business constraints.
+
+The summary table at the beginning of the section is the practical reading device. The figures explain the nonlinear shape of the Merton response; the table records the decision conclusion for each starting position. The same action can be best in one starting balance sheet and weaker in another because $V_0$ and $\sigma_V$ are re-estimated after every change.

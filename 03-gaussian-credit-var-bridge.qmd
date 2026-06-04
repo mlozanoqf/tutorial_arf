@@ -106,6 +106,36 @@ credit_var_input_table <- data.frame(
   )
 )
 
+credit_var_code_bridge_table <- data.frame(
+  `Financial object` = c(
+    "$Q(T)$",
+    "$\\rho$",
+    "$\\alpha$",
+    "$EAD$",
+    "$LGD$",
+    "$V(\\alpha,T)$",
+    "Credit VaR"
+  ),
+  `Code object` = c(
+    "`pd`",
+    "`rho`",
+    "`confidence`",
+    "`ead`",
+    "`1 - recovery`",
+    "`vasicek_default_rate()`",
+    "`vasicek_credit_var()`"
+  ),
+  `Role in the calculation` = c(
+    "Average cumulative default probability for each name.",
+    "Common-factor correlation that controls co-default risk.",
+    "Tail probability level used to select a bad common-factor state.",
+    "Portfolio exposure at default.",
+    "Loss severity after recovery.",
+    "Tail default rate implied by the common-factor state.",
+    "Dollar loss percentile after multiplying the tail default rate by EAD and LGD."
+  )
+)
+
 credit_var_summary_table <- data.frame(
   Confidence = fmt_pct(credit_var_inputs$confidence, 1),
   Tail_default_rate = fmt_pct(credit_var_rate, 2),
@@ -283,6 +313,8 @@ The formula uses the same objects as the copula simulation. $Q(T)$ is the margin
 
 The plus sign in the numerator comes from the bad state of the common credit factor. In the one-factor representation, low values of the common factor raise conditional default probabilities. The loss percentile at confidence level $\alpha$ corresponds to the factor quantile $N^{-1}(1-\alpha)$. Substituting that bad factor into the conditional PD formula gives the same expression as above because $-N^{-1}(1-\alpha)=N^{-1}(\alpha)$.
 
+The value $\rho=`r fmt_num(credit_var_inputs$rho, 2)`$ below is part of Hull's numerical example. In practice, changing this input is one of the most important sensitivity checks in Credit VaR. A small increase in common-factor dependence can have little effect on expected loss and a large effect on economic capital, because the capital number is about clustered losses in bad states.
+
 At $\alpha=`r fmt_pct(credit_var_focus_alpha, 1)`$, the bad common-factor quantile is $N^{-1}(1-\alpha)=`r fmt_num(qnorm(1 - credit_var_focus_alpha), 4)`$. Its opposite is `r fmt_num(credit_var_q_conf, 4)`, which is the tail quantile used in the table below.
 
 Hull's Example 24.8 uses the following inputs.
@@ -291,6 +323,17 @@ Hull's Example 24.8 uses the following inputs.
 kable(
   credit_var_input_table,
   caption = "Inputs for the Vasicek-style Credit VaR approximation.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+Before writing the function, it helps to align the financial notation with the code objects. The first function produces the tail default rate. The second function turns that rate into a dollar loss.
+
+```{r}
+kable(
+  credit_var_code_bridge_table,
+  caption = "Mapping the Credit VaR notation to the R implementation.",
   row.names = FALSE,
   escape = FALSE
 )

@@ -35,7 +35,7 @@ colnames(pred_John) <- "Predicted default probability for John Doe."
 pred_John
 ```
 
-In code, `predict(..., type = "response")` returns $\hat p_i$ as a probability before any final 0/1 label is assigned. The values above are close to 0, so the models assign John Doe a low default probability. This single example is only a starting point. We still need a cutoff rule to decide when a predicted probability is low enough to accept an applicant.
+In code, `predict(..., type = "response")` returns $\hat p_i$ as a probability before any final 0/1 label is assigned. This option asks R to report the prediction on the response scale of the logistic model, which is the probability scale from 0 to 1. Without this option, logistic-regression predictions are commonly returned on the logit-score scale. The values above are close to 0, so the models assign John Doe a low default probability. This single example is only a starting point. We still need a cutoff rule to decide when a predicted probability is low enough to accept an applicant.
 
 The full evaluation must use all `r format(nrow(test), big.mark = ",")` observations in the test set. The code change is small: replace `newdata = John_Doe` with `newdata = test`. Mathematically, this computes one $\hat p_i$ for every applicant $i$ in the test set.
 
@@ -74,9 +74,11 @@ pred_data <- data.frame(
 ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
   geom_point(alpha = 0.6, color = "blue") +  # Points for predictions
   labs(x = "Observation (test set)", 
-       y = "Predicted default probability") +
+       y = "Age-only model predicted default probability") +
   theme_minimal()
 ```
+The points form a narrow horizontal band. This means that the age-only model assigns almost the same predicted default probability to many applicants, even though those applicants differ in other credit characteristics. A credit score can still be useful if its range is narrow but ranks borrowers well. Here, however, the narrow range reinforces the earlier warning from @fig-scolcam: age by itself is too weak to create meaningful default-risk separation.
+
 The same predictions can also be viewed as a distribution.
 
 ```{r}
@@ -126,8 +128,20 @@ The previous section estimated `logi_full`, the most complete model in this chap
 ```{r logi_full prediction}
 # Loan status predictions for all test set elements.
 pred_logi_full <- predict(logi_full, newdata = test, type = "response")
-# Look at the predictions range.
-range(pred_logi_full)
+full_model_pd_range <- data.frame(
+  Quantity = c("Minimum predicted PD", "Maximum predicted PD", "Range"),
+  Value = c(
+    fmt_pct(min(pred_logi_full), 2),
+    fmt_pct(max(pred_logi_full), 2),
+    fmt_pct(max(pred_logi_full) - min(pred_logi_full), 2)
+  )
+)
+
+knitr::kable(
+  full_model_pd_range,
+  caption = "Prediction range for the full logistic model on the test set.",
+  row.names = FALSE
+)
 ```
 
 ```{r Full model prediction range setup, include=FALSE}
@@ -225,7 +239,7 @@ ggplot(data = full_score_curve_data, aes(x = score, y = p)) +
     limits = c(0, 1),
     breaks = seq(0, 1, 0.25)
   ) +
-  labs(x = "Full-model score (logit)", y = "Probability (p)") +
+  labs(x = "Full-model score (logit)", y = "Full-model predicted default probability") +
   theme_minimal()
 ```
 
@@ -256,7 +270,19 @@ pred_range <- rbind("logi_age" = range(pred_logi_age),
 aic <- rbind(logi_age$aic, logi_int$aic, logi_multi$aic, logi_full$aic)
 pred_range <- cbind(pred_range, aic)
 colnames(pred_range) <- c("min(predicted PD)", "max(predicted PD)", "AIC")
-pred_range
+pred_range_table <- data.frame(
+  Model = rownames(pred_range),
+  `Minimum predicted PD` = fmt_pct(pred_range[, "min(predicted PD)"], 2),
+  `Maximum predicted PD` = fmt_pct(pred_range[, "max(predicted PD)"], 2),
+  AIC = fmt_num(pred_range[, "AIC"], 1),
+  row.names = NULL
+)
+
+knitr::kable(
+  pred_range_table,
+  caption = "Prediction ranges and AIC across logistic model candidates.",
+  row.names = FALSE
+)
 ```
 
 ```{r}
@@ -296,8 +322,8 @@ To turn predicted probabilities into a lending decision, the bank needs a cutoff
 $$
 \hat{y}_i(c) =
 \begin{cases}
-1, & \text{if } \hat{p}_i > c \quad \text{(predicted default, reject)},\\
-0, & \text{if } \hat{p}_i \leq c \quad \text{(predicted no default, accept)}.
+1, & \text{if } \hat{p}_i > c \quad \text{predicted default, reject},\\
+0, & \text{if } \hat{p}_i \leq c \quad \text{predicted no default, accept}.
 \end{cases}
 $$
 
@@ -351,7 +377,7 @@ ggplot(pred_data, aes(x = Observation, y = Predicted_Probabilities)) +
     lineheight = 0.95
   ) +
   labs(x = "Observation (test set)", 
-       y = "Predicted default probability") +
+       y = "Full-model predicted default probability") +
   theme_minimal()
 
 ```
@@ -396,9 +422,17 @@ The next rows show the transformation from probability to binary prediction.
 ```{r Specifying a cutoff of 15}
 # Make a binary predictions-vector using a cutoff of 15%
 pred_cutoff_15 <- ifelse(pred_logi_full > 0.15, 1, 0)
-head(cbind(pred_logi_full, 
-           "pred_logi_full_rounded" = round(pred_logi_full, 4), 
-           pred_cutoff_15))
+cutoff_15_sample <- data.frame(
+  `Predicted PD` = fmt_pct(head(pred_logi_full), 2),
+  `Binary prediction` = head(pred_cutoff_15),
+  `Credit decision` = ifelse(head(pred_cutoff_15) == 1, "Reject", "Accept")
+)
+
+knitr::kable(
+  cutoff_15_sample,
+  caption = "First six full-model predictions after applying the 15% cutoff.",
+  row.names = FALSE
+)
 ```
 
 These are only the first 6 rows in the test set. The rule is doing exactly what the equation says: every estimated default probability below or equal to 0.15 is coded as 0 (predicted no-default), and every estimated default probability above 0.15 is coded as 1 (predicted default). The table above shows the conversion from a probability, `pred_logi_full`, to a binary prediction, `pred_cutoff_15`.
@@ -409,28 +443,30 @@ To see whether `logi_full` is making useful decisions, we compare predictions wi
 
 ```{r}
 # Take rows 101 to 110.
-(cbind(pred_logi_full, pred_cutoff_15, 
-           as.data.frame.numeric(test$loan_st)))[101:110,]
+cutoff_15_case_sample <- data.frame(
+  `Predicted PD` = fmt_pct(pred_logi_full[101:110], 2),
+  `Binary prediction` = pred_cutoff_15[101:110],
+  `Observed outcome` = as.numeric(as.character(test$loan_st))[101:110]
+)
+
+knitr::kable(
+  cutoff_15_case_sample,
+  caption = "Ten test-set cases comparing predicted PD, cutoff label, and observed outcome.",
+  row.names = FALSE
+)
 ```
 
 ## Confusion matrices and bad rates
 
 The previous section converted predicted probabilities into binary decisions through a cutoff. Those decisions can now be evaluated by comparing the predicted loan status with the actual loan status in the test set. The standard summary table is a confusion matrix.
 
+A confusion matrix is useful only after a cutoff has been chosen. If the cutoff changes, the predicted 0/1 labels change, and the confusion matrix changes with them. For that reason, confusion matrices are helpful for evaluating a specific lending rule, but they are not an objective summary of the model by themselves. Later metrics such as ROC/AUC, calibration, and the Brier score evaluate prediction quality more systematically across cutoffs or directly on probabilities.
+
 ```{r Confusion matrix at cutoff of 15}
 cm_cutoff_15 <- table(Actual = test$loan_st, Predicted = pred_cutoff_15)
 cm_cutoff_15
 ```
 The `logi_full` model correctly predicts `r cm_cutoff_15["0", "0"]` no-defaults and `r cm_cutoff_15["1", "1"]` defaults. It also misclassifies `r cm_cutoff_15["0", "1"]` no-defaults as defaults and `r cm_cutoff_15["1", "0"]` defaults as no-defaults. In credit terms, the `r cm_cutoff_15["0", "1"]` cases are good applicants that would be incorrectly rejected, while the `r cm_cutoff_15["1", "0"]` cases are bad applicants that would be incorrectly accepted. The sum of these four values equals `r sum(cm_cutoff_15)`, the total number of observations in the test set.
-
-`CrossTable()` reports the same comparison with relative frequencies.
-
-```{r Confusion matrix at cutoff of 15 with CrossTable}
-CrossTable(test$loan_st, pred_cutoff_15, 
-           prop.r = FALSE, prop.c = FALSE, prop.t = TRUE, 
-           prop.chisq = FALSE,
-          dnn = c("Actual", "Predicted"))
-```
 
 Read the table by actual outcome. The row for actual no-defaults contains two groups: true negatives, which are correctly accepted as no-defaults, and false positives, which are incorrectly rejected as predicted defaults. In this cutoff rule, true negatives represent `r fmt_pct(cm_cutoff_15["0", "0"] / sum(cm_cutoff_15), 1)` of all test-set cases, while false positives represent `r fmt_pct(cm_cutoff_15["0", "1"] / sum(cm_cutoff_15), 1)`.
 
@@ -451,34 +487,58 @@ In code, `mean(pred_cutoff_15 == actual_default)` computes the same quantity. It
 ```{r Accuracy can be misleading}
 actual_default <- as.numeric(as.character(test$loan_st))
 pred_all_no_default <- rep(0, length(actual_default))
+pred_all_default <- rep(1, length(actual_default))
 
 accuracy_summary <- data.frame(
-  rule = c("Full model with cutoff 0.15", "Always predict no default"),
+  rule = c(
+    "Full model with cutoff 0.15",
+    "Always predict no default",
+    "Always predict default"
+  ),
   accuracy = c(
     mean(pred_cutoff_15 == actual_default),
-    mean(pred_all_no_default == actual_default)
+    mean(pred_all_no_default == actual_default),
+    mean(pred_all_default == actual_default)
   ),
   defaults_detected = c(
     sum(actual_default == 1 & pred_cutoff_15 == 1),
-    sum(actual_default == 1 & pred_all_no_default == 1)
+    sum(actual_default == 1 & pred_all_no_default == 1),
+    sum(actual_default == 1 & pred_all_default == 1)
   ),
   accepted_defaults = c(
     sum(actual_default == 1 & pred_cutoff_15 == 0),
-    sum(actual_default == 1 & pred_all_no_default == 0)
+    sum(actual_default == 1 & pred_all_no_default == 0),
+    sum(actual_default == 1 & pred_all_default == 0)
   )
 )
 
-accuracy_summary
+accuracy_summary |>
+  mutate(
+    accuracy = fmt_pct(accuracy, 2),
+    defaults_detected = fmt_int(defaults_detected),
+    accepted_defaults = fmt_int(accepted_defaults)
+  ) |>
+  knitr::kable(
+    caption = "Accuracy can reward poor credit-screening rules.",
+    row.names = FALSE
+  )
 ```
 
-The second rule has higher accuracy, but it detects no defaults at all. This is unacceptable for credit screening because the bank would accept all defaulting applicants. The full model with a cutoff of 0.15 has lower overall accuracy, but it detects `r accuracy_summary$defaults_detected[accuracy_summary$rule == "Full model with cutoff 0.15"]` defaults and reduces the number of defaulting loans accepted by the bank. In imbalanced classification problems, accuracy alone can reward the wrong behavior.
+The always-no-default rule has higher accuracy, but it detects no defaults at all. This is unacceptable for credit screening because the bank would accept all defaulting applicants. The always-default rule detects every default, but it rejects every applicant and therefore creates no lending business. The full model with a cutoff of 0.15 sits between those extremes: it detects `r accuracy_summary$defaults_detected[accuracy_summary$rule == "Full model with cutoff 0.15"]` defaults and reduces the number of defaulting loans accepted by the bank. In imbalanced classification problems, accuracy alone can reward the wrong behavior.
 
 The 0.15 cutoff was a first teaching rule. A second approach starts from the bank's desired acceptance rate. Suppose the bank wants to reject the 20% riskiest applicants and accept the remaining 80%. In that case, the cutoff should be the 80th percentile of `pred_logi_full`. Applicants above that cutoff are predicted defaults, and applicants below or equal to that cutoff are predicted no-defaults.
 
 ```{r cutoff-80-percent-acceptance}
 # Cutoff definition.
 cutoff <- quantile(pred_logi_full, 0.8)
-cutoff
+knitr::kable(
+  data.frame(
+    Quantity = "Cutoff implied by 80% target acceptance",
+    Value = fmt_pct(as.numeric(cutoff), 2)
+  ),
+  caption = "Cutoff implied by the 80% acceptance-rate rule.",
+  row.names = FALSE
+)
 ```
 
 The 80% acceptance rule implies a cutoff of `r fmt_num(cutoff, 7)`. The cutoff line is shown below.
@@ -522,7 +582,16 @@ The cutoff is now `r fmt_num(cutoff, 7)`. This splits the predicted default prob
 
 ```{r Cutoff by quantiles}
 cutoff_all <- quantile(pred_logi_full, seq(0.1, 1, 0.1))
-data.frame("cut_off" = round(cutoff_all,5))
+cutoff_quantile_table <- data.frame(
+  `Accepted share` = fmt_pct(seq(0.1, 1, 0.1), 0),
+  `Cutoff` = fmt_pct(as.numeric(cutoff_all), 2)
+)
+
+knitr::kable(
+  cutoff_quantile_table,
+  caption = "Cutoffs implied by target acceptance rates.",
+  row.names = FALSE
+)
 ```
 
 The same confusion-matrix logic now applies to the `logi_full` model with the new cutoff of `r fmt_num(cutoff, 7)`.
@@ -534,9 +603,10 @@ cm_full_20 <- table(
   Actual = factor(test$loan_st, levels = c("0", "1")),
   Predicted = factor(pred_full_20, levels = c(0, 1))
 )
-# Show results in a confusion matrix.
-CrossTable(test$loan_st, pred_full_20, prop.r = FALSE,
-           prop.c = FALSE, prop.t = TRUE, prop.chisq = FALSE)
+knitr::kable(
+  as.data.frame.matrix(cm_full_20),
+  caption = "Confusion matrix for the full model with the 80% acceptance rule."
+)
 ```
 
 With a cutoff of `r fmt_num(cutoff, 7)`, we accept `r cm_full_20["0", "0"]` + `r cm_full_20["1", "0"]` = `r sum(cm_full_20[, "0"])` applications as those are the ones that the model predicts a no default. Previously, in the case of a cutoff of 0.15, we accepted `r cm_cutoff_15["0", "0"]` + `r cm_cutoff_15["1", "0"]` = `r sum(cm_cutoff_15[, "0"])`.
@@ -564,7 +634,11 @@ data.frame(
   classification = cat,
   cutoff_0_15 = cut_15,
   acceptance_80 = cut_accept_80
-)
+) |>
+  knitr::kable(
+    caption = "Classification outcomes under the 15% cutoff and the 80% acceptance rule.",
+    row.names = FALSE
+  )
 ```
 
 Type I and Type II errors are key concepts in hypothesis testing and statistical decision-making, particularly relevant in loan default prediction. A Type I error (false positive) occurs when good customers, who would not default, are incorrectly rejected. On the other hand, a Type II error (false negative) happens when bad customers, who will default, are mistakenly accepted.
@@ -575,20 +649,32 @@ The next excerpt inspects individual cases under the `r fmt_num(cutoff, 7)` cuto
 
 ```{r pred_full_20 for a sample of 10 applicants}
 # Comparative table in detail.
-real_pred_20 <- cbind.data.frame(test$loan_st, pred_full_20,
-                     "Did the model succeed?" = test$loan_st == pred_full_20)
+real_pred_20 <- data.frame(
+  observed_loan_status = test$loan_st,
+  pred_full_20 = pred_full_20,
+  "Did the model succeed?" = test$loan_st == pred_full_20,
+  check.names = FALSE
+)
 # Show some values.
 sample_real_pred_20 <- real_pred_20[131:140,]
 sample_correct_rejections <- rownames(sample_real_pred_20)[
   sample_real_pred_20$pred_full_20 == 1 &
-    sample_real_pred_20$`test$loan_st` == 1
+    sample_real_pred_20$observed_loan_status == 1
 ]
 sample_lost_good_customers <- rownames(sample_real_pred_20)[
   sample_real_pred_20$pred_full_20 == 1 &
-    sample_real_pred_20$`test$loan_st` == 0
+    sample_real_pred_20$observed_loan_status == 0
 ]
 sample_model_failures <- sum(!sample_real_pred_20[["Did the model succeed?"]])
-sample_real_pred_20
+sample_real_pred_20 |>
+  rename(
+    `Observed outcome` = observed_loan_status,
+    `Binary prediction` = pred_full_20
+  ) |>
+  knitr::kable(
+    caption = "Sample of test-set outcomes under the 80% acceptance rule.",
+    row.names = TRUE
+  )
 ```
 
 In this small excerpt, the model makes `r sample_model_failures` `r ifelse(sample_model_failures == 1, "mistake", "mistakes")` out of `r nrow(sample_real_pred_20)` applications. The acceptance rule is direct: if `pred_full_20 = 0`, the model predicts no default and the application is accepted. According to the excerpt, the model correctly rejects applications `r paste(sample_correct_rejections, collapse = ", ")` because those were indeed defaults. It incorrectly rejects application `r paste(sample_lost_good_customers, collapse = ", ")`, which did not default. The table makes the business meaning of the classification rule visible before we summarize all applications with aggregate metrics.
@@ -600,7 +686,14 @@ The next table counts accepted and rejected applications under this rule.
 accept_20 <- sum(pred_full_20 == 0)
 # Rejected.
 reject_20 <- sum(pred_full_20 == 1)
-data.frame("total" = length(pred_full_20), accept_20, reject_20)
+knitr::kable(
+  data.frame(
+    Quantity = c("Total applications", "Accepted applications", "Rejected applications"),
+    Value = fmt_int(c(length(pred_full_20), accept_20, reject_20))
+  ),
+  caption = "Applications accepted and rejected by the 80% acceptance rule.",
+  row.names = FALSE
+)
 ```
 
 By taking the top 20% of the `pred_logi_full` estimates as defaults and the bottom 80% as non-defaults, we construct a rule that accepts `r accept_20` loan applications (`r fmt_pct(accept_20 / length(pred_full_20), 0)` of the total) and rejects `r reject_20` applications (`r fmt_pct(reject_20 / length(pred_full_20), 0)` of the total). The cutoff criterion determines the number of accepted applications, while the `logi_full` model specifies which applications to accept or reject.
@@ -611,7 +704,16 @@ We evaluate the acceptance/rejection rule by comparing it against the actual out
 # First 10 accept decisions.
 head(data.frame(real_pred_20[,1:2], 
                 decision = ifelse(real_pred_20$pred_full_20 == 0, 
-                                  "accept", "reject")), 12)
+                                  "accept", "reject")), 12) |>
+  rename(
+    `Observed outcome` = observed_loan_status,
+    `Binary prediction` = pred_full_20,
+    Decision = decision
+  ) |>
+  knitr::kable(
+    caption = "First 12 accept/reject decisions under the 80% acceptance rule.",
+    row.names = FALSE
+  )
 ```
 
 An evaluation column labels each decision.
@@ -623,15 +725,25 @@ head(data.frame(real_pred_20[,1:2],
                                   "accept", "reject"),
                 evaluation =
                   ifelse(real_pred_20$pred_full_20 == 0 &
-                           real_pred_20$`test$loan_st` == 0,
+                           real_pred_20$observed_loan_status == 0,
                          "good decision",
                   ifelse(real_pred_20$pred_full_20 == 0 &
-                           real_pred_20$`test$loan_st` == 1,
+                           real_pred_20$observed_loan_status == 1,
                          "bad decision",
                   ifelse(real_pred_20$pred_full_20 == 1 &
-                           real_pred_20$`test$loan_st` == 1,
+                           real_pred_20$observed_loan_status == 1,
                          "correct rejection",
-                         "lost good customer")))), 12)
+                         "lost good customer")))), 12) |>
+  rename(
+    `Observed outcome` = observed_loan_status,
+    `Binary prediction` = pred_full_20,
+    Decision = decision,
+    Evaluation = evaluation
+  ) |>
+  knitr::kable(
+    caption = "First 12 decisions with ex-post evaluation.",
+    row.names = FALSE
+  )
 ```
 
 The table shows the outcomes of the first 12 loan applications. A "good decision" means the bank accepts a loan that does not default. A "bad decision" means the bank accepts a loan that defaults. A correct rejection avoids a defaulting borrower. A lost good customer is an applicant who would not have defaulted but is rejected by the model rule.
@@ -650,20 +762,46 @@ $$
 {\text{accepted loans}},
 $$
 
-where default means $y_i=1$. In the code below, `pred_full_20 == 0` finds the accepted applications, `accepted_loans <- real_pred_20[pred_full_20 == 0, 1]` keeps their observed outcomes, `sum(accepted_loans == 1)` counts the accepted loans that default, and `length(accepted_loans)` counts all accepted loans.
+where default means $y_i=1$. In the code below, `pred_full_20 == 0` finds the accepted applications, `accepted_loans <- real_pred_20$observed_loan_status[pred_full_20 == 0]` keeps their observed outcomes, `sum(accepted_loans == 1)` counts the accepted loans that default, and `length(accepted_loans)` counts all accepted loans.
 
 
 ```{r A more efficient way to conduct the model evaluation}
 # We accept loans that the model predicts a no-default (0).
 # In "accepted_loans" we know whether the accepted loans are in fact
 # default or no-default.
-accepted_loans <- real_pred_20[pred_full_20 == 0, 1]
-length(accepted_loans)
+accepted_index <- which(pred_full_20 == 0)
+accepted_loans <- as.numeric(as.character(real_pred_20$observed_loan_status[accepted_index]))
 # The code above says: if we accept the application, tell me what happened.
+knitr::kable(
+  data.frame(
+    Quantity = "Accepted applications",
+    Value = fmt_int(length(accepted_loans))
+  ),
+  caption = "Number of accepted applications under the 80% acceptance rule.",
+  row.names = FALSE
+)
 ```
 
 ```{r}
-head(accepted_loans, 10)
+accepted_sample_index <- head(accepted_index, 10)
+accepted_sample <- data.frame(
+  `Application row` = rownames(real_pred_20)[accepted_sample_index],
+  `Predicted PD` = fmt_pct(pred_logi_full[accepted_sample_index], 2),
+  `Binary prediction` = pred_full_20[accepted_sample_index],
+  Decision = "accept",
+  `Observed outcome` = ifelse(
+    accepted_loans[seq_along(accepted_sample_index)] == 1,
+    "default",
+    "no default"
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  accepted_sample,
+  caption = "First 10 accepted applications and their observed outcomes.",
+  row.names = FALSE
+)
 ```
 
 The small excerpt above shows individual accepted loans and their outcomes. The full bad-rate calculation uses all `r format(length(accepted_loans), big.mark = ",")` accepted loans:
@@ -671,7 +809,18 @@ The small excerpt above shows individual accepted loans and their outcomes. The 
 ```{r Bad rate calculation}
 # bad_rate is the proportion of accepted loans that are in fact default.
 bad_rate_80 <- sum(accepted_loans == 1) / length(accepted_loans)
-bad_rate_80
+knitr::kable(
+  data.frame(
+    Quantity = c("Accepted defaults", "Accepted applications", "Bad rate"),
+    Value = c(
+      fmt_int(sum(accepted_loans == 1)),
+      fmt_int(length(accepted_loans)),
+      fmt_pct(bad_rate_80, 2)
+    )
+  ),
+  caption = "Bad rate among accepted loans at the 80% acceptance rule.",
+  row.names = FALSE
+)
 ```
 
 Following the model-based rule, we accepted `r length(accepted_loans)` loan applications, which represent `r fmt_pct(length(accepted_loans) / length(pred_full_20), 0)` of all applications. Among those accepted applications, `r fmt_pct(bad_rate_80, 2)` were in fact defaults. In counts, we accepted `r sum(accepted_loans == 1)` loans that defaulted, so `r sum(accepted_loans == 1)` / `r length(accepted_loans)` = `r fmt_num(bad_rate_80, 7)`.
@@ -686,13 +835,26 @@ cutoff <- quantile(pred_logi_full, 0.65)
 # Split the pred_logi_full into a binary variable.
 pred_full_35 <- ifelse(pred_logi_full > cutoff, 1, 0)
 # A data frame with real and predicted loan status.
-real_pred_35 <- cbind.data.frame(test$loan_st, pred_full_35)
+real_pred_35 <- data.frame(
+  observed_loan_status = test$loan_st,
+  pred_full_35 = pred_full_35
+)
 # Loans that we accept given these new rules.
 accepted_loans <- real_pred_35[pred_full_35 == 0, 1]
 # Bad rate (accepted loan applications that are defaults).
 bad_rate_65 <- sum(accepted_loans == 1)/length(accepted_loans)
-# Show the bad rate.
-bad_rate_65
+knitr::kable(
+  data.frame(
+    Quantity = c("Accepted defaults", "Accepted applications", "Bad rate"),
+    Value = c(
+      fmt_int(sum(accepted_loans == 1)),
+      fmt_int(length(accepted_loans)),
+      fmt_pct(bad_rate_65, 2)
+    )
+  ),
+  caption = "Bad rate among accepted loans at the 65% acceptance rule.",
+  row.names = FALSE
+)
 ```
 
 The bad rate falls from `r fmt_pct(bad_rate_80, 2)` to `r fmt_pct(bad_rate_65, 2)` when the acceptance rate is reduced from 80% to 65%. This illustrates the trade-off. A lower acceptance rate usually means fewer accepted defaults and fewer accepted customers. In the extreme, accepting 0 applications would produce a bad rate of zero and no loan business at all. The next section evaluates this trade-off across many acceptance rates after the two benchmark cases, 80% and 65%.

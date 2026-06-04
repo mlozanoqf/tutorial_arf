@@ -135,7 +135,24 @@ Figure @fig-nttbpfdnd isolates the paths from the 10-scenario simulation that cr
 
 ```{r}
 sim_pd_10 <- sum(paths[final_row, ] < D) / ncol(paths)
-sim_pd_10
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Simulated default paths",
+      "Total simulated paths",
+      "Simulated risk-neutral PD",
+      "Analytical Merton PD"
+    ),
+    Value = c(
+      fmt_int(sum(paths[final_row, ] < D)),
+      fmt_int(ncol(paths)),
+      fmt_pct(sim_pd_10, 0),
+      fmt_pct(pd_merton, 4)
+    )
+  ),
+  caption = "Default count and simulated risk-neutral PD with 10 paths.",
+  row.names = FALSE
+)
 ```
 
 The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we move from 10 to 100 simulated paths, and then from 100 to 1,000, 10,000, and 100,000 simulated terminal values.
@@ -172,7 +189,24 @@ ggplot2::ggplot(
 
 ```{r}
 sim_pd_100 <- sum(paths[final_row, ] < D) / ncol(paths)
-sim_pd_100
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Simulated default paths",
+      "Total simulated paths",
+      "Simulated risk-neutral PD",
+      "Analytical Merton PD"
+    ),
+    Value = c(
+      fmt_int(sum(paths[final_row, ] < D)),
+      fmt_int(ncol(paths)),
+      fmt_pct(sim_pd_100, 0),
+      fmt_pct(pd_merton, 4)
+    )
+  ),
+  caption = "Default count and simulated risk-neutral PD with 100 paths.",
+  row.names = FALSE
+)
 ```
 
 With 100 paths, individual trajectories are less important than the terminal count. The simulated risk-neutral probability of default is `r fmt_pct(sim_pd_100, 0)`. This is closer to the model value of `r fmt_pct(pd_merton, 4)`.
@@ -444,7 +478,24 @@ ggplot2::ggplot(hist_data) +
 The simulated risk-neutral probability of default can be calculated as:
 
 ```{r}
-sim_pd_100k
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Simulated terminal asset values",
+      "Terminal values below D",
+      "Simulated risk-neutral PD",
+      "Analytical Merton PD"
+    ),
+    Value = c(
+      fmt_int(length(VT)),
+      fmt_int(sum(VT < D)),
+      fmt_pct(sim_pd_100k, 4),
+      fmt_pct(pd_merton, 4)
+    )
+  ),
+  caption = "Large-sample simulated risk-neutral PD compared with the analytical Merton PD.",
+  row.names = FALSE
+)
 ```
 
 Figure @fig-ho1votaam is the large-sample continuation of @fig-vt-convergence-hists. The simulated value `r fmt_num(sim_pd_100k, 5)` is now very close to the model value `r fmt_num(pd_merton, 7)`. The red area in the histogram is therefore the simulation-based approximation of the model-implied risk-neutral probability $N(-d_2)$.

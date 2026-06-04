@@ -40,10 +40,16 @@ knitr::kable(
 ```
 
 ```{r XGBoost design matrices}
-data.frame(
-  object = c("training matrix", "test matrix"),
-  rows = c(nrow(xgb_train_matrix), nrow(xgb_test_matrix)),
-  columns = c(ncol(xgb_train_matrix), ncol(xgb_test_matrix))
+xgb_matrix_dimensions <- data.frame(
+  Object = c("Training matrix", "Test matrix"),
+  Rows = fmt_int(c(nrow(xgb_train_matrix), nrow(xgb_test_matrix))),
+  Columns = fmt_int(c(ncol(xgb_train_matrix), ncol(xgb_test_matrix)))
+)
+
+knitr::kable(
+  xgb_matrix_dimensions,
+  caption = "Dimensions of the encoded XGBoost design matrices.",
+  row.names = FALSE
 )
 ```
 
@@ -79,6 +85,40 @@ The training curve helps us see whether the model is learning useful structure o
 At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The gap between those two values is part of the diagnostic. A very large gap would suggest that the ensemble is fitting training details with poor generalization. Here the learning curve explains the behavior of the model and discourages chasing the best-looking test-set point.
 
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
+
+The distinction between the teaching workflow and a production workflow is important. This chapter uses the same test set repeatedly because the objective is to make the comparison visible. In production, the analyst should separate three tasks: fit the model, choose tuning parameters, and report final performance.
+
+```{r XGBoost validation workflow}
+xgb_validation_workflow <- data.frame(
+  Stage = c(
+    "Training",
+    "Validation or cross-validation",
+    "Final holdout test",
+    "Monitoring after deployment"
+  ),
+  `What it answers` = c(
+    "Which patterns can the model learn from historical applications?",
+    "Which hyperparameters give stable out-of-sample behavior?",
+    "How well does the chosen model perform on untouched borrowers?",
+    "Do ranking, calibration, bad rates, and approval patterns remain stable over time?"
+  ),
+  `Typical XGBoost checks` = c(
+    "Fit shallow boosted trees with regularization and subsampling.",
+    "Tune rounds, depth, learning rate, minimum child weight, subsampling, and calibration.",
+    "Report AUC, Brier score, calibration, bad rates, and payoff once.",
+    "Track drift, overrides, calibration decay, fairness checks, and reject-inference issues."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_validation_workflow,
+  caption = "Teaching workflow versus production validation for XGBoost credit scoring.",
+  row.names = FALSE
+)
+```
+
+The learning curve below should therefore be read as a diagnostic, not as a full tuning exercise. If test AUC rose and then deteriorated, the analyst would not keep adding trees. If validation calibration worsened while AUC improved, the analyst might keep the ranking model but recalibrate the probabilities before using them for pricing or provisioning.
 
 ```{r XGBoost prediction range}
 xgb_prediction_range_table <- data.frame(

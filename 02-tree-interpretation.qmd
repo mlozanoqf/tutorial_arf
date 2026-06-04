@@ -16,9 +16,9 @@ xgb_importance |>
   theme_minimal()
 ```
 
-Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. Direction and local interpretation require another tool.
+Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. In this run, the highest-Gain variable is `r xgb_importance$Feature[which.max(xgb_importance$Gain)]`. Direction and local interpretation require another tool.
 
-This distinction matters in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain therefore maps where the model is looking. Applicant-level interpretation requires additional tools.
+This distinction is central in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain therefore maps where the model is looking. Applicant-level interpretation requires additional tools.
 
 SHAP-style contributions provide a second view. For each observation, XGBoost can decompose the model score into contributions from the encoded variables plus a baseline term:
 
@@ -42,13 +42,24 @@ xgb_shap_importance |>
   theme_minimal()
 ```
 
-This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. It is less direct than a logistic regression coefficient, while still identifying the variables that materially affect predicted default probabilities.
+This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. In this run, the largest average absolute contribution comes from `r xgb_shap_importance$feature[1]`. That does not mean the variable always raises default risk. It means the variable often moves the XGBoost score materially, up or down, depending on the applicant. Direction requires applicant-level contributions or partial dependence.
+
+For credit work, the useful reading is layered. Feature importance tells us where the model finds predictive structure. SHAP-style magnitudes tell us which encoded borrower or loan signals materially move predictions. The analyst still has to check whether those signals are defensible for credit decisions, stable out of sample, and acceptable under governance, fairness, and adverse-action requirements.
 
 We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. This single applicant is a worked example. It shows how the different model classes translate the same borrower information into predicted default probabilities.
 
 ```{r XGBoost John Doe predictions}
-john_doe_prediction_summary |>
-  mutate(across(where(is.numeric), ~ round(.x, 4)))
+john_doe_prediction_table <- john_doe_prediction_summary |>
+  mutate(
+    predicted_pd = fmt_pct(predicted_pd, 2),
+    observed_default = ifelse(observed_default == 1, "Default", "No default")
+  )
+
+knitr::kable(
+  john_doe_prediction_table,
+  caption = "Predicted PDs for the first test-set applicant.",
+  row.names = FALSE
+)
 ```
 
 The table compares the full logistic model, the single tree, and XGBoost for the same applicant. All three values are probabilities of default, so they can be compared directly. What differs is the way each model arrives at that probability: the logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
@@ -66,15 +77,33 @@ $$
 The next table verifies the mechanics. The baseline plus all feature contributions gives the XGBoost score $F_i$. Applying the logistic transformation to that score gives the same probability returned by `predict(xgb_model, ...)`.
 
 ```{r XGBoost John Doe score reconstruction}
-john_xgb_score_summary |>
-  mutate(value = round(value, 4))
+john_xgb_score_table <- data.frame(
+  Component = john_xgb_score_summary$component,
+  Value = c(
+    fmt_num(john_xgb_baseline, 4),
+    fmt_num(john_xgb_feature_sum, 4),
+    fmt_num(john_xgb_score, 4),
+    fmt_pct(john_xgb_pd_from_score, 2),
+    fmt_pct(pred_xgb[john_doe_index], 2)
+  )
+)
+
+knitr::kable(
+  john_xgb_score_table,
+  caption = "Reconstructing John Doe's XGBoost score and predicted PD.",
+  row.names = FALSE
+)
 ```
 
 The largest local contributions for John Doe are:
 
 ```{r XGBoost John Doe local contributions}
 john_xgb_contribution_table |>
-  mutate(contribution = round(contribution, 4))
+  mutate(contribution = fmt_num(contribution, 4)) |>
+  knitr::kable(
+    caption = "Largest local XGBoost contributions for John Doe.",
+    row.names = FALSE
+  )
 ```
 
 A positive contribution increases John Doe's XGBoost score and therefore increases the predicted probability of default. A negative contribution lowers the score and therefore lowers the predicted probability of default. These values are score-scale contributions before the logistic transformation, so the contribution table should be read together with the score reconstruction table.

@@ -6,7 +6,7 @@ source("R/gaussian-common.R")
 two_firm_sims <- 100000
 two_firm_threshold <- default_threshold[5]
 two_firm_pd <- pd_cum[5]
-two_firm_rhos <- c(0, 0.2, 0.5)
+two_firm_rhos <- c(-0.5, -0.2, 0, 0.2, 0.5)
 
 simulate_two_firm_summary <- function(rho) {
   latent <- simulate_latent_credit(
@@ -29,6 +29,8 @@ simulate_two_firm_summary <- function(rho) {
 }
 
 two_firm_numeric <- do.call(rbind, lapply(two_firm_rhos, simulate_two_firm_summary))
+two_firm_zero_row <- two_firm_numeric[two_firm_numeric$rho == 0, ]
+two_firm_high_row <- two_firm_numeric[two_firm_numeric$rho == 0.5, ]
 two_firm_independent_both <- two_firm_pd * two_firm_pd
 two_firm_independent_any <- 1 - (1 - two_firm_pd)^2
 two_firm_plot_rhos <- c(-0.5, -0.2, 0.2, 0.5)
@@ -105,9 +107,24 @@ threshold <- qnorm(0.15)
 default_a <- credit_state[, 1] <= threshold
 default_b <- credit_state[, 2] <= threshold
 
-mean(default_a)
-mean(default_b)
-mean(default_a & default_b)
+two_firm_direct_check <- data.frame(
+  Quantity = c(
+    "Simulated PD for firm A",
+    "Simulated PD for firm B",
+    "Simulated joint-default probability"
+  ),
+  Value = c(
+    fmt_pct(mean(default_a), 2),
+    fmt_pct(mean(default_b), 2),
+    fmt_pct(mean(default_a & default_b), 2)
+  )
+)
+
+knitr::kable(
+  two_firm_direct_check,
+  caption = "Direct two-firm simulation check for rho = 0.2.",
+  row.names = FALSE
+)
 ```
 
 The first two probabilities check the marginal PDs. The third probability is the joint default probability. That is where the shared-shock assumption becomes visible.
@@ -120,7 +137,7 @@ kable(
 )
 ```
 
-The table demonstrates the main point. The marginal PDs stay close to `r fmt_pct(two_firm_pd, 2)`, while the probability of both firms defaulting rises as $\rho$ rises. The default-variable correlation is lower than the correlation between credit-state scores because default is a tail event created after applying the threshold.
+The table demonstrates the main point. The marginal PDs stay close to `r fmt_pct(two_firm_pd, 2)`, while the probability of both firms defaulting rises as $\rho$ rises. Negative correlation pushes joint defaults down, positive correlation pushes them up, and $\rho=0$ gives the independent benchmark. The default-variable correlation is lower than the correlation between credit-state scores because default is a tail event created after applying the threshold.
 
 The union probability also helps explain what correlation changes. For two firms,
 
@@ -128,9 +145,11 @@ $$
 P(A \text{ or } B)=P(A)+P(B)-P(A \text{ and } B).
 $$
 
-The marginal probabilities $P(A)$ and $P(B)$ remain close to `r fmt_pct(two_firm_pd, 2)`. As $\rho$ moves from 0 to 0.5, the simulated joint-default probability rises from `r fmt_pct(two_firm_numeric$both_default[1], 2)` to `r fmt_pct(two_firm_numeric$both_default[3], 2)`. Because the joint-default term is subtracted in the union formula, the probability that at least one firm defaults falls from `r fmt_pct(two_firm_numeric$at_least_one[1], 2)` to `r fmt_pct(two_firm_numeric$at_least_one[3], 2)`. Higher correlation moves defaults into the same scenarios.
+The marginal probabilities $P(A)$ and $P(B)$ remain close to `r fmt_pct(two_firm_pd, 2)`. As $\rho$ moves from 0 to 0.5, the simulated joint-default probability rises from `r fmt_pct(two_firm_zero_row$both_default, 2)` to `r fmt_pct(two_firm_high_row$both_default, 2)`. Because the joint-default term is subtracted in the union formula, the probability that at least one firm defaults falls from `r fmt_pct(two_firm_zero_row$at_least_one, 2)` to `r fmt_pct(two_firm_high_row$at_least_one, 2)`. Higher correlation moves defaults into the same scenarios.
 
-The scatter plots show the same mechanism and widen the comparison to negative and positive correlations. Each dot is one simulated pair $(X_A,X_B)$, meaning one credit scenario for the two firms. A firm defaults when its credit-state score is below the threshold. The lower-left region is the joint-default region. Negative correlation pushes the firms' credit states in opposite directions more often, while positive correlation makes weak credit states arrive together more often.
+The scatter plots show the same mechanism and widen the comparison to negative and positive correlations. Each dot is one simulated pair $(X_A,X_B)$, meaning one credit scenario for the two firms. A firm defaults when its credit-state score is below the threshold. The lower-left region is the joint-default region. Negative correlations are included here because the two-firm case can support them and they make the mechanics visible. Positive correlation makes weak credit states arrive together more often.
+
+The negative-correlation panels are useful for learning because they show the opposite of default clustering. In larger portfolio applications, the correlation matrix must remain internally consistent, and credit portfolios are usually dominated by positive common shocks such as recessions, sector stress, and funding pressure. For that reason, the portfolio sections focus on nonnegative dependence.
 
 ```{r}
 #| label: fig-two-firm-copula-scatter

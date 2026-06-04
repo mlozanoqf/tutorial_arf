@@ -4,9 +4,9 @@ source("R/logistic-data.R")
 
 ## Logistic regression models
 
-Logistic regression is the first credit-scoring model in the book because it is transparent and directly produces probabilities of default. The dependent variable is `loan_st`, where 1 means default and 0 means no default. A good reference for this section is @hull2020machine.
+Logistic regression is the first credit-scoring model in the book because it is transparent and directly produces probabilities of default. The dependent variable is `loan_st`, where 1 means default and 0 means no default. The model output is not immediately a default/no-default label. Its first output is a probability between 0 and 1. A later cutoff rule converts that probability into a binary lending decision. A good reference for this section is @hull2020machine.
 
-We split the data into a training set and a test set. The training set is used to estimate the model. The test set is held back and used later to evaluate predictions on observations that were not used for estimation. This separation matters because a model can fit historical defaults well and still perform poorly on new loan applications.
+We split the data into a training set and a test set. The training set is used to estimate the model. The test set is held back and used later to evaluate predictions on observations that were not used for estimation. The separation is essential because a model can fit historical defaults well and still perform poorly on new loan applications.
 
 ```{r Training and test set construction}
 # Set loan status as a factor.
@@ -42,7 +42,7 @@ The proportions of "defaults" and "no defaults" in the train and test datasets a
 
 This split is enough for the teaching objective of the chapter. It lets us estimate models on one sample and evaluate their behavior on observations that were held back from estimation. In a production workflow, however, we would usually add one more layer. Model choices such as variable selection, cutoffs, and tuning decisions should be made with a training/validation structure or cross-validation, while a final holdout test set should be reserved for the last evaluation. In this book we use the test set repeatedly to make the logic visible, so the results should be read as a controlled learning exercise with limited claims about production validation.
 
-We begin with a deliberately simple model that uses only age. To keep the mathematical notation separate from the code, let $Y_i$ denote the value stored in `loan_st` for applicant $i$, and let $\text{age}_i$ denote that applicant's age. This first model helps us see the mechanics of logistic regression before adding more predictors.
+We begin with a deliberately simple and incomplete model that uses only age. This is a naive benchmark, not a serious final credit score. Its role is pedagogical: it lets us see the mechanics of logistic regression before adding predictors that are more closely tied to credit risk. To keep the mathematical notation separate from the code, let $Y_i$ denote the value stored in `loan_st` for applicant $i$, and let $\text{age}_i$ denote that applicant's age.
 
 The model first defines the conditional probability that applicant $i$ defaults:
 
@@ -230,7 +230,7 @@ summary(logi_multi)
 aic_multi <- AIC(logi_multi)
 ```
 
-The multi-factor model is a stronger candidate than the previous two. In `logi_multi`, the AIC value is the lowest so far (`r format(round(aic_multi), big.mark = ",")` versus `r format(round(aic_int), big.mark = ",")`), so this should be considered the best in-sample model among these candidates at the moment. The `summary()` function shows the significance levels of the estimators, but we are currently more interested in goodness of fit because we want to predict whether new applicants in the test set are expected to default. That is why we focus on AIC at this stage. AIC is still an in-sample criterion, so the model's practical predictive value must be checked later with the test set.
+The multi-factor model is a stronger candidate than the previous two. In `logi_multi`, the AIC value is the lowest so far (`r format(round(aic_multi), big.mark = ",")` versus `r format(round(aic_int), big.mark = ",")`), so this should be considered the best in-sample model among these candidates at the moment. The `summary()` function also reports p-values for the coefficients, which helps us identify variables that are statistically associated with default after controlling for the other variables in the model. AIC is still an in-sample criterion. A lower AIC does not guarantee better predictive performance on new applications, so the model's practical value must be checked later with the test set.
 
 Even if prediction is our main objective, it is useful to understand what the coefficients mean. Logistic regression coefficients are expressed in log-odds units, not directly in probability units. A positive coefficient increases the log-odds of default, while a negative coefficient decreases them. If we exponentiate a coefficient with the `exp()` function, we obtain an odds ratio:
 
@@ -252,12 +252,30 @@ odds_ratios <- data.frame(
   OR_high_95 = exp(multi_summary[, "Estimate"] + 1.96 * multi_summary[, "Std. Error"])
 )
 
+grade_terms <- grep("^grade", rownames(odds_ratios), value = TRUE)
+grade_significant_terms <- grade_terms[
+  odds_ratios[grade_terms, "p_value"] < 0.05
+]
+grade_significant_labels <- sub("^grade", "", grade_significant_terms)
+grade_reference <- if (is.factor(train$grade)) {
+  levels(train$grade)[1]
+} else {
+  sort(unique(train$grade))[1]
+}
+grade_significant_text <- if (length(grade_significant_labels) > 0) {
+  paste(grade_significant_labels, collapse = ", ")
+} else {
+  "none at this threshold"
+}
+
 round(odds_ratios, 4)
 ```
 
 For practical interpretation, the odds-ratio columns are usually more useful than the raw coefficient column. The coefficient is reported because it is what the logistic model estimates, but it is measured in log-odds units. The OR and its 95% interval translate that estimate into a multiplicative effect on the odds of default.
 
 The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed. A one-unit increase in `log(l_amnt)` differs from a one-dollar increase in loan amount. Most importantly, odds ratios describe multiplicative changes in the odds of default. The implied change in probability depends on the starting probability. A final check is uncertainty: if the 95% interval for an odds ratio includes 1, the estimated effect is statistically unclear at the usual 5% level, even if the point estimate is above or below 1.
+
+The `grade` coefficients are especially useful for credit-risk interpretation. R uses grade `r grade_reference` as the reference category, so each reported grade coefficient compares another credit grade with that benchmark while holding age, interest rate, loan amount, and income fixed. In this estimation, `r length(grade_significant_terms)` grade coefficients are statistically significant at the 5% level: `r grade_significant_text`. This supports the financial intuition that credit grade carries information about default risk beyond the other variables in `logi_multi`. The p-values alone do not prove that the model will predict new applicants well. They do show that grade carries real information in the fitted model.
 
 The next model uses all predictors available in the teaching dataset. We call it `logi_full` because it is the most complete candidate in this chapter. The purpose is to create a richer score before moving to the test-set evaluation, cutoff rules, bad rates, and bank strategy.
 
@@ -271,7 +289,12 @@ aic_full <- AIC(logi_full)
 data.frame(
   model = c("logi_age", "logi_int", "logi_multi", "logi_full"),
   AIC = c(aic_age, aic_int, aic_multi, aic_full)
-)
+) |>
+  mutate(AIC = fmt_num(AIC, 1)) |>
+  knitr::kable(
+    caption = "AIC comparison across logistic model candidates.",
+    row.names = FALSE
+  )
 ```
 
 The AIC table says that `logi_full` has the strongest in-sample fit among the models considered here. This is an in-sample result. It tells us which candidate fits the training data best after the AIC penalty for complexity. The next section asks a more practical question: when these models face applicants in the test set, do their predicted probabilities support useful lending decisions?

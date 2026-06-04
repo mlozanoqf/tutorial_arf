@@ -14,6 +14,44 @@ The main lesson is that a modern model becomes useful only after it improves the
 4. Does it improve net payoff under explicit business assumptions?
 5. Can we explain the model well enough for governance and decision-making?
 
+The same questions can be turned into an analyst checklist.
+
+```{r tree-governance-checklist}
+tree_governance_checklist <- data.frame(
+  Check = c(
+    "Ranking",
+    "Probability quality",
+    "Cutoff decision",
+    "Economic consequence",
+    "Interpretability",
+    "Model governance"
+  ),
+  `Evidence used in this chapter` = c(
+    "ROC curve and AUC",
+    "Brier score and calibration by decile",
+    "Bad rate by acceptance rate",
+    "Net payoff under an explicit cost rule",
+    "Tree leaves, feature importance, SHAP-style contributions, and partial dependence",
+    "Training/test comparison and stated need for validation or cross-validation"
+  ),
+  `Production extension` = c(
+    "Validate ranking on a holdout sample and across time.",
+    "Recalibrate probabilities when the ranking is useful but PD levels are biased.",
+    "Choose cutoffs with business, risk-appetite, and compliance constraints.",
+    "Replace the teaching payoff with loan-level profitability, LGD, EAD, and funding costs.",
+    "Document drivers, adverse-action logic, stability, and fairness implications.",
+    "Use cross-validation, monitoring, challenger models, and periodic recalibration."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  tree_governance_checklist,
+  caption = "Governance checklist for moving from a tree-based score to a credit policy.",
+  row.names = FALSE
+)
+```
+
 XGBoost can be useful in credit scoring precisely because it gives us a stronger benchmark than a single logistic specification. But it should be used as part of a disciplined workflow. The model may be complex, but the evaluation criteria must remain clear.
 
 The disciplined workflow is the main takeaway of the chapter. First, define the credit decision. Second, estimate competing PD models on the same training information. Third, evaluate them on the same out-of-sample borrowers. Fourth, compare ranking, calibration, bad rates, and payoff together. A flexible model becomes valuable when it improves the decision problem, not merely because it uses a more advanced algorithm.

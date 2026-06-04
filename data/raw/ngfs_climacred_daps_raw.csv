@@ -1,0 +1,127 @@
+"runId","model","scenario","version","region","variable","unit","meta","subannual","time","year","value"
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,26.670333080891
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,6.66758327022276
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.66689581755569
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.416723954388922
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.10418098859723
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,0.149883007289683
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,2.7334433490644
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.6833608372661
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.170840209316525
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.042710052329131
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,23.2253632095617
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,6.66288967444373
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.66572241861093
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.416430604652733
+68,"CLIMACRED","DAPS_AFR_R",2,"Africa","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.104107651163183
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,6.11765674397353
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,1.54896450162309
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.390906192875323
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.0984666705184035
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0247860626968542
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,1.03161091561686
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,6.73793695382817
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.68548182600903
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.421326027347147
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.10548432877976
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,2.35297505653929
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,14.9034696399353
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,3.75949993843838
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.944920936968705
+69,"CLIMACRED","DAPS_ASIA",2,"Asia","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.237362573845625
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,7.91328824420998
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,2.10781398847142
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.539735363364303
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.136612676017653
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0343809674863276
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,0.0196026201265074
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,1.54026348762535
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.385110369530287
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.0960524655966163
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0239811084605579
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,3.68773440615659
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,4.43120778548284
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.10947911721328
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.27757082829166
+70,"CLIMACRED","DAPS_EUR",2,"Euro Area","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0694346712251883
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,8.69698108796421
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,2.18192831030479
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.546051657557558
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.13647113117638
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0341146917188028
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,0.256238392153239
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,3.01203174391389
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.748330006258024
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.188827352676274
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0475947816326207
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,6.63905147210922
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,8.38253791977336
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,2.10265677855444
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.526420714921397
+71,"CLIMACRED","DAPS_NAM",2,"North America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.131638617264909
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,9.41597048801557
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,2.35399262200389
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.588498155500973
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.147124538875243
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.03678113471881
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,0.137144978139495
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,3.53745779861215
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,0.884364449653036
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.221091112413259
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.055272778103314
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,6.75166065674101
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,8.99830840424008
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,2.24957710106002
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.562394275265005
+72,"CLIMACRED","DAPS_OCE",2,"Oceania","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.140598568816251
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,25.7729723417274
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,6.44182285057041
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.61028059248401
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.402433180539091
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Agriculture","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.100566193583056
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,1.48687960880708
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,5.43123832767892
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,1.35734229796465
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.339305317622979
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Coal","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.0845970672490636
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2024,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2025,0
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2026,16.9879641847551
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2027,9.15360180659275
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2028,2.29107286560945
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2029,0.573320095470386
+73,"CLIMACRED","DAPS_SAM",2,"South America","pd_adjustment|Power Supply","abs. change in value with respect to BAU in percentage points",0,"Year",-1,2030,0.143432908441362

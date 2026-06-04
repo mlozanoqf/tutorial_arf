@@ -58,7 +58,7 @@ N(d_1)\sigma_V V_0.
 \tag{24.4}
 $$
 
-This equation matters because equity is levered. Equity volatility is usually higher than asset volatility, and the scaling depends on the option delta $N(d_1)$ and on the ratio between asset value and equity value. Together, equations 24.3 and 24.4 give two conditions for the two unknowns, $V_0$ and $\sigma_V$. The code below writes each condition as an error. The numerical solution is the pair $(V_0,\sigma_V)$ that makes both errors as close to zero as possible.
+This equation is needed because equity is levered. Equity volatility is usually higher than asset volatility, and the scaling depends on the option delta $N(d_1)$ and on the ratio between asset value and equity value. Together, equations 24.3 and 24.4 give two conditions for the two unknowns, $V_0$ and $\sigma_V$. The code below writes each condition as an error. The numerical solution is the pair $(V_0,\sigma_V)$ that makes both errors as close to zero as possible.
 
 The numerical search also needs starting values. These starting values give the algorithm an economically sensible place to begin. For $V_0$, we start with equity value plus the risk-free present value of the promised debt payment, $E_0+De^{-rfT}$. This is a starting scale for the unobserved asset value, not an assumption that debt is risk-free. For $\sigma_V$, we use a simple deleveraging guess, $\sigma_E E_0/(E_0+De^{-rfT})$, because asset volatility is usually lower than equity volatility when equity is levered.
 
@@ -128,7 +128,22 @@ PD <- function(V0, sv) {
              (sv * sqrt(TT))) - sv * sqrt(TT))) }
 # Calculate the risk-neutral probability of default given the previous parameters.
 pd <- PD(V0, sv)
-pd
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Estimated asset value",
+      "Estimated asset volatility",
+      "Merton risk-neutral PD"
+    ),
+    Value = c(
+      fmt_num(V0, 4),
+      fmt_pct(sv, 4),
+      fmt_pct(pd, 4)
+    )
+  ),
+  caption = "Estimated Merton asset quantities and risk-neutral default probability.",
+  row.names = FALSE
+)
 ```
 The risk-neutral probability of default is `r fmt_num(pd, 7)`, or `r fmt_pct(pd, 4)`. This number is market-implied by the option-pricing structure of the model. It answers a pricing question: under the risk-neutral distribution used to value equity, how much weight is assigned to default states? A direct historical or real-world default probability would require a separate calibration from risk-neutral probabilities to real-world probabilities.
 
@@ -140,8 +155,23 @@ d1 <- d1_merton(V0, sv)
 d2 <- d2_merton(V0, sv)
 Nd1 <- pnorm(d1)
 Nd2 <- pnorm(d2)
-ans <- data.frame(d1, Nd1, d2, Nd2)
-ans
+merton_d_table <- data.frame(
+  Quantity = c("$d_1$", "$N(d_1)$", "$d_2$", "$N(d_2)$", "$N(-d_2)$"),
+  Value = c(
+    fmt_num(d1, 7),
+    fmt_num(Nd1, 7),
+    fmt_num(d2, 7),
+    fmt_num(Nd2, 7),
+    fmt_num(pd, 7)
+  )
+)
+
+knitr::kable(
+  merton_d_table,
+  caption = "The d-values and normal probabilities behind the Merton PD.",
+  escape = FALSE,
+  row.names = FALSE
+)
 ```
 
 Before connecting this result with the figure, unpack the notation. The symbol $N(\cdot)$ means the cumulative standard normal distribution. In plain words, $N(x)$ is the area to the left of $x$ under the standard normal curve. The value $d_2$ comes from the Black-Scholes-Merton formula. In this chapter, $d_2$ has a concrete role: it is the cutoff that separates survival from default after the model writes future asset values in standard normal units.
@@ -273,9 +303,22 @@ Checking the numerical solution
 The next diagnostic checks the minimization that leads to $V_0$ and $\sigma_V$. Equations 24.3 and 24.4 in [@Hull] are solved numerically in this implementation, so $V_0$ and $\sigma_V$ come from minimizing the squared pricing errors. To check the solution, we retrieve the value of $[F(x,y)]^2+[G(x,y)]^2$ evaluated at $x=V_0$ and $y=\sigma_V$. This objective function is positive because both $F(x,y)$ and $G(x,y)$ are squared, so a good solution should produce a value close to zero.
 
 ```{r}
-# Evaluate how good is the minimization.
-min.footnote10(x = c(V0, sv))
-round(min.footnote10(x = c(V0, sv)), 6)
+merton_objective_at_solution <- min.footnote10(x = c(V0, sv))
+
+knitr::kable(
+  data.frame(
+    Quantity = c(
+      "Objective function value",
+      "Rounded objective function value"
+    ),
+    Value = c(
+      fmt_num(merton_objective_at_solution, 10),
+      fmt_num(round(merton_objective_at_solution, 6), 6)
+    )
+  ),
+  caption = "Objective function value at the estimated Merton solution.",
+  row.names = FALSE
+)
 ```
 
 The constrained optimization above worked well: the objective function is zero in practical terms.
@@ -501,6 +544,41 @@ layout(scene = list(xaxis = list(title = "Assets volatility"),
                     yaxis = list(title = "Assets", 
                     zaxis = list(title = "f=F^2+G^2"))))  %>%
 hide_colorbar()
+```
+
+The diagnostics can be summarized as follows.
+
+```{r merton-optimization-diagnostic-summary}
+merton_optimization_diagnostic <- data.frame(
+  Diagnostic = c(
+    "Objective value at solution",
+    "Slice in asset value",
+    "Slice in asset volatility",
+    "Contour plot",
+    "Interactive surface"
+  ),
+  `What is checked` = c(
+    "Whether both Hull equation errors are essentially zero at the estimated pair.",
+    "Whether moving only V0 away from the solution increases the objective.",
+    "Whether moving only sigma_V away from the solution increases the objective.",
+    "Whether the estimated pair sits in the low-objective region when both variables move.",
+    "Whether the two-dimensional contour view matches the three-dimensional objective surface."
+  ),
+  `Reading in this example` = c(
+    paste0("The rounded objective is ", fmt_num(round(merton_objective_at_solution, 6), 6), "."),
+    "The red point lies near the lowest part of the V0 slice.",
+    "The red point lies near the lowest part of the sigma_V slice.",
+    "The estimated pair is inside the innermost low-error region.",
+    "The valley of the objective surface is centered near the estimated pair."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  merton_optimization_diagnostic,
+  caption = "How to read the Merton numerical-solution diagnostics.",
+  row.names = FALSE
+)
 ```
 
 ::: {.merton-subhead}

@@ -1,0 +1,3 @@
+"file","rows","database","endpoint","downloaded_at_utc"
+"data/raw/ngfs_climacred_global_raw.csv",1350,"IXSE_NGFS_PHASE_5_SHORT_TERM","https://db1.ene.iiasa.ac.at/ngfs-phase-5-short-term-api/rest/v2.1/runs/bulk/ts","2026-06-04 03:31:44 UTC"
+"data/raw/ngfs_climacred_daps_raw.csv",126,"IXSE_NGFS_PHASE_5_SHORT_TERM","https://db1.ene.iiasa.ac.at/ngfs-phase-5-short-term-api/rest/v2.1/runs/bulk/ts","2026-06-04 03:31:44 UTC"

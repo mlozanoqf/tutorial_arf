@@ -22,5 +22,4 @@ library(pROC) # roc
 library(vembedr)
 ```
 
-This section is informed by the DataCamp course *Credit Risk Modeling in R* by Lore Dirick. The treatment here uses a modified database and expands the original workflow with more explicit links between model equations, R objects, diagnostic plots, cutoff rules, and bank strategy.
 

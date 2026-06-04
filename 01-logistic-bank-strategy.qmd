@@ -44,9 +44,16 @@ The next code applies the function to `pred_logi_full` and `pred_logi_age`.
 bank_logi_full <- bank(pred_logi_full, test$loan_st)
 bank_logi_age <- bank(pred_logi_age, test$loan_st)
 
-data.frame(accept_rate = bank_logi_age$accept_rate,
-           logi_age_bad_rate = bank_logi_age$bad_rate,
-           logi_full_bad_rate = bank_logi_full$bad_rate)
+data.frame(
+  `Acceptance rate` = fmt_pct(bank_logi_age$accept_rate, 0),
+  `Age-only bad rate` = fmt_pct(bank_logi_age$bad_rate, 2),
+  `Full-model bad rate` = fmt_pct(bank_logi_full$bad_rate, 2),
+  check.names = FALSE
+) |>
+  knitr::kable(
+    caption = "Bad rate by acceptance rate for the age-only and full logistic models.",
+    row.names = FALSE
+  )
 ```
 The table suggests that the full model is more useful for decision-making because it achieves a lower bad rate at any given acceptance rate. The next plot highlights the key differences between `logi_age` and `logi_full`.
 
@@ -77,11 +84,11 @@ combined_data <- combined_data %>%
   mutate(facet_color = ifelse(model == "logi_full", "blue", "orange"))
 
 ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
-  geom_line(size = 1.2) +  # Use facet-specific colors for the lines
+  geom_line(linewidth = 1.7) +  # Use facet-specific colors for the lines
   geom_vline(data = highlight_lines, aes(xintercept = accept_rate, color = color),
-             linetype = "dashed", size = 1.1) +
+             linetype = "dashed", linewidth = 0.65) +
   geom_hline(data = highlight_lines, aes(yintercept = bad_rate, color = color),
-             linetype = "dashed", size = 1.1) +
+             linetype = "dashed", linewidth = 0.65) +
   facet_wrap(~model, nrow = 1, scales = "free_y") +
   labs(x = "Acceptance rate", y = "Bad rate") +
   theme_minimal(base_size = 14) +
@@ -99,15 +106,15 @@ The plot reinforces the same conclusion: at the same acceptance rate, `logi_full
 
 The bad rate is useful, but it only describes part of the business decision. A very restrictive strategy can produce a low bad rate by rejecting many applicants, including many applicants who would have repaid their loans. To connect the model with a simple decision criterion, we define a hypothetical *net payoff*. It should be read as a transparent scoring rule, with accepting a good loan treated as a benefit and accepting a bad loan treated as a cost.
 
-Suppose that accepting a loan that does not default gives the bank a payoff of 1, while accepting a loan that defaults costs 5. Rejected loans receive a payoff of 0 because the bank does not issue the loan. Under these assumptions:
+Suppose that accepting a loan that does not default gives the bank a payoff of \$1, while accepting a loan that defaults costs \$5. Rejected loans receive a payoff of \$0 because the bank does not issue the loan. Under these assumptions:
 
 $$
 \text{net payoff} =
-(\text{accepted good loans}) -
-5 \times (\text{accepted default loans}).
+(\text{accepted good loans}) \times \text{\$1} -
+(\text{accepted default loans}) \times \text{\$5}.
 $$
 
-In the code below, `accepted_good` is the first term, `accepted_defaults` is the second term, `good_loan_payoff = 1`, and `bad_loan_cost = 5`. The expression `accepted_good * good_loan_payoff - accepted_defaults * bad_loan_cost` is therefore the code version of the equation. This lets us compare acceptance rates using the same model and the same test set.
+In the code below, `accepted_good` is the first term, `accepted_defaults` is the second term, `good_loan_payoff = 1` represents \$1, and `bad_loan_cost = 5` represents \$5. The expression `accepted_good * good_loan_payoff - accepted_defaults * bad_loan_cost` is therefore the code version of the equation. This lets us compare acceptance rates using the same model and the same test set.
 
 ```{r Net payoff by acceptance rate}
 actual_default_strategy <- as.numeric(as.character(test$loan_st))
@@ -145,17 +152,30 @@ best_net_payoff_row <- net_payoff_results[
   which.max(net_payoff_results$net_payoff),
 ]
 
-net_payoff_results
+fmt_dollar <- function(x) {
+  paste0(ifelse(x < 0, "-$", "$"), fmt_int(abs(x)))
+}
+
+net_payoff_results |>
+  mutate(
+    cutoff = round(cutoff, 4),
+    bad_rate = fmt_pct(bad_rate, 2),
+    net_payoff = fmt_dollar(net_payoff)
+  ) |>
+  knitr::kable(
+    caption = "Net payoff across acceptance rates for the full logistic model.",
+    row.names = FALSE
+  )
 ```
 
 The table contains the complete payoff calculation, but the best row is worth checking explicitly. At the selected acceptance rate, the rule accepts `r best_net_payoff_row$accepted_good` good loans and `r best_net_payoff_row$accepted_defaults` defaulting loans. Under the assumed payoffs, the calculation is:
 
 $$
-`r best_net_payoff_row$accepted_good`(1)
+`r best_net_payoff_row$accepted_good`(\text{\$1})
 -
-`r best_net_payoff_row$accepted_defaults`(5)
+`r best_net_payoff_row$accepted_defaults`(\text{\$5})
 =
-`r best_net_payoff_row$net_payoff`.
+\text{\$`r fmt_int(best_net_payoff_row$net_payoff)`}.
 $$
 
 ```{r Net payoff numerical check}
@@ -163,18 +183,18 @@ best_net_payoff_check <- data.frame(
   Quantity = c(
     "Acceptance rate",
     "Accepted good loans",
-    "Payoff from good loans",
+    "Payoff from good loans ($1 each)",
     "Accepted default loans",
-    "Cost from default loans",
+    "Cost from default loans ($5 each)",
     "Net payoff"
   ),
   Value = c(
     fmt_pct(best_net_payoff_row$accept_rate, 0),
     fmt_int(best_net_payoff_row$accepted_good),
-    fmt_int(best_net_payoff_row$accepted_good * 1),
+    fmt_dollar(best_net_payoff_row$accepted_good * 1),
     fmt_int(best_net_payoff_row$accepted_defaults),
-    paste0("-", fmt_int(best_net_payoff_row$accepted_defaults * 5)),
-    fmt_int(best_net_payoff_row$net_payoff)
+    fmt_dollar(-best_net_payoff_row$accepted_defaults * 5),
+    fmt_dollar(best_net_payoff_row$net_payoff)
   )
 )
 
@@ -207,12 +227,21 @@ net_payoff_sensitivity <- do.call(
 )
 
 data.frame(
-  bad_loan_cost = c(2, 5, 10, 15),
+  bad_loan_cost = fmt_dollar(c(2, 5, 10, 15)),
   best_accept_rate = net_payoff_sensitivity$accept_rate,
   accepted_defaults = net_payoff_sensitivity$accepted_defaults,
   bad_rate = net_payoff_sensitivity$bad_rate,
-  net_payoff = net_payoff_sensitivity$net_payoff
-)
+  net_payoff = fmt_dollar(net_payoff_sensitivity$net_payoff)
+) |>
+  mutate(
+    best_accept_rate = fmt_pct(best_accept_rate, 0),
+    accepted_defaults = fmt_int(accepted_defaults),
+    bad_rate = fmt_pct(bad_rate, 2)
+  ) |>
+  knitr::kable(
+    caption = "Net-payoff sensitivity to the cost of accepting a default.",
+    row.names = FALSE
+  )
 ```
 
 The sensitivity table shows the economic intuition. If accepting a default is relatively less costly, the strategy can tolerate a higher acceptance rate. If accepting a default is much more costly, the strategy becomes more conservative. The assumed payoffs are a transparent cost-benefit exercise for cutoff selection, not real bank profits.
@@ -223,7 +252,7 @@ $$
 \text{Expected loss} = PD \times LGD \times EAD,
 $$
 
-where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$ is exposure at default. In this chapter, the predicted probability $\hat p_i$ plays the role of the model-based $PD$, while the values 1 and 5 are simplified teaching assumptions about benefits and costs. A full profitability model would also include loan amount, interest income, funding costs, recovery rates, and exposure. The simplified net payoff is a first cost-benefit version of the same decision logic before adding those additional banking details.
+where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$ is exposure at default. In this chapter, the predicted probability $\hat p_i$ plays the role of the model-based $PD$, while \$1 and \$5 are simplified teaching assumptions about benefits and costs. A full profitability model would also include loan amount, interest income, funding costs, recovery rates, and exposure. The simplified net payoff is a first cost-benefit version of the same decision logic before adding those additional banking details.
 
 ## ROC, AUC, and calibration
 
@@ -304,15 +333,23 @@ In @fig-fmibamio, the blue curve for `logi_full` dominates the orange curve for 
 
 ```{r AUC good and bad model}
 # Compute the AUCs:
-auc_logi_full
-auc_logi_age
+auc_table <- data.frame(
+  Model = c("logi_full", "logi_age"),
+  AUC = fmt_num(c(auc_logi_full, auc_logi_age), 4)
+)
+
+knitr::kable(
+  auc_table,
+  caption = "AUC comparison between the full model and the age-only model.",
+  row.names = FALSE
+)
 ```
 
 The `logi_age` model has an AUC of `r fmt_num(auc_logi_age, 4)`, which is close to the value produced by random ranking. That means age alone adds very little useful ranking information in this application. The `logi_full` model has an AUC of `r fmt_num(auc_logi_full, 4)`, so it ranks defaulting applicants above non-defaulting applicants much more effectively.
 
 AUC answers a ranking question: do applicants who default tend to receive higher predicted probabilities than applicants who do not default? Calibration answers a probability question. If the model assigns a group of applicants an average predicted probability of default of 20%, do about 20% of those applicants actually default?
 
-This distinction matters because we have been calling the output of the model a probability of default. If the model is well calibrated, the predicted probabilities can be interpreted more literally. If the model is poorly calibrated, the model may still be useful for ranking applicants from low risk to high risk, but the numerical probability values should be interpreted with more caution.
+This distinction is important because we have been calling the output of the model a probability of default. If the model is well calibrated, the predicted probabilities can be interpreted more literally. If the model is poorly calibrated, the model may still be useful for ranking applicants from low risk to high risk, but the numerical probability values should be interpreted with more caution.
 
 One simple way to inspect calibration is to divide the test set into groups according to the predicted probability of default. Here we use ten groups, or deciles. The first decile contains the applicants with the lowest predicted probabilities, and the tenth decile contains the applicants with the highest predicted probabilities. Then, for each decile and each model, we compare the average predicted probability with the observed default rate.
 
@@ -344,8 +381,12 @@ calibration_models <- calibration_data |>
 
 calibration_models |>
   mutate(
-    average_predicted_pd = round(average_predicted_pd, 4),
-    observed_default_rate = round(observed_default_rate, 4)
+    average_predicted_pd = fmt_pct(average_predicted_pd, 2),
+    observed_default_rate = fmt_pct(observed_default_rate, 2)
+  ) |>
+  knitr::kable(
+    caption = "Calibration by predicted-risk decile for the full and age-only models.",
+    row.names = FALSE
   )
 ```
 
@@ -404,7 +445,15 @@ baseline_brier <- brier_results$brier_score[
 ]
 brier_results$brier_skill <- 1 - brier_results$brier_score / baseline_brier
 
-brier_results
+brier_results |>
+  mutate(
+    brier_score = fmt_num(brier_score, 4),
+    brier_skill = fmt_num(brier_skill, 4)
+  ) |>
+  knitr::kable(
+    caption = "Brier score and Brier skill against a constant default-rate benchmark.",
+    row.names = FALSE
+  )
 ```
 
 The constant default-rate model is a simple benchmark: it assigns the same probability of default to every applicant, equal to the observed default rate in the test set. A useful probability model should improve on that benchmark. The Brier skill score expresses this improvement relative to the benchmark:
@@ -482,7 +531,18 @@ results_df <- data.frame(
                   metrics_age_65["specificity"])
 )
 
-print(results_df)
+results_df |>
+  mutate(
+    Target_acceptance_rate = fmt_pct(Target_acceptance_rate, 0),
+    Actual_acceptance_rate = fmt_pct(Actual_acceptance_rate, 1),
+    Cutoff = fmt_pct(Cutoff, 2),
+    Sensitivity = fmt_pct(Sensitivity, 1),
+    Specificity = fmt_pct(Specificity, 1)
+  ) |>
+  knitr::kable(
+    caption = "Sensitivity and specificity at two target acceptance rates.",
+    row.names = FALSE
+  )
 
 ```
 
@@ -597,9 +657,10 @@ tp_80 <- cm_full_80["1", "1"]
 sens_80 <- as.numeric(tp_80 / (tp_80 + fn_80))
 spec_80 <- as.numeric(tn_80 / (tn_80 + fp_80))
 
-# Show results in a confusion matrix.
-CrossTable(test$loan_st, pred_full_80, prop.r = FALSE,
-           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+knitr::kable(
+  as.data.frame.matrix(cm_full_80),
+  caption = "Confusion matrix for the full model at an 80% acceptance target."
+)
 ```
 
 For this rule, sensitivity is `r round(sens_80, 4)`, calculated as `r tp_80` / (`r tp_80` + `r fn_80`). Specificity is `r round(spec_80, 4)`, calculated as `r tn_80` / (`r tn_80` + `r fp_80`).
@@ -618,9 +679,10 @@ tp_65 <- cm_full_65["1", "1"]
 sens_65 <- as.numeric(tp_65 / (tp_65 + fn_65))
 spec_65 <- as.numeric(tn_65 / (tn_65 + fp_65))
 
-# Show results in a confusion matrix.
-CrossTable(test$loan_st, pred_full_65, prop.r = FALSE,
-           prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+knitr::kable(
+  as.data.frame.matrix(cm_full_65),
+  caption = "Confusion matrix for the full model at a 65% acceptance target."
+)
 ```
 
 For this rule, sensitivity is `r round(sens_65, 4)`, calculated as `r tp_65` / (`r tp_65` + `r fn_65`). Specificity is `r round(spec_65, 4)`, calculated as `r tn_65` / (`r tn_65` + `r fp_65`).
@@ -667,7 +729,11 @@ ggplot(roc_rand_df, aes(x = false_positive_rate, y = true_positive_rate)) +
   theme_minimal() +
   theme(panel.grid.minor = element_blank())
 
-auc_rand
+knitr::kable(
+  data.frame(Model = "Random score", AUC = fmt_num(auc_rand, 4)),
+  caption = "AUC for the random-score benchmark.",
+  row.names = FALSE
+)
 ```
 
 A random score should produce a ROC curve close to the diagonal. The area under that diagonal is 0.5, so an AUC close to 0.5 means the score has almost no ranking power. Because the code uses a finite random sample, the reported AUC can be close to 0.5 without being exactly 0.5.
@@ -714,7 +780,11 @@ ggplot(roc_perfect_df, aes(x = false_positive_rate, y = true_positive_rate)) +
   theme_minimal() +
   theme(panel.grid.minor = element_blank())
 
-auc_perfect
+knitr::kable(
+  data.frame(Model = "Perfect score", AUC = fmt_num(auc_perfect, 4)),
+  caption = "AUC for the perfect-score benchmark.",
+  row.names = FALSE
+)
 ```
 
 In a perfect score, every applicant who defaults receives a higher score than every applicant who does not default. The ROC curve therefore rises vertically from 0% to 100% sensitivity while the false positive rate is still 0%, and then moves horizontally along the top of the graph. The AUC is 1. At the right cutoff, the model identifies all defaults and all non-defaults correctly, giving 100% sensitivity and 100% specificity.
