@@ -8,13 +8,27 @@ $$
 \hat{p}_L = \frac{d_L}{n_L}.
 $$
 
-Any new applicant that reaches that leaf receives the same predicted probability $\hat{p}_L$. This makes the model easy to inspect: each prediction is tied to a path through the tree.
+Any new applicant that reaches that leaf receives the same predicted probability $\hat{p}_L$. The tree therefore still gives one predicted PD to each applicant in the test set, but those PDs are not usually unique applicant by applicant. Applicants assigned to the same terminal leaf share the same predicted PD. This makes the model easy to inspect: each prediction is tied to a path through the tree.
 
 This is very different from logistic regression. Logistic regression creates one smooth scoring equation. A tree creates local rules. The model may say, in effect: applicants in this region of the data have a default rate of 3%, while applicants in another region have a default rate of 20%. This rule-based structure is why a single tree is useful pedagogically.
 
 The tradeoff is visible from the formula. A leaf-level PD is simple because it is just a historical default rate inside one group. At the same time, all applicants inside that group receive the same PD. The tree can separate risk only through the leaves it creates.
 
 ```{r Single decision tree}
+tree_formula <- loan_st ~ age + int + grade + log(l_amnt) + log(income) +
+  emp_len + home + sex + region
+
+simple_tree <- rpart::rpart(
+  tree_formula,
+  data = train,
+  method = "class",
+  control = rpart::rpart.control(
+    maxdepth = 4,
+    minsplit = 100,
+    cp = 0.001
+  )
+)
+
 simple_tree
 ```
 
@@ -217,6 +231,9 @@ The lowest-risk leaf in this fitted tree assigns a PD of `r fmt_pct(leaf_summary
 However, a single tree has an important weakness: it can be unstable. A small change in the training data can produce a different set of splits. A tree can also be too simple if it is shallow, or too noisy if it is allowed to grow too deep. This creates a natural motivation for ensemble methods, where many trees are combined to reduce dependence on one tree.
 
 ```{r Single tree predictions}
+pred_tree_simple <- predict(simple_tree, newdata = test, type = "prob")[, "1"]
+ROC_tree_simple <- pROC::roc(test$loan_st, pred_tree_simple, quiet = TRUE)
+
 single_tree_prediction_summary <- data.frame(
   Quantity = c(
     "Minimum predicted PD",
@@ -244,3 +261,5 @@ knitr::kable(
 The single tree already produces default probabilities and can be evaluated like the logistic model. In code, `simple_tree <- rpart(...)` learns the leaves, and `predict(simple_tree, newdata = test, type = "prob")[, "1"]` returns the leaf default rate assigned to each test applicant. This is the code counterpart of $\hat p_L = d_L/n_L$. The main role of the single tree in this chapter is conceptual: it shows the basic building block used by more powerful tree-based methods.
 
 The prediction range in the table also shows the limitation of a single tree. The fitted tree has `r sum(tree_nodes$is_leaf)` terminal leaves and produces only `r fmt_int(length(unique(pred_tree_simple)))` distinct PD values on the test set. This is useful for explanation because every probability can be traced to a leaf, but it can be too coarse for a scoring system that needs a smoother risk ranking across many applicants.
+
+The next model keeps the leaf idea but changes how leaves are used. Instead of relying on one terminal leaf to supply the whole prediction, XGBoost adds many small trees one after another. Each new tree contributes a correction to a running score. That score is then transformed into a predicted PD.

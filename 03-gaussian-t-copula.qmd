@@ -127,6 +127,123 @@ The parameter $\nu$ is the number of degrees of freedom. Lower $\nu$ means heavi
 
 The scale shock is shared by all firms in a scenario. When $S/\nu$ is small, the denominator is small and the scenario becomes more extreme for the whole portfolio. Negative credit shocks are pushed further into the left tail, which creates more scenarios where several firms cross their default thresholds together. The model therefore changes the clustering of defaults without changing the average PD assigned to each firm.
 
+The code below builds the comparison. It keeps the same number of firms, PD, exposure, recovery, and correlation. Then it changes only the copula family and, for the t-copula, the degrees of freedom.
+
+```{r t-copula-simulation-workflow}
+simulate_t_copula_credit <- function(n_sims, n_firms, rho, df, seed = 130575) {
+  set.seed(seed)
+  gaussian_latent <- MASS::mvrnorm(
+    n = n_sims,
+    mu = rep(0, n_firms),
+    Sigma = make_correlation_matrix(n_firms, rho)
+  )
+  scale_shock <- sqrt(rchisq(n_sims, df = df) / df)
+  gaussian_latent / scale_shock
+}
+
+tcopula_sims <- 100000
+tcopula_n_firms <- 10
+tcopula_rho <- hull_example_247_rho
+tcopula_pd <- pd_cum[5]
+tcopula_total_ead <- 100e6
+tcopula_ead <- rep(tcopula_total_ead / tcopula_n_firms, tcopula_n_firms)
+tcopula_recovery <- rep(0.40, tcopula_n_firms)
+
+tcopula_design <- data.frame(
+  copula = c("Gaussian", "t-copula", "t-copula"),
+  df = c(NA, 10, 4)
+)
+
+simulate_tail_dependence_case <- function(copula, df) {
+  if (copula == "Gaussian") {
+    latent <- simulate_latent_credit(
+      n_sims = tcopula_sims,
+      n_firms = tcopula_n_firms,
+      rho = tcopula_rho,
+      seed = 130575
+    )
+    threshold <- qnorm(tcopula_pd)
+  } else {
+    latent <- simulate_t_copula_credit(
+      n_sims = tcopula_sims,
+      n_firms = tcopula_n_firms,
+      rho = tcopula_rho,
+      df = df,
+      seed = 130575
+    )
+    threshold <- qt(tcopula_pd, df = df)
+  }
+
+  defaults <- make_default_matrix(latent, threshold)
+  losses <- portfolio_losses(defaults, tcopula_ead, tcopula_recovery)
+
+  list(
+    defaults = defaults,
+    default_count = rowSums(defaults),
+    losses = losses,
+    events = summarize_default_events(defaults),
+    loss_summary = loss_risk_summary(losses),
+    mean_pd = mean(defaults)
+  )
+}
+
+tcopula_results <- Map(
+  simulate_tail_dependence_case,
+  tcopula_design$copula,
+  tcopula_design$df
+)
+names(tcopula_results) <- c("Gaussian", "t df = 10", "t df = 4")
+
+tcopula_events <- do.call(rbind, lapply(tcopula_results, function(x) x$events))
+tcopula_losses <- do.call(rbind, lapply(tcopula_results, function(x) x$loss_summary))
+
+tcopula_df_label <- ifelse(is.na(tcopula_design$df), "-", fmt_int(tcopula_design$df))
+
+tcopula_default_table <- data.frame(
+  Copula = tcopula_design$copula,
+  df = tcopula_df_label,
+  Mean_PD = fmt_pct(sapply(tcopula_results, function(x) x$mean_pd), 2),
+  Expected_defaults = fmt_num(tcopula_events[, "expected_defaults"], 3),
+  P_three_or_more = fmt_pct(tcopula_events[, "three_or_more"], 2),
+  P_five_or_more = fmt_pct(tcopula_events[, "five_or_more"], 2),
+  P_all_ten = fmt_pct(tcopula_events[, "all_default"], 3)
+)
+names(tcopula_default_table) <- c(
+  "Copula",
+  "df",
+  "Mean PD",
+  "E[defaults]",
+  "P(>=3)",
+  "P(>=5)",
+  "P(10)"
+)
+
+tcopula_loss_table <- data.frame(
+  Copula = tcopula_design$copula,
+  df = tcopula_df_label,
+  EL = fmt_musd(tcopula_losses[, "expected_loss"]),
+  VaR_99 = fmt_musd(tcopula_losses[, "var_99"]),
+  VaR_99_9 = fmt_musd(tcopula_losses[, "var_999"]),
+  ES_99_9 = fmt_musd(tcopula_losses[, "es_999"]),
+  Capital_99_9 = fmt_musd(tcopula_losses[, "economic_capital_999"])
+)
+names(tcopula_loss_table) <- c(
+  "Copula",
+  "df",
+  "EL",
+  "VaR 99%",
+  "VaR 99.9%",
+  "ES 99.9%",
+  "Capital 99.9%"
+)
+
+tcopula_count_matrix <- sapply(tcopula_results, function(x) {
+  as.numeric(tabulate(x$default_count + 1, nbins = tcopula_n_firms + 1)) /
+    tcopula_sims
+})
+colnames(tcopula_count_matrix) <- names(tcopula_results)
+```
+
 The comparison below keeps the 5-year PD at `r fmt_pct(tcopula_pd, 2)`, the copula correlation at `r fmt_num(tcopula_rho, 1)`, the same 10 firms, the same total exposure, and the same recovery rate. The only change is the copula tail shape.
 
 ```{r}

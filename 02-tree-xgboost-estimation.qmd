@@ -1,4 +1,6 @@
-## Estimating an XGBoost model
+## Preparing and estimating the XGBoost model
+
+The previous section inspected how boosting rounds change the prediction for selected applicants. We now show the full estimation workflow behind those objects. The chapter setup already created `xgb_train`, `xgb_test`, and the related labels so the checkpoint exercise could use them. This section prints that construction explicitly and then estimates the XGBoost model used for comparison.
 
 XGBoost requires a numerical matrix. This is why we use `model.matrix()`: it converts categorical variables such as `grade`, `home`, `sex`, and `region` into indicator variables, while keeping numerical variables such as `age`, `int`, `l_amnt`, and `income` in numerical form. This encoding step is important because it makes explicit what the algorithm receives as input. The mathematical object $x_i$ is represented in code by one row of `xgb_train_matrix` or `xgb_test_matrix`; the observed outcome $y_i$ is represented by `xgb_train_label` or `xgb_test_label`.
 
@@ -40,6 +42,23 @@ knitr::kable(
 ```
 
 ```{r XGBoost design matrices}
+xgb_formula <- ~ age + int + grade + log(l_amnt) + log(income) +
+  emp_len + home + sex + region
+
+xgb_train_matrix <- model.matrix(xgb_formula, data = train)[, -1, drop = FALSE]
+xgb_test_matrix <- model.matrix(xgb_formula, data = test)[, -1, drop = FALSE]
+xgb_train_label <- as.numeric(as.character(train$loan_st))
+xgb_test_label <- actual_default_tree
+
+xgb_train <- xgboost::xgb.DMatrix(
+  data = xgb_train_matrix,
+  label = xgb_train_label
+)
+xgb_test <- xgboost::xgb.DMatrix(
+  data = xgb_test_matrix,
+  label = xgb_test_label
+)
+
 xgb_matrix_dimensions <- data.frame(
   Object = c("Training matrix", "Test matrix"),
   Rows = fmt_int(c(nrow(xgb_train_matrix), nrow(xgb_test_matrix))),
@@ -53,7 +72,136 @@ knitr::kable(
 )
 ```
 
-The model was estimated with shallow trees and a moderate number of boosting rounds. We can inspect the training process by re-estimating the model at selected boosting rounds and calculating AUC on both the training and test sets.
+The estimation happens in the call to `xgboost::xgb.train()`. The inputs to that call identify what is being learned, from which data, and for how many boosting rounds. The printed training log is suppressed with `verbose = 0` so the book output stays compact, but the model still stores the final fitted trees and the evaluation history.
+
+```{r}
+xgb_estimation_inputs <- data.frame(
+  Argument = c(
+    "params = xgb_params",
+    "data = xgb_train",
+    "nrounds = xgb_nrounds",
+    "watchlist = list(train = xgb_train, test = xgb_test)",
+    "verbose = 0"
+  ),
+  Role = c(
+    "Objective, evaluation metrics, learning rate, depth, regularization, and sampling choices.",
+    "Encoded training matrix with the observed default labels.",
+    "Number of boosted trees added to the score.",
+    "Training and test matrices used to store diagnostic metrics during estimation.",
+    "Suppresses console printing; it does not change the estimated model."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_estimation_inputs,
+  caption = "Inputs used by the XGBoost estimation call.",
+  row.names = FALSE
+)
+```
+
+The object `xgb_model` stores the fitted boosted trees. The object `pred_xgb` stores one predicted default probability for each applicant in the test set.
+
+```{r XGBoost model estimation}
+set.seed(567)
+xgb_model <- xgboost::xgb.train(
+  params = xgb_params,
+  data = xgb_train,
+  nrounds = xgb_nrounds,
+  watchlist = list(train = xgb_train, test = xgb_test),
+  verbose = 0
+)
+
+pred_xgb <- predict(xgb_model, newdata = xgb_test)
+ROC_xgb <- pROC::roc(test$loan_st, pred_xgb, quiet = TRUE)
+```
+
+After this chunk, the model has been estimated. The next table makes the fitted object visible. The most important out-of-sample quantities are the test-set predictions, test AUC, and test Brier score. The training metrics are useful as diagnostics, but they are not the final criterion for credit-scoring performance.
+
+```{r}
+pred_xgb_train <- predict(xgb_model, newdata = xgb_train)
+ROC_xgb_train <- pROC::roc(train$loan_st, pred_xgb_train, quiet = TRUE)
+
+xgb_estimation_log_loss <- function(actual, predicted_pd) {
+  predicted_pd <- pmin(pmax(predicted_pd, 1e-8), 1 - 1e-8)
+  mean(-(actual * log(predicted_pd) +
+           (1 - actual) * log(1 - predicted_pd)))
+}
+
+xgb_train_auc_estimated <- as.numeric(auc(ROC_xgb_train))
+xgb_test_auc_estimated <- as.numeric(auc(ROC_xgb))
+xgb_test_logloss_estimated <- xgb_estimation_log_loss(
+  actual_default_tree,
+  pred_xgb
+)
+
+xgb_fitted_summary <- data.frame(
+  Quantity = c(
+    "Fitted object",
+    "Training applicants",
+    "Test applicants",
+    "Encoded predictors",
+    "Boosting rounds",
+    "Learning rate",
+    "Maximum tree depth",
+    "Predicted test-set PDs",
+    "Final train AUC",
+    "Final test AUC",
+    "Final test log-loss",
+    "Test Brier score"
+  ),
+  Value = c(
+    "xgb_model",
+    fmt_int(nrow(xgb_train_matrix)),
+    fmt_int(nrow(xgb_test_matrix)),
+    fmt_int(ncol(xgb_train_matrix)),
+    fmt_int(xgb_nrounds),
+    fmt_num(xgb_params$eta, 2),
+    fmt_int(xgb_params$max_depth),
+    fmt_int(length(pred_xgb)),
+    fmt_num(xgb_train_auc_estimated, 4),
+    fmt_num(xgb_test_auc_estimated, 4),
+    fmt_num(xgb_test_logloss_estimated, 4),
+    fmt_num(brier_score(actual_default_tree, pred_xgb), 4)
+  )
+)
+
+knitr::kable(
+  xgb_fitted_summary,
+  caption = "Estimated XGBoost model summary.",
+  row.names = FALSE
+)
+```
+
+The model was estimated with shallow trees and a moderate number of boosting rounds. The checkpoint exercise followed individual applicants; the learning curve below evaluates aggregate performance across the training and test sets. We re-estimate the model at selected boosting rounds and calculate AUC on both samples. The next code builds the data used in the learning-curve figure.
+
+```{r XGBoost learning curve data}
+xgb_round_grid <- seq(20, xgb_nrounds, 20)
+xgb_learning_curve <- do.call(
+  rbind,
+  lapply(xgb_round_grid, function(rounds) {
+    set.seed(567)
+    model_i <- xgboost::xgb.train(
+      params = xgb_params,
+      data = xgb_train,
+      nrounds = rounds,
+      verbose = 0
+    )
+
+    pred_train_i <- predict(model_i, newdata = xgb_train)
+    pred_test_i <- predict(model_i, newdata = xgb_test)
+
+    data.frame(
+      rounds = rounds,
+      series = c("Train AUC", "Test AUC"),
+      auc = c(
+        as.numeric(pROC::auc(train$loan_st, pred_train_i, quiet = TRUE)),
+        as.numeric(pROC::auc(test$loan_st, pred_test_i, quiet = TRUE))
+      )
+    )
+  })
+)
+```
 
 ```{r include=FALSE}
 xgb_final_round <- max(xgb_learning_curve$rounds)
@@ -65,11 +213,12 @@ xgb_final_test_auc <- xgb_learning_curve$auc[
   xgb_learning_curve$rounds == xgb_final_round &
     xgb_learning_curve$series == "Test AUC"
 ]
+xgb_final_auc_gap <- xgb_final_train_auc - xgb_final_test_auc
 ```
 
 ```{r}
 #| label: fig-xgboost-learning
-#| fig-cap: "XGBoost learning process: AUC over boosting rounds."
+#| fig-cap: "XGBoost learning curve: test AUC with train AUC as a diagnostic reference."
 ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
@@ -80,9 +229,9 @@ ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
   theme(legend.position = "bottom")
 ```
 
-The training curve helps us see whether the model is learning useful structure or merely memorizing the training data. If training AUC keeps increasing while test AUC stops improving or falls, the model may be overfitting. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
+The red test-AUC line is the main out-of-sample quantity in @fig-xgboost-learning. The blue train-AUC line is included as a diagnostic reference. A gap between train and test AUC does not prove overfitting by itself. It tells us to inspect out-of-sample performance, calibration, Brier score, bad rates, and economic payoff before trusting the model. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
 
-At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The gap between those two values is part of the diagnostic. A very large gap would suggest that the ensemble is fitting training details with poor generalization. Here the learning curve explains the behavior of the model and discourages chasing the best-looking test-set point.
+At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The train-test gap is `r round(xgb_final_auc_gap, 4)`. This is a warning signal to monitor, not a final diagnosis. The test AUC remains the relevant line for out-of-sample ranking performance.
 
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 
@@ -118,7 +267,7 @@ knitr::kable(
 )
 ```
 
-The learning curve below should therefore be read as a diagnostic, not as a full tuning exercise. If test AUC rose and then deteriorated, the analyst would not keep adding trees. If validation calibration worsened while AUC improved, the analyst might keep the ranking model but recalibrate the probabilities before using them for pricing or provisioning.
+The learning curve should therefore be read as a diagnostic, not as a full tuning exercise. If test AUC rose and then deteriorated, the analyst would not keep adding trees. If validation calibration worsened while AUC improved, the analyst might keep the ranking model but recalibrate the probabilities before using them for pricing or provisioning.
 
 ```{r XGBoost prediction range}
 xgb_prediction_range_table <- data.frame(

@@ -128,20 +128,7 @@ The previous section estimated `logi_full`, the most complete model in this chap
 ```{r logi_full prediction}
 # Loan status predictions for all test set elements.
 pred_logi_full <- predict(logi_full, newdata = test, type = "response")
-full_model_pd_range <- data.frame(
-  Quantity = c("Minimum predicted PD", "Maximum predicted PD", "Range"),
-  Value = c(
-    fmt_pct(min(pred_logi_full), 2),
-    fmt_pct(max(pred_logi_full), 2),
-    fmt_pct(max(pred_logi_full) - min(pred_logi_full), 2)
-  )
-)
-
-knitr::kable(
-  full_model_pd_range,
-  caption = "Prediction range for the full logistic model on the test set.",
-  row.names = FALSE
-)
+range(pred_logi_full)
 ```
 
 ```{r Full model prediction range setup, include=FALSE}
@@ -439,19 +426,37 @@ These are only the first 6 rows in the test set. The rule is doing exactly what 
 
 The row numbers in the table above may be nonconsecutive because the `test` rows were selected randomly out of `dat`. They correspond to the original row positions in `dat`.
 
-To see whether `logi_full` is making useful decisions, we compare predictions with realized outcomes. The first column is the logistic model prediction, the second column is the binary prediction at the 0.15 cutoff, and the third column is the observed outcome. The sample below shows individual correct and incorrect classifications before we move to a full confusion matrix.
+To see whether `logi_full` is making useful decisions, we compare predictions with realized outcomes. The first column is the logistic model prediction, the binary prediction applies the 0.15 cutoff, and the observed outcome tells us what happened historically. The final column translates the statistical classification into a lending consequence before we move to a full confusion matrix.
 
 ```{r}
 # Take rows 101 to 110.
+cutoff_15_observed_sample <- as.numeric(as.character(test$loan_st))[101:110]
+cutoff_15_prediction_sample <- pred_cutoff_15[101:110]
 cutoff_15_case_sample <- data.frame(
+  `Application row` = rownames(test)[101:110],
   `Predicted PD` = fmt_pct(pred_logi_full[101:110], 2),
-  `Binary prediction` = pred_cutoff_15[101:110],
-  `Observed outcome` = as.numeric(as.character(test$loan_st))[101:110]
+  `Binary prediction` = cutoff_15_prediction_sample,
+  `Credit decision` = ifelse(cutoff_15_prediction_sample == 1, "Reject", "Accept"),
+  `Observed outcome` = ifelse(cutoff_15_observed_sample == 1, "Default", "No default"),
+  `Credit outcome` = ifelse(
+    cutoff_15_prediction_sample == 0 & cutoff_15_observed_sample == 0,
+    "Good loan accepted",
+    ifelse(
+      cutoff_15_prediction_sample == 0 & cutoff_15_observed_sample == 1,
+      "Defaulting borrower accepted",
+      ifelse(
+        cutoff_15_prediction_sample == 1 & cutoff_15_observed_sample == 1,
+        "Default avoided",
+        "Good applicant rejected"
+      )
+    )
+  ),
+  check.names = FALSE
 )
 
 knitr::kable(
   cutoff_15_case_sample,
-  caption = "Ten test-set cases comparing predicted PD, cutoff label, and observed outcome.",
+  caption = "Ten test-set cases comparing predicted PD, cutoff decision, observed outcome, and credit consequence.",
   row.names = FALSE
 )
 ```
@@ -530,24 +535,25 @@ The 0.15 cutoff was a first teaching rule. A second approach starts from the ban
 
 ```{r cutoff-80-percent-acceptance}
 # Cutoff definition.
-cutoff <- quantile(pred_logi_full, 0.8)
-knitr::kable(
-  data.frame(
-    Quantity = "Cutoff implied by 80% target acceptance",
-    Value = fmt_pct(as.numeric(cutoff), 2)
-  ),
-  caption = "Cutoff implied by the 80% acceptance-rate rule.",
-  row.names = FALSE
-)
+cutoff <- as.numeric(quantile(pred_logi_full, 0.8))
+acceptance_cutoff_below <- mean(pred_logi_full <= cutoff)
+acceptance_cutoff_above <- mean(pred_logi_full > cutoff)
+cutoff
 ```
 
-The 80% acceptance rule implies a cutoff of `r fmt_num(cutoff, 7)`. The cutoff line is shown below.
+The conversion is direct. The desired acceptance rate is 80%, so we take the 80th percentile of the predicted default probabilities. In this test set, that percentile is `r fmt_num(cutoff, 7)`, or `r fmt_pct(cutoff, 2)`. The mapping is:
+
+$$
+\text{accept if } \hat p_i \leq `r fmt_num(cutoff, 7)`,
+\qquad
+\text{reject if } \hat p_i > `r fmt_num(cutoff, 7)`.
+$$
+
+With this rule, `r fmt_pct(acceptance_cutoff_below, 1)` of applicants are accepted and `r fmt_pct(acceptance_cutoff_above, 1)` are rejected. The cutoff line is shown below.
 
 ```{r}
 #| label: fig-fmphncoo0
 #| fig-cap: "Full model prediction histogram with acceptance-rate cutoff."
-acceptance_cutoff_below <- mean(pred_logi_full <= cutoff)
-acceptance_cutoff_above <- mean(pred_logi_full > cutoff)
 acceptance_density_labels <- data.frame(
   x = c(
     min(pred_logi_full) + 0.58 * (cutoff - min(pred_logi_full)),
@@ -603,10 +609,7 @@ cm_full_20 <- table(
   Actual = factor(test$loan_st, levels = c("0", "1")),
   Predicted = factor(pred_full_20, levels = c(0, 1))
 )
-knitr::kable(
-  as.data.frame.matrix(cm_full_20),
-  caption = "Confusion matrix for the full model with the 80% acceptance rule."
-)
+cm_full_20
 ```
 
 With a cutoff of `r fmt_num(cutoff, 7)`, we accept `r cm_full_20["0", "0"]` + `r cm_full_20["1", "0"]` = `r sum(cm_full_20[, "0"])` applications as those are the ones that the model predicts a no default. Previously, in the case of a cutoff of 0.15, we accepted `r cm_cutoff_15["0", "0"]` + `r cm_cutoff_15["1", "0"]` = `r sum(cm_cutoff_15[, "0"])`.
@@ -679,47 +682,27 @@ sample_real_pred_20 |>
 
 In this small excerpt, the model makes `r sample_model_failures` `r ifelse(sample_model_failures == 1, "mistake", "mistakes")` out of `r nrow(sample_real_pred_20)` applications. The acceptance rule is direct: if `pred_full_20 = 0`, the model predicts no default and the application is accepted. According to the excerpt, the model correctly rejects applications `r paste(sample_correct_rejections, collapse = ", ")` because those were indeed defaults. It incorrectly rejects application `r paste(sample_lost_good_customers, collapse = ", ")`, which did not default. The table makes the business meaning of the classification rule visible before we summarize all applications with aggregate metrics.
 
-The next table counts accepted and rejected applications under this rule.
+The aggregate count is simple.
 
 ```{r Accepted and rejected applications given the model rule}
 # Accepted.
 accept_20 <- sum(pred_full_20 == 0)
 # Rejected.
 reject_20 <- sum(pred_full_20 == 1)
-knitr::kable(
-  data.frame(
-    Quantity = c("Total applications", "Accepted applications", "Rejected applications"),
-    Value = fmt_int(c(length(pred_full_20), accept_20, reject_20))
-  ),
-  caption = "Applications accepted and rejected by the 80% acceptance rule.",
-  row.names = FALSE
+application_count_80 <- c(
+  total_applications = length(pred_full_20),
+  accepted_applications = accept_20,
+  rejected_applications = reject_20
 )
+application_count_80
 ```
 
 By taking the top 20% of the `pred_logi_full` estimates as defaults and the bottom 80% as non-defaults, we construct a rule that accepts `r accept_20` loan applications (`r fmt_pct(accept_20 / length(pred_full_20), 0)` of the total) and rejects `r reject_20` applications (`r fmt_pct(reject_20 / length(pred_full_20), 0)` of the total). The cutoff criterion determines the number of accepted applications, while the `logi_full` model specifies which applications to accept or reject.
 
-We evaluate the acceptance/rejection rule by comparing it against the actual outcomes recorded in `loan_st`. The next table illustrates the decision process.
+We evaluate the acceptance/rejection rule by comparing it against the actual outcomes recorded in `loan_st`. The next table combines the decision process with the ex-post evaluation.
 
-```{r Accept and reject decision}
-# First 10 accept decisions.
-head(data.frame(real_pred_20[,1:2], 
-                decision = ifelse(real_pred_20$pred_full_20 == 0, 
-                                  "accept", "reject")), 12) |>
-  rename(
-    `Observed outcome` = observed_loan_status,
-    `Binary prediction` = pred_full_20,
-    Decision = decision
-  ) |>
-  knitr::kable(
-    caption = "First 12 accept/reject decisions under the 80% acceptance rule.",
-    row.names = FALSE
-  )
-```
-
-An evaluation column labels each decision.
-
-```{r Accept and reject decision plus an evaluation}
-# First 10 accept decisions.
+```{r Accept and reject decision with evaluation}
+# First 12 accept/reject decisions.
 head(data.frame(real_pred_20[,1:2], 
                 decision = ifelse(real_pred_20$pred_full_20 == 0, 
                                   "accept", "reject"),
@@ -741,7 +724,7 @@ head(data.frame(real_pred_20[,1:2],
     Evaluation = evaluation
   ) |>
   knitr::kable(
-    caption = "First 12 decisions with ex-post evaluation.",
+    caption = "First 12 accept/reject decisions with ex-post evaluation.",
     row.names = FALSE
   )
 ```
@@ -772,14 +755,7 @@ where default means $y_i=1$. In the code below, `pred_full_20 == 0` finds the ac
 accepted_index <- which(pred_full_20 == 0)
 accepted_loans <- as.numeric(as.character(real_pred_20$observed_loan_status[accepted_index]))
 # The code above says: if we accept the application, tell me what happened.
-knitr::kable(
-  data.frame(
-    Quantity = "Accepted applications",
-    Value = fmt_int(length(accepted_loans))
-  ),
-  caption = "Number of accepted applications under the 80% acceptance rule.",
-  row.names = FALSE
-)
+length(accepted_loans)
 ```
 
 ```{r}

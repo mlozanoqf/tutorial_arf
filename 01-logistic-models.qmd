@@ -230,26 +230,41 @@ summary(logi_multi)
 aic_multi <- AIC(logi_multi)
 ```
 
-The multi-factor model is a stronger candidate than the previous two. In `logi_multi`, the AIC value is the lowest so far (`r format(round(aic_multi), big.mark = ",")` versus `r format(round(aic_int), big.mark = ",")`), so this should be considered the best in-sample model among these candidates at the moment. The `summary()` function also reports p-values for the coefficients, which helps us identify variables that are statistically associated with default after controlling for the other variables in the model. AIC is still an in-sample criterion. A lower AIC does not guarantee better predictive performance on new applications, so the model's practical value must be checked later with the test set.
+The multi-factor model is a stronger candidate than the previous two. In `logi_multi`, the AIC value is the lowest so far (`r format(round(aic_multi), big.mark = ",")` versus `r format(round(aic_int), big.mark = ",")`), so this should be considered the best in-sample model among these candidates at the moment. AIC is still an in-sample criterion. A lower AIC does not guarantee better predictive performance on new applications, so the model's practical value must be checked later with the test set.
 
-Even if prediction is our main objective, it is useful to understand what the coefficients mean. Logistic regression coefficients are expressed in log-odds units, not directly in probability units. A positive coefficient increases the log-odds of default, while a negative coefficient decreases them. If we exponentiate a coefficient with the `exp()` function, we obtain an odds ratio:
+This is also the first output in the chapter where the full coefficient table is worth reading. The `Estimate` column reports effects on log-odds, not directly on probabilities. `Std. Error` measures estimation uncertainty. The `z value` divides the estimate by its standard error, and `Pr(>|z|)` is the p-value for testing whether the coefficient is zero after controlling for the other variables in the model. In credit terms, this asks whether the variable still contains information about default risk once age, interest rate, grade, loan amount, and income are considered together.
+
+The log-odds scale is not intuitive, so the next table converts coefficients into odds ratios. If we exponentiate a coefficient with the `exp()` function, we obtain:
 
 $$
 \text{odds ratio}_j = \exp(\beta_j).
 $$
 
-An odds ratio above 1 means higher odds of default, and an odds ratio below 1 means lower odds of default. The code below keeps that interpretation but also adds statistical uncertainty. The p-value helps us evaluate whether the coefficient is statistically distinguishable from zero. The 95% interval for the odds ratio helps us see whether the corresponding odds ratio is clearly different from 1.
+An odds ratio above 1 means higher odds of default, and an odds ratio below 1 means lower odds of default. The 95% interval helps us see whether the odds ratio is clearly different from 1. If the interval contains 1, the estimated direction is statistically unclear at the usual 5% level.
 
 ```{r Odds ratios for the multi-factor model}
 multi_summary <- summary(logi_multi)$coefficients
 
 odds_ratios <- data.frame(
+  term = rownames(multi_summary),
   coefficient = multi_summary[, "Estimate"],
   std_error = multi_summary[, "Std. Error"],
+  z_value = multi_summary[, "z value"],
   p_value = multi_summary[, "Pr(>|z|)"],
   OR = exp(multi_summary[, "Estimate"]),
   OR_low_95 = exp(multi_summary[, "Estimate"] - 1.96 * multi_summary[, "Std. Error"]),
   OR_high_95 = exp(multi_summary[, "Estimate"] + 1.96 * multi_summary[, "Std. Error"])
+)
+rownames(odds_ratios) <- odds_ratios$term
+
+odds_ratios$reading <- ifelse(
+  odds_ratios$p_value < 0.05 & odds_ratios$OR_low_95 > 1,
+  "clear increase in odds",
+  ifelse(
+    odds_ratios$p_value < 0.05 & odds_ratios$OR_high_95 < 1,
+    "clear decrease in odds",
+    "unclear at 5%"
+  )
 )
 
 grade_terms <- grep("^grade", rownames(odds_ratios), value = TRUE)
@@ -268,14 +283,45 @@ grade_significant_text <- if (length(grade_significant_labels) > 0) {
   "none at this threshold"
 }
 
-round(odds_ratios, 4)
+grade_first_term <- if ("gradeB" %in% grade_terms) "gradeB" else grade_terms[1]
+grade_first_label <- sub("^grade", "", grade_first_term)
+grade_highest_term <- grade_terms[which.max(odds_ratios[grade_terms, "OR"])]
+grade_highest_label <- sub("^grade", "", grade_highest_term)
+grade_or_increases <- all(diff(odds_ratios[grade_terms, "OR"]) > 0)
+
+odds_ratio_table <- odds_ratios[odds_ratios$term != "(Intercept)", ]
+odds_ratio_table <- data.frame(
+  Term = odds_ratio_table$term,
+  Coefficient = fmt_num(odds_ratio_table$coefficient, 4),
+  `Odds ratio` = fmt_num(odds_ratio_table$OR, 4),
+  `95% OR interval` = paste0(
+    "[",
+    fmt_num(odds_ratio_table$OR_low_95, 4),
+    ", ",
+    fmt_num(odds_ratio_table$OR_high_95, 4),
+    "]"
+  ),
+  `p-value` = format.pval(odds_ratio_table$p_value, digits = 3, eps = 0.001),
+  Reading = odds_ratio_table$reading,
+  check.names = FALSE
+)
+
+knitr::kable(
+  odds_ratio_table,
+  caption = "Coefficient and odds-ratio interpretation for `logi_multi`.",
+  row.names = FALSE
+)
 ```
 
-For practical interpretation, the odds-ratio columns are usually more useful than the raw coefficient column. The coefficient is reported because it is what the logistic model estimates, but it is measured in log-odds units. The OR and its 95% interval translate that estimate into a multiplicative effect on the odds of default.
+Now read the table as a credit model rather than as a list of statistics. The interest-rate coefficient is positive. Its odds ratio is `r fmt_num(odds_ratios["int", "OR"], 4)`, so a one-unit increase in the recorded interest-rate variable multiplies the odds of default by `r fmt_num(odds_ratios["int", "OR"], 4)`, holding age, grade, loan amount, and income fixed. Equivalently, the estimated odds are `r fmt_pct(odds_ratios["int", "OR"] - 1, 2)` higher. The p-value is `r format.pval(odds_ratios["int", "p_value"], digits = 3, eps = 0.001)`, so this association is statistically clear at the 5% level. The credit reading is associational: in this fitted model, loans with higher interest rates are associated with higher default risk after the other included variables are held fixed.
 
-The interpretation must be careful. For a numerical predictor such as `age`, the odds ratio corresponds to a one-unit increase in age, holding the other variables in the model fixed. For a categorical predictor such as `grade`, each coefficient compares one category with the reference category chosen by R. For transformed variables, the unit is also transformed. A one-unit increase in `log(l_amnt)` differs from a one-dollar increase in loan amount. Most importantly, odds ratios describe multiplicative changes in the odds of default. The implied change in probability depends on the starting probability. A final check is uncertainty: if the 95% interval for an odds ratio includes 1, the estimated effect is statistically unclear at the usual 5% level, even if the point estimate is above or below 1.
+The `grade` coefficients give the clearest credit-risk pattern. R uses grade `r grade_reference` as the reference category, so each grade coefficient compares that grade with grade `r grade_reference`, holding the other variables fixed. In this estimation, `r length(grade_significant_terms)` grade coefficients are statistically significant at the 5% level: `r grade_significant_text`. The first reported grade comparison, grade `r grade_first_label`, has an odds ratio of `r fmt_num(odds_ratios[grade_first_term, "OR"], 4)`. The largest grade odds ratio is grade `r grade_highest_label`, with `r fmt_num(odds_ratios[grade_highest_term, "OR"], 4)`. `r ifelse(grade_or_increases, "The odds ratios rise as the grade worsens from B to G, which is exactly the pattern a credit analyst would expect from a risk grade.", "The grade odds ratios do not rise monotonically, so the credit-grade pattern should be read with extra caution.")`
 
-The `grade` coefficients are especially useful for credit-risk interpretation. R uses grade `r grade_reference` as the reference category, so each reported grade coefficient compares another credit grade with that benchmark while holding age, interest rate, loan amount, and income fixed. In this estimation, `r length(grade_significant_terms)` grade coefficients are statistically significant at the 5% level: `r grade_significant_text`. This supports the financial intuition that credit grade carries information about default risk beyond the other variables in `logi_multi`. The p-values alone do not prove that the model will predict new applicants well. They do show that grade carries real information in the fitted model.
+Income moves in the opposite direction. The odds ratio for `log(income)` is `r fmt_num(odds_ratios["log(income)", "OR"], 4)`, with p-value `r format.pval(odds_ratios["log(income)", "p_value"], digits = 3, eps = 0.001)`. Because the odds ratio is below 1, higher income is associated with lower default odds in this model, holding the other variables fixed. The interpretation is about `log(income)`, not a one-dollar increase in income. The same caution applies to `log(l_amnt)`: its odds ratio is `r fmt_num(odds_ratios["log(l_amnt)", "OR"], 4)`, but the p-value is `r format.pval(odds_ratios["log(l_amnt)", "p_value"], digits = 3, eps = 0.001)` and the 95% odds-ratio interval includes 1, so the loan-amount effect is not statistically clear in this specification.
+
+Age also changes interpretation once the model includes more credit information. In the age-only model, age was useful for learning the mechanics of logistic regression. In `logi_multi`, the age odds ratio is `r fmt_num(odds_ratios["age", "OR"], 4)` and the p-value is `r format.pval(odds_ratios["age", "p_value"], digits = 3, eps = 0.001)`. After controlling for interest rate, grade, loan amount, and income, the fitted model does not provide clear evidence that age adds much independent information about default risk.
+
+Statistical significance is an interpretation signal, while predictive usefulness still needs out-of-sample evaluation. The coefficient table explains how the fitted model relates predictors to default odds in the training data. The next section checks whether the resulting predicted probabilities are useful on the test set, and later sections translate those probabilities into cutoff rules, bad rates, ROC/AUC, and bank payoff.
 
 The next model uses all predictors available in the teaching dataset. We call it `logi_full` because it is the most complete candidate in this chapter. The purpose is to create a richer score before moving to the test-set evaluation, cutoff rules, bad rates, and bank strategy.
 

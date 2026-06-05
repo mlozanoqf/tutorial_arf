@@ -8,6 +8,53 @@ The previous section gives us a convenient function: $pd = f(E_0, \sigma_E, rf, 
 
 Throughout this section, $pd$ means the Merton risk-neutral/implied probability of default. The exercises below are model-implied sensitivity analyses. We change one or two observable inputs, keep the remaining observable inputs and model assumptions fixed, solve again for the unobservable $V_0$ and $\sigma_V$, and then recompute $N(-d_2)$ under the risk-neutral distribution. The asset quantities $V_0$ and $\sigma_V$ are therefore part of the new Merton solution at each point.
 
+The function below makes that workflow explicit. Every time we call `pd(E0, se, rf, TT, D)`, the code rebuilds equations 24.3 and 24.4, solves again for $V_0$ and $\sigma_V$ with `optim()`, and then returns $N(-d_2)$. This is why the sensitivity curves are model-implied recalculations rather than simple one-variable plots that hold the hidden asset quantities fixed.
+
+```{r merton-pd-function-visible}
+pd <- function(E0, se, rf, TT, D) {
+  d1_merton <- function(V0, sv) {
+    (log(V0 / D) + (rf + sv^2 / 2) * TT) / (sv * sqrt(TT))
+  }
+
+  d2_merton <- function(V0, sv) {
+    d1_merton(V0, sv) - sv * sqrt(TT)
+  }
+
+  eq24.3 <- function(V0, sv) {
+    V0 * pnorm(d1_merton(V0, sv)) -
+      D * exp(-rf * TT) * pnorm(d2_merton(V0, sv)) -
+      E0
+  }
+
+  eq24.4 <- function(V0, sv) {
+    pnorm(d1_merton(V0, sv)) * sv * V0 - se * E0
+  }
+
+  objective <- function(x) {
+    eq24.3(x[1], x[2])^2 + eq24.4(x[1], x[2])^2
+  }
+
+  start_V0 <- E0 + D * exp(-rf * TT)
+  start_sv <- se * E0 / start_V0
+
+  solution <- optim(
+    par = c(V0 = start_V0, sv = start_sv),
+    fn = objective,
+    method = "L-BFGS-B",
+    lower = c(V0 = 1e-6, sv = 1e-6),
+    control = list(
+      parscale = c(V0 = 10, sv = 0.2),
+      ndeps = c(V0 = 1e-6, sv = 1e-8)
+    )
+  )
+
+  V0_hat <- unname(solution$par["V0"])
+  sv_hat <- unname(solution$par["sv"])
+
+  pnorm(-d2_merton(V0_hat, sv_hat))
+}
+```
+
 ```{r}
 # Evaluate the case of the textbook example.
 pd1 <- pd(3, 0.8, 0.05, 1, 10)

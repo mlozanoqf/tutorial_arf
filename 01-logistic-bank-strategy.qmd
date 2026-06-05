@@ -96,7 +96,7 @@ ggplot(combined_data, aes(x = accept_rate, y = bad_rate, color = facet_color)) +
   scale_color_identity() +  # Use the colors directly without adding them to the legend
   scale_x_continuous(breaks = c(0, 0.65, 0.8, 1)) +
   scale_y_continuous(
-    labels = function(x) fmt_pct(x, 1),
+    labels = function(x) fmt_pct(x, 0),
     breaks = scales::breaks_pretty(n = 5)
   )
 ```
@@ -256,6 +256,85 @@ where $PD$ is the probability of default, $LGD$ is loss given default, and $EAD$
 
 ## ROC, AUC, and calibration
 
+Before introducing ROC curves, we need to fix the classification language. In this chapter, the positive class is default. A predicted positive is therefore a predicted default, which means the lending rule rejects the applicant. A predicted negative is a predicted no-default, which means the lending rule accepts the applicant.
+
+```{r classification-equivalence-table}
+classification_equivalence_table <- data.frame(
+  `Actual outcome` = c(
+    "No default",
+    "No default",
+    "Default",
+    "Default"
+  ),
+  `Model prediction` = c(
+    "No default",
+    "Default",
+    "No default",
+    "Default"
+  ),
+  `Statistical name` = c(
+    "True negative (TN)",
+    "False positive (FP)",
+    "False negative (FN)",
+    "True positive (TP)"
+  ),
+  `Credit reading` = c(
+    "The model expected repayment, and the borrower repaid.",
+    "The model expected default, but the borrower would have repaid.",
+    "The model expected repayment, but the borrower defaulted.",
+    "The model expected default, and the borrower defaulted."
+  ),
+  `Lending consequence` = c(
+    "Good loan accepted",
+    "Good applicant rejected",
+    "Defaulting borrower accepted",
+    "Default avoided"
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  classification_equivalence_table,
+  caption = "Confusion-matrix language translated into credit decisions.",
+  row.names = FALSE
+)
+```
+
+The table is useful because the words positive and negative can be misleading in credit risk. Positive does not mean good. It means that the event of interest occurred, and here the event of interest is default. A false negative is therefore costly for the lender because the model accepts a borrower who defaults. A false positive is also costly, but in a different way: the bank rejects a borrower who would have repaid.
+
+The same language gives the four rates used in ROC analysis.
+
+```{r classification-metric-equivalence-table}
+classification_metric_table <- data.frame(
+  Metric = c(
+    "Sensitivity",
+    "Specificity",
+    "False positive rate",
+    "False negative rate"
+  ),
+  Formula = c(
+    "$TP/(TP+FN)$",
+    "$TN/(TN+FP)$",
+    "$FP/(TN+FP)=1-\\text{specificity}$",
+    "$FN/(TP+FN)=1-\\text{sensitivity}$"
+  ),
+  `Credit meaning` = c(
+    "Among actual defaults, the share correctly detected as predicted defaults.",
+    "Among actual non-defaults, the share correctly kept as predicted no-defaults.",
+    "Among good borrowers, the share wrongly rejected.",
+    "Among defaulting borrowers, the share wrongly accepted."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  classification_metric_table,
+  caption = "Sensitivity, specificity, and error rates in credit language.",
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
 The acceptance-rate analysis compares business rules at selected cutoffs. The next metrics summarize ranking, calibration, and sensitivity/specificity across cutoffs. The ROC (Receiver Operating Characteristic) curve evaluates how well the model ranks defaults above non-defaults as the cutoff changes.
 
 Throughout this book, we draw ROC curves with sensitivity on the vertical axis and the false positive rate on the horizontal axis. The false positive rate is $1 - \text{specificity}$. In credit terms, it is the share of non-default loans that the model incorrectly classifies as predicted defaults at a given cutoff. This convention matches the ROC figures used in the next chapter.
@@ -333,15 +412,9 @@ In @fig-fmibamio, the blue curve for `logi_full` dominates the orange curve for 
 
 ```{r AUC good and bad model}
 # Compute the AUCs:
-auc_table <- data.frame(
-  Model = c("logi_full", "logi_age"),
-  AUC = fmt_num(c(auc_logi_full, auc_logi_age), 4)
-)
-
-knitr::kable(
-  auc_table,
-  caption = "AUC comparison between the full model and the age-only model.",
-  row.names = FALSE
+data.frame(
+  model = c("logi_full", "logi_age"),
+  auc = round(c(auc_logi_full, auc_logi_age), 4)
 )
 ```
 
@@ -468,13 +541,17 @@ A value close to 0 means the model is barely improving on the constant default-r
 
 In practice, discrimination and calibration answer complementary questions. AUC helps us decide whether the model ranks applicants in a useful way. Calibration helps us decide whether the estimated probabilities can be interpreted as realistic probabilities of default. A lending strategy can benefit from both: ranking is useful for deciding whom to accept or reject, while calibration is useful for pricing, provisioning, stress testing, and communicating the meaning of a predicted probability.
 
-Sensitivity is the share of actual defaults correctly identified as predicted defaults. Specificity is the share of actual non-defaults correctly identified as predicted non-defaults. Under our lending rule, higher sensitivity means fewer defaulting borrowers are mistakenly accepted. Higher specificity means fewer good borrowers are mistakenly rejected.
+We can now return to the business rule. A cutoff converts a predicted probability into an accept/reject decision. Under our convention, a higher sensitivity means fewer defaulting borrowers are mistakenly accepted. A higher specificity means fewer good borrowers are mistakenly rejected.
 
 The trade-off is financial. A very low cutoff rejects many applicants and tends to increase sensitivity, but it can reject many good borrowers. A very high cutoff accepts more applicants and tends to increase specificity, but it can accept more borrowers who default. The right balance depends on risk appetite, profitability, and regulation.
 
-The two extreme policies make the problem clear. Accepting everyone maximizes loan volume but accepts all defaults. Rejecting everyone eliminates accepted defaults but issues no loans. Useful credit policy lives between those extremes.
+The two extreme policies make the problem clear. Accepting everyone maximizes loan volume and also accepts every default. Rejecting everyone eliminates accepted defaults and issues no loans. Useful credit policy lives between those extremes.
 
-The @fig-fmibamio contains the full range of possible cutoff values. We evaluate sensitivity and specificity at two acceptance-rate targets reviewed before: 80% and 65%. The acceptance rate differs from the probability cutoff. If the bank wants to accept 80% of applications, the cutoff must be the 80th percentile of the model's predicted default probabilities; if it wants to accept 65%, the cutoff must be the 65th percentile. Since the ROC graph uses false positive rate on the horizontal axis, the guide lines below use $1-\text{specificity}$.
+We evaluate two lending policies reviewed before. In the first policy, the bank wants to accept about 80% of applications. In the second policy, the bank wants to accept about 65%. This policy target is chosen before looking at the final classification counts.
+
+The model then converts each policy into a probability cutoff. In R, this is done with `quantile()`. The call `quantile(pred_logi_full, probs = 0.80)` returns the empirical 80th percentile of the full model's predicted default probabilities. We use that value as the cutoff because it places about 80% of the predicted probabilities at or below the cutoff. Those applications are accepted. Applications above the cutoff are rejected because their predicted default probabilities are in the riskiest part of the test set. The same logic gives the 65% policy by using `probs = 0.65`.
+
+The word about is important. The bank chooses the policy target first, such as accepting about 80% of applications. Then `quantile()` finds an empirical cutoff from the ordered predicted probabilities. In R, the default quantile calculation may interpolate between adjacent ordered predictions. It does not smooth the whole distribution; it produces one cutoff value from the sample. After that, the accept/reject rule is applied to the observed predictions. If predicted probabilities are spread smoothly with few ties near the cutoff, the realized acceptance rate will be very close to the policy target. If many predictions are tied or tightly clustered around the cutoff, the realized rate can move a little farther from the target. In our code, applications with predicted default probability at or below the cutoff are accepted, while applications above the cutoff are rejected.
 
 
 ```{r}
@@ -495,10 +572,10 @@ classification_metrics <- function(actual, predicted) {
 }
 
 # Cutoffs implied by target acceptance rates.
-cutoff_full_80 <- unname(quantile(pred_logi_full, 0.80))
-cutoff_age_80 <- unname(quantile(pred_logi_age, 0.80))
-cutoff_full_65 <- unname(quantile(pred_logi_full, 0.65))
-cutoff_age_65 <- unname(quantile(pred_logi_age, 0.65))
+cutoff_full_80 <- unname(quantile(pred_logi_full, probs = 0.80))
+cutoff_age_80 <- unname(quantile(pred_logi_age, probs = 0.80))
+cutoff_full_65 <- unname(quantile(pred_logi_full, probs = 0.65))
+cutoff_age_65 <- unname(quantile(pred_logi_age, probs = 0.65))
 
 # Binary predictions: 1 = reject as predicted default, 0 = accept.
 pred_full_80 <- ifelse(pred_logi_full > cutoff_full_80, 1, 0)
@@ -514,13 +591,14 @@ metrics_age_65 <- classification_metrics(test$loan_st, pred_age_65)
 # Combine the results.
 results_df <- data.frame(
   Model = c("logi_full", "logi_age", "logi_full", "logi_age"),
-  Target_acceptance_rate = c(0.80, 0.80, 0.65, 0.65),
-  Actual_acceptance_rate = c(mean(pred_full_80 == 0),
-                             mean(pred_age_80 == 0),
-                             mean(pred_full_65 == 0),
-                             mean(pred_age_65 == 0)),
-  Cutoff = c(cutoff_full_80, cutoff_age_80,
-             cutoff_full_65, cutoff_age_65),
+  Policy = c("Accept about 80%", "Accept about 80%",
+             "Accept about 65%", "Accept about 65%"),
+  Accepted_in_test_set = c(mean(pred_full_80 == 0),
+                           mean(pred_age_80 == 0),
+                           mean(pred_full_65 == 0),
+                           mean(pred_age_65 == 0)),
+  PD_cutoff = c(cutoff_full_80, cutoff_age_80,
+                cutoff_full_65, cutoff_age_65),
   Sensitivity = c(metrics_full_80["sensitivity"],
                   metrics_age_80["sensitivity"],
                   metrics_full_65["sensitivity"],
@@ -533,18 +611,27 @@ results_df <- data.frame(
 
 results_df |>
   mutate(
-    Target_acceptance_rate = fmt_pct(Target_acceptance_rate, 0),
-    Actual_acceptance_rate = fmt_pct(Actual_acceptance_rate, 1),
-    Cutoff = fmt_pct(Cutoff, 2),
+    Accepted_in_test_set = fmt_pct(Accepted_in_test_set, 1),
+    PD_cutoff = fmt_pct(PD_cutoff, 2),
     Sensitivity = fmt_pct(Sensitivity, 1),
     Specificity = fmt_pct(Specificity, 1)
   ) |>
   knitr::kable(
-    caption = "Sensitivity and specificity at two target acceptance rates.",
+    caption = "Cutoffs and error rates implied by two acceptance policies.",
+    col.names = c(
+      "Model",
+      "Bank policy",
+      "Accepted in test set",
+      "PD cutoff",
+      "Sensitivity",
+      "Specificity"
+    ),
     row.names = FALSE
   )
 
 ```
+
+The summary table should be read as a policy comparison. `Policy` is the acceptance goal chosen by the bank. `PD_cutoff` is the predicted default probability that implements that goal. `Accepted_in_test_set` is the share of applications actually accepted after applying the cutoff. Moving from the 80% policy to the 65% policy makes the rule more conservative because more applicants are rejected. That change usually detects more actual defaults, raising sensitivity. It also rejects more non-defaulting applicants, reducing specificity.
 
 ```{r}
 #| label: fig-fmibeitar
@@ -561,6 +648,26 @@ roc_acceptance_guides <- data.frame(
   true_positive_rate = c(
     metrics_full_80["sensitivity"],
     metrics_full_65["sensitivity"]
+  )
+)
+
+roc_acceptance_labels <- data.frame(
+  target = c("Acceptance rate of 80%", "Acceptance rate of 65%"),
+  false_positive_rate = roc_acceptance_guides$false_positive_rate,
+  true_positive_rate = roc_acceptance_guides$true_positive_rate,
+  label_x = c(0.56, 0.56),
+  label_y = c(0.55, 0.84),
+  label = c(
+    paste0(
+      "80% policy\n",
+      "Sensitivity = ", fmt_pct(metrics_full_80["sensitivity"], 1), "\n",
+      "Specificity = ", fmt_pct(metrics_full_80["specificity"], 1)
+    ),
+    paste0(
+      "65% policy\n",
+      "Sensitivity = ", fmt_pct(metrics_full_65["sensitivity"], 1), "\n",
+      "Specificity = ", fmt_pct(metrics_full_65["specificity"], 1)
+    )
   )
 )
 
@@ -609,6 +716,37 @@ ggplot(roc_full_df, aes(x = false_positive_rate, y = true_positive_rate)) +
     inherit.aes = FALSE,
     size = 2.8
   ) +
+  geom_segment(
+    data = roc_acceptance_labels,
+    aes(
+      x = false_positive_rate,
+      xend = label_x - 0.02,
+      y = true_positive_rate,
+      yend = label_y,
+      color = target
+    ),
+    inherit.aes = FALSE,
+    linewidth = 0.45,
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_label(
+    data = roc_acceptance_labels,
+    aes(
+      x = label_x,
+      y = label_y,
+      label = label,
+      color = target
+    ),
+    inherit.aes = FALSE,
+    hjust = 0,
+    size = 3.1,
+    lineheight = 0.95,
+    label.size = 0.25,
+    label.padding = grid::unit(0.15, "lines"),
+    fill = "white",
+    show.legend = FALSE
+  ) +
   scale_color_manual(
     values = c("Acceptance rate of 80%" = "red",
                "Acceptance rate of 65%" = "black"),
@@ -636,58 +774,65 @@ ggplot(roc_full_df, aes(x = false_positive_rate, y = true_positive_rate)) +
   )
 ```
 
-The next two confusion matrices verify the sensitivity and specificity results.
+@fig-fmibeitar places the two full-model policies on the same ROC curve. The red point corresponds to the 80% acceptance rule, which rejects only the riskiest 20% of applicants. The black point corresponds to the 65% acceptance rule, which rejects the riskiest 35%. The black point is higher because the stricter rule catches more actual defaults. It is also farther to the right because the stricter rule rejects more applicants who would not have defaulted. The figure therefore turns the cutoff choice into a visible risk-management trade-off.
 
-The sensitivity value is: $\text{Sensitivity} = \frac{\text{True positives}}{\text{True positives} + \text{False negatives}}$.
+The next two confusion-matrix outputs verify the same logic numerically. Rows are actual outcomes. Columns are lending decisions implied by the model. `Accept` means predicted no-default and `Reject` means predicted default.
 
-The specificity value is: $\text{Specificity} = \frac{\text{True negatives}}{\text{True negatives} + \text{False positives}}$.
-
-
-For the case of an acceptance-rate target of 80%:
+For the 80% acceptance target:
 
 ```{r Confusion matrix pred_full_80a}
 cm_full_80 <- table(
-  Actual = factor(test$loan_st, levels = c("0", "1")),
-  Predicted = factor(pred_full_80, levels = c(0, 1))
+  Actual = factor(
+    test$loan_st,
+    levels = c("0", "1"),
+    labels = c("No default", "Default")
+  ),
+  Decision = factor(
+    pred_full_80,
+    levels = c(0, 1),
+    labels = c("Accept", "Reject")
+  )
 )
-tn_80 <- cm_full_80["0", "0"]
-fp_80 <- cm_full_80["0", "1"]
-fn_80 <- cm_full_80["1", "0"]
-tp_80 <- cm_full_80["1", "1"]
+tn_80 <- cm_full_80["No default", "Accept"]
+fp_80 <- cm_full_80["No default", "Reject"]
+fn_80 <- cm_full_80["Default", "Accept"]
+tp_80 <- cm_full_80["Default", "Reject"]
 sens_80 <- as.numeric(tp_80 / (tp_80 + fn_80))
 spec_80 <- as.numeric(tn_80 / (tn_80 + fp_80))
 
-knitr::kable(
-  as.data.frame.matrix(cm_full_80),
-  caption = "Confusion matrix for the full model at an 80% acceptance target."
-)
+cm_full_80
 ```
 
-For this rule, sensitivity is `r round(sens_80, 4)`, calculated as `r tp_80` / (`r tp_80` + `r fn_80`). Specificity is `r round(spec_80, 4)`, calculated as `r tn_80` / (`r tn_80` + `r fp_80`).
+For this rule, the model rejects `r tp_80` applicants who actually default and accepts `r fn_80` applicants who later default. Sensitivity is therefore `r round(sens_80, 4)`. The model accepts `r tn_80` applicants who do not default and rejects `r fp_80` applicants who do not default. Specificity is therefore `r round(spec_80, 4)`.
 
-For the case of an acceptance-rate target of 65%:
+For the 65% acceptance target:
 
 ```{r Confusion matrix pred_full_65a}
 cm_full_65 <- table(
-  Actual = factor(test$loan_st, levels = c("0", "1")),
-  Predicted = factor(pred_full_65, levels = c(0, 1))
+  Actual = factor(
+    test$loan_st,
+    levels = c("0", "1"),
+    labels = c("No default", "Default")
+  ),
+  Decision = factor(
+    pred_full_65,
+    levels = c(0, 1),
+    labels = c("Accept", "Reject")
+  )
 )
-tn_65 <- cm_full_65["0", "0"]
-fp_65 <- cm_full_65["0", "1"]
-fn_65 <- cm_full_65["1", "0"]
-tp_65 <- cm_full_65["1", "1"]
+tn_65 <- cm_full_65["No default", "Accept"]
+fp_65 <- cm_full_65["No default", "Reject"]
+fn_65 <- cm_full_65["Default", "Accept"]
+tp_65 <- cm_full_65["Default", "Reject"]
 sens_65 <- as.numeric(tp_65 / (tp_65 + fn_65))
 spec_65 <- as.numeric(tn_65 / (tn_65 + fp_65))
 
-knitr::kable(
-  as.data.frame.matrix(cm_full_65),
-  caption = "Confusion matrix for the full model at a 65% acceptance target."
-)
+cm_full_65
 ```
 
-For this rule, sensitivity is `r round(sens_65, 4)`, calculated as `r tp_65` / (`r tp_65` + `r fn_65`). Specificity is `r round(spec_65, 4)`, calculated as `r tn_65` / (`r tn_65` + `r fp_65`).
+For this rule, the model rejects `r tp_65` applicants who actually default and accepts `r fn_65` applicants who later default. Sensitivity rises to `r round(sens_65, 4)`. The cost is visible among non-defaulting applicants: the model accepts `r tn_65` of them and rejects `r fp_65` of them, so specificity falls to `r round(spec_65, 4)`.
 
-Under the rule "reject if predicted probability of default is above the cutoff," lowering the cutoff rejects more applicants. This usually increases sensitivity because more actual defaulters are detected. It also reduces specificity because more non-defaulting borrowers are misclassified as defaulters. Raising the cutoff accepts more applicants and improves specificity by reducing false positives, but it risks missing actual defaulters and lowers sensitivity.
+The comparison shows why a cutoff is a business decision. The 65% acceptance rule protects the lender from more defaults, but it also turns away more borrowers who would have repaid. The 80% acceptance rule keeps more business volume and rejects fewer good borrowers, while allowing more defaulting borrowers into the portfolio.
 
 A pure-random score would look like this:
 
@@ -729,11 +874,7 @@ ggplot(roc_rand_df, aes(x = false_positive_rate, y = true_positive_rate)) +
   theme_minimal() +
   theme(panel.grid.minor = element_blank())
 
-knitr::kable(
-  data.frame(Model = "Random score", AUC = fmt_num(auc_rand, 4)),
-  caption = "AUC for the random-score benchmark.",
-  row.names = FALSE
-)
+c(random_score_auc = round(auc_rand, 4))
 ```
 
 A random score should produce a ROC curve close to the diagonal. The area under that diagonal is 0.5, so an AUC close to 0.5 means the score has almost no ranking power. Because the code uses a finite random sample, the reported AUC can be close to 0.5 without being exactly 0.5.
@@ -780,20 +921,10 @@ ggplot(roc_perfect_df, aes(x = false_positive_rate, y = true_positive_rate)) +
   theme_minimal() +
   theme(panel.grid.minor = element_blank())
 
-knitr::kable(
-  data.frame(Model = "Perfect score", AUC = fmt_num(auc_perfect, 4)),
-  caption = "AUC for the perfect-score benchmark.",
-  row.names = FALSE
-)
+c(perfect_score_auc = round(auc_perfect, 4))
 ```
 
 In a perfect score, every applicant who defaults receives a higher score than every applicant who does not default. The ROC curve therefore rises vertically from 0% to 100% sensitivity while the false positive rate is still 0%, and then moves horizontally along the top of the graph. The AUC is 1. At the right cutoff, the model identifies all defaults and all non-defaults correctly, giving 100% sensitivity and 100% specificity.
-
-For a short supplemental explanation of ROC and AUC, the following video may be useful:
-
-```{r}
-embed_url("https://youtu.be/HljSmQhLs8M")
-```
 
 ## What do we gain and what do we lose?
 

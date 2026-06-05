@@ -64,30 +64,33 @@ The external data come from NGFS/IIASA. The bank portfolio is a teaching portfol
 
 The scenario layer should be read as a credit overlay. Suppose a bank lends to a coal producer, a power utility, an airline, and a technology hardware firm. The bank already has a baseline view of credit quality. Climate analysis asks how that baseline changes if the economy follows a particular transition or physical-risk path. The model focuses on sector-level credit adjustments that can be connected to the same instruments the bank already manages: loans, bonds, CDS, and portfolio limits.
 
-The NGFS short-term database gives several scenario runs. We use the three global CLIMACRED scenarios for the main portfolio analysis.
+The NGFS short-term database gives several scenario runs. The names below are official NGFS short-term scenario narratives in the IIASA Scenario Explorer, not labels created for this chapter. We use three global CLIMACRED runs for the main portfolio analysis. The scenario code is the short name used in our cleaned data, and the run ID is the numerical identifier used by the API request.
 
 ```{r climate-scenario-table}
 scenario_table <- data.frame(
-  scenario = c("DIRE", "HWTP", "SWUC"),
-  label = c(
+  `Scenario code` = c("DIRE", "HWTP", "SWUC"),
+  `NGFS scenario narrative` = c(
     "Diverging Realities",
     "Highway to Paris",
     "Sudden Wake-up Call"
   ),
-  main_channel = c(
+  `API run ID` = c(74, 75, 76),
+  `Main credit-risk channel` = c(
     "Mixed transition and physical pressure",
     "Orderly but demanding transition pressure",
     "Delayed transition shock"
   ),
-  interpretation = c(
+  `Reading in this chapter` = c(
     "Climate policy and climate damage are uneven across regions and sectors.",
     "The transition is more coordinated, but high-emission sectors still face credit stress.",
     "The market reprices climate risk abruptly after a period of limited adjustment."
-  )
+  ),
+  check.names = FALSE
 )
 
 kable(
   scenario_table,
+  row.names = FALSE,
   caption = "Global NGFS short-term CLIMACRED scenarios used in the main analysis."
 )
 ```
@@ -122,7 +125,7 @@ kable(
 )
 ```
 
-Each scenario row should therefore be read as a different question for risk management. Diverging Realities asks what happens when the adjustment is uneven. Highway to Paris asks what an orderly but demanding transition does to sector credit risk. Sudden Wake-up Call asks what happens when markets and policy adjust after delay. These are exactly the kinds of questions a stress-testing team needs before it can turn climate narratives into numbers.
+Each scenario row should therefore be read as a different question for risk management. Diverging Realities asks what happens when the adjustment is uneven. Highway to Paris asks what an orderly but demanding transition does to sector credit risk. Sudden Wake-up Call asks what happens when markets and policy adjust after delay. These are scenario narratives from the NGFS database [@NGFSShortTerm2025; @NGFSScenarioExplorer2025]. Our contribution is to translate the CLIMACRED credit outputs from those runs into PDs, expected losses, spreads, bond-price effects, and portfolio loss simulations.
 
 The CLIMACRED variables we need are:
 

@@ -57,6 +57,60 @@ $$
 
 The score $X_i$ is the simulated credit state of firm $i$. The variable $Z_0$ is the common credit shock in the scenario, such as a recession, a funding squeeze, or a sector-wide stress event. The variable $Z_i$ is the firm-specific shock. If $Z_0$ is very low, many firms receive weak credit-state scores in the same simulation. The parameter $\rho$ controls how much each firm's score depends on that common shock. This is the mechanism that creates co-default risk.
 
+The main simulation functions are shown below. They are reused throughout the chapter. The first function creates an equal-correlation matrix. The second function draws correlated credit-state scores. The third function converts those scores into default indicators by comparing each score with its default threshold. The remaining functions summarize default counts, convert defaults into portfolio losses, and report tail-risk measures.
+
+```{r gaussian-core-simulation-functions}
+make_correlation_matrix <- function(n_firms, rho) {
+  sigma <- matrix(rho, nrow = n_firms, ncol = n_firms)
+  diag(sigma) <- 1
+  sigma
+}
+
+simulate_latent_credit <- function(n_sims, n_firms, rho, seed = 130575) {
+  set.seed(seed)
+  MASS::mvrnorm(
+    n = n_sims,
+    mu = rep(0, n_firms),
+    Sigma = make_correlation_matrix(n_firms, rho)
+  )
+}
+
+make_default_matrix <- function(latent_credit, threshold) {
+  latent_credit <= threshold
+}
+
+summarize_default_counts <- function(default_matrix) {
+  default_count <- rowSums(default_matrix)
+  count_table <- as.data.frame(table(default_count))
+  names(count_table) <- c("defaults", "frequency")
+  count_table$defaults <- as.integer(as.character(count_table$defaults))
+  count_table$probability <- count_table$frequency / nrow(default_matrix)
+  count_table
+}
+
+portfolio_losses <- function(default_matrix, ead, recovery) {
+  lgd_amount <- ead * (1 - recovery)
+  as.numeric(default_matrix %*% lgd_amount)
+}
+
+loss_risk_summary <- function(losses) {
+  var_95 <- unname(quantile(losses, 0.95, type = 1))
+  var_99 <- unname(quantile(losses, 0.99, type = 1))
+  var_999 <- unname(quantile(losses, 0.999, type = 1))
+
+  c(
+    expected_loss = mean(losses),
+    median_loss = unname(quantile(losses, 0.50, type = 1)),
+    var_95 = var_95,
+    var_99 = var_99,
+    var_999 = var_999,
+    es_99 = mean(losses[losses >= var_99]),
+    es_999 = mean(losses[losses >= var_999]),
+    economic_capital_999 = var_999 - mean(losses)
+  )
+}
+```
+
 In an applied model, $\rho$ must be defended. It is a portfolio dependence assumption, so it should come from evidence, policy, or a transparent sensitivity exercise. The chapter treats $\rho$ as a controlled input because the pedagogical goal is to isolate the effect of co-default behavior on losses.
 
 ```{r rho-selection-table}

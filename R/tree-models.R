@@ -42,7 +42,8 @@ xgb_params <- list(
   subsample = 0.8,
   colsample_bytree = 0.8,
   min_child_weight = 20,
-  lambda = 1
+  lambda = 1,
+  base_score = mean(xgb_train_label)
 )
 
 set.seed(567)

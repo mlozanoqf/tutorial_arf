@@ -1,14 +1,665 @@
 ## From trees to boosted trees
 
-XGBoost is a boosted ensemble of decision trees. The word *ensemble* means that the final model combines many individual models. The word *boosted* means that the trees are added sequentially, with each new tree trying to improve what the previous trees have not explained well enough.
+XGBoost is easier to understand if we think in terms of a score rather than a final yes/no decision. A single tree gives one set of rules. XGBoost starts from a base score and then adds many small trees as corrections to that score. The corrected score is transformed into a predicted probability of default.
 
-A simple way to understand the process is:
+The mechanism is easiest to see by slowing down the same model that we later use for prediction. The full XGBoost specification uses `r xgb_nrounds` boosting rounds, and the checkpoint exercise uses that same specification at selected rounds: 0, 5, 20, 60, 100, and `r xgb_nrounds`. The checkpoint at `r xgb_nrounds` rounds is the full XGBoost prediction. The teaching path and the full model therefore differ only in how many boosted trees are allowed to contribute to the prediction at that moment.
 
-1. Start with a crude prediction.
-2. Measure the errors.
-3. Fit a small tree that helps correct those errors.
-4. Add that tree to the model, but only partially.
-5. Repeat the process many times.
+One boosting round means that XGBoost adds one new tree to the current score. At round 0, every applicant starts from the same base score, which comes from the training-sample default rate. At round 1, XGBoost fits a small tree to improve the current errors, scales that tree's contribution by the learning rate, and adds the result to each applicant's score. At round 2, it repeats the same logic using the updated scores. The checkpoint tables below do not print all 160 trees. Instead, they show selected rounds so the movement is visible without overwhelming the reader.
+
+The code objects used in this section come from the same training and test data introduced at the start of the chapter. The object `xgb_test` is the encoded test set in XGBoost's matrix format. One row is one applicant, and the columns are the numerical signals used by the model. The object `xgb_train_label` contains the training outcomes used to compute the base default rate. The next section prints the matrix construction explicitly; here we use those objects to make the boosting mechanism visible first.
+
+```{r XGBoost path settings}
+xgb_params <- list(
+  objective = "binary:logistic",
+  eval_metric = c("logloss", "auc"),
+  max_depth = 3,
+  eta = 0.05,
+  subsample = 0.8,
+  colsample_bytree = 0.8,
+  min_child_weight = 20,
+  lambda = 1,
+  base_score = mean(xgb_train_label)
+)
+xgb_nrounds <- 160
+xgb_checkpoint_rounds <- c(5, 20, 60, 100, xgb_nrounds)
+xgb_base_pd <- xgb_params$base_score
+xgb_base_score <- qlogis(xgb_base_pd)
+
+xgb_path_settings_table <- data.frame(
+  Parameter = c(
+    "objective",
+    "max_depth",
+    "eta",
+    "subsample",
+    "colsample_bytree",
+    "min_child_weight",
+    "lambda",
+    "base_score",
+    "full nrounds",
+    "checkpoint rounds"
+  ),
+  Value = c(
+    "binary:logistic",
+    xgb_params$max_depth,
+    xgb_params$eta,
+    xgb_params$subsample,
+    xgb_params$colsample_bytree,
+    xgb_params$min_child_weight,
+    xgb_params$lambda,
+    fmt_pct(xgb_base_pd, 2),
+    xgb_nrounds,
+    paste(c(0, xgb_checkpoint_rounds), collapse = ", ")
+  )
+)
+
+knitr::kable(
+  xgb_path_settings_table,
+  caption = "XGBoost settings used for the checkpoint path and the full model.",
+  row.names = FALSE
+)
+```
+
+The starting point is the training-sample default rate, `r fmt_pct(xgb_base_pd, 2)`. On the score scale, this is `r fmt_num(xgb_base_score, 4)`. A negative score corresponds to a PD below 50% because the training sample contains more non-defaults than defaults.
+
+```{r XGBoost checkpoint path}
+xgb_checkpoint_models <- lapply(xgb_checkpoint_rounds, function(rounds) {
+  set.seed(567)
+  xgboost::xgb.train(
+    params = xgb_params,
+    data = xgb_train,
+    nrounds = rounds,
+    verbose = 0
+  )
+})
+xgb_full_checkpoint_model <- xgb_checkpoint_models[[length(xgb_checkpoint_models)]]
+
+xgb_checkpoint_margin_matrix <- sapply(
+  xgb_checkpoint_models,
+  function(model_i) predict(model_i, newdata = xgb_test, outputmargin = TRUE)
+)
+colnames(xgb_checkpoint_margin_matrix) <- as.character(xgb_checkpoint_rounds)
+xgb_checkpoint_pd_matrix <- plogis(xgb_checkpoint_margin_matrix)
+
+xgb_path_score_matrix <- cbind(
+  "0" = xgb_base_score,
+  xgb_checkpoint_margin_matrix
+)
+xgb_path_pd_matrix <- cbind(
+  "0" = xgb_base_pd,
+  xgb_checkpoint_pd_matrix
+)
+colnames(xgb_path_score_matrix) <- c(0, xgb_checkpoint_rounds)
+colnames(xgb_path_pd_matrix) <- c(0, xgb_checkpoint_rounds)
+
+xgb_path_log_loss <- function(actual, predicted_pd) {
+  predicted_pd <- pmin(pmax(predicted_pd, 1e-8), 1 - 1e-8)
+  -(actual * log(predicted_pd) + (1 - actual) * log(1 - predicted_pd))
+}
+
+xgb_base_loss <- xgb_path_log_loss(actual_default_tree, xgb_base_pd)
+xgb_full_loss <- xgb_path_log_loss(
+  actual_default_tree,
+  xgb_path_pd_matrix[, as.character(xgb_nrounds)]
+)
+xgb_loss_gain <- xgb_base_loss - xgb_full_loss
+xgb_visible_move <- rowSums(abs(t(apply(xgb_path_score_matrix, 1, diff))))
+
+xgb_default_candidates <- which(
+  actual_default_tree == 1 &
+    xgb_path_pd_matrix[, as.character(xgb_nrounds)] > xgb_base_pd
+)
+xgb_nondefault_candidates <- which(
+  actual_default_tree == 0 &
+    xgb_path_pd_matrix[, as.character(xgb_nrounds)] < xgb_base_pd
+)
+
+if (length(xgb_default_candidates) > 0) {
+  xgb_default_index <- xgb_default_candidates[
+    which.max(xgb_loss_gain[xgb_default_candidates] +
+                0.05 * xgb_visible_move[xgb_default_candidates])
+  ]
+} else {
+  xgb_default_index <- which.max(xgb_loss_gain + 0.05 * xgb_visible_move)
+}
+
+if (length(xgb_nondefault_candidates) > 0) {
+  xgb_nondefault_index <- xgb_nondefault_candidates[
+    which.max(xgb_loss_gain[xgb_nondefault_candidates] +
+                0.05 * xgb_visible_move[xgb_nondefault_candidates])
+  ]
+} else {
+  xgb_nondefault_index <- which.max(-xgb_full_loss + 0.05 * xgb_visible_move)
+}
+
+xgb_case_indices <- c(
+  "Default case" = xgb_default_index,
+  "Non-default case" = xgb_nondefault_index
+)
+
+format_rate <- function(x) {
+  ifelse(abs(x) > 1, paste0(fmt_num(x, 2), "%"), fmt_pct(x, 2))
+}
+
+format_money_value <- function(x) {
+  paste0("$", fmt_num(x, 0))
+}
+
+build_xgb_case_path <- function(case_name, row_index) {
+  path_rounds <- as.integer(colnames(xgb_path_pd_matrix))
+  path_scores <- as.numeric(xgb_path_score_matrix[row_index, ])
+  path_pds <- as.numeric(xgb_path_pd_matrix[row_index, ])
+  data.frame(
+    case = case_name,
+    checkpoint_round = path_rounds,
+    trees_added = c(
+      "Base",
+      paste0(diff(path_rounds), " trees")
+    ),
+    score_change = c(
+      "",
+      fmt_num(diff(path_scores), 4)
+    ),
+    running_score = fmt_num(path_scores, 4),
+    predicted_PD = fmt_pct(path_pds, 2),
+    check.names = FALSE
+  )
+}
+
+xgb_round_path <- do.call(
+  rbind,
+  Map(build_xgb_case_path, names(xgb_case_indices), xgb_case_indices)
+)
+
+xgb_profile_quantities <- c(
+  "Test-set row",
+  "Observed outcome",
+  "Age",
+  "Interest rate",
+  "Grade",
+  "Loan amount",
+  "Income",
+  "Base PD",
+  "PD after 5 rounds",
+  "PD after 20 rounds",
+  "Full XGBoost PD"
+)
+
+xgb_case_profile_values <- lapply(xgb_case_indices, function(row_index) {
+  applicant_i <- test[row_index, ]
+  c(
+    row_index,
+    ifelse(actual_default_tree[row_index] == 1, "Default", "No default"),
+    applicant_i$age,
+    format_rate(applicant_i$int),
+    as.character(applicant_i$grade),
+    format_money_value(applicant_i$l_amnt),
+    format_money_value(applicant_i$income),
+    fmt_pct(xgb_base_pd, 2),
+    fmt_pct(xgb_path_pd_matrix[row_index, "5"], 2),
+    fmt_pct(xgb_path_pd_matrix[row_index, "20"], 2),
+    fmt_pct(xgb_path_pd_matrix[row_index, as.character(xgb_nrounds)], 2)
+  )
+})
+
+xgb_applicant_profile <- data.frame(
+  Quantity = xgb_profile_quantities,
+  check.names = FALSE
+)
+xgb_applicant_profile[names(xgb_case_indices)] <- xgb_case_profile_values
+
+xgb_loss_check <- data.frame(
+  case = names(xgb_case_indices),
+  observed_outcome = ifelse(
+    actual_default_tree[xgb_case_indices] == 1,
+    "Default",
+    "No default"
+  ),
+  base_PD = fmt_pct(rep(xgb_base_pd, length(xgb_case_indices)), 2),
+  PD_after_5_rounds = fmt_pct(
+    xgb_path_pd_matrix[xgb_case_indices, "5"],
+    2
+  ),
+  full_xgboost_PD = fmt_pct(
+    xgb_path_pd_matrix[xgb_case_indices, as.character(xgb_nrounds)],
+    2
+  ),
+  base_log_loss = fmt_num(xgb_base_loss[xgb_case_indices], 4),
+  full_log_loss = fmt_num(xgb_full_loss[xgb_case_indices], 4),
+  loss_reduction = fmt_num(xgb_loss_gain[xgb_case_indices], 4),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_applicant_profile,
+  caption = "Applicants selected to inspect two XGBoost checkpoint paths.",
+  row.names = FALSE
+)
+
+knitr::kable(
+  xgb_round_path,
+  caption = "Selected XGBoost checkpoint corrections for two applicants.",
+  row.names = FALSE
+)
+
+knitr::kable(
+  xgb_loss_check,
+  caption = "Individual log-loss check for the two selected applicants.",
+  row.names = FALSE
+)
+```
+
+The path table should be read row by row within each case. Round 0 is the base prediction before any tree is added. The next row shows the score after the first 5 trees. The move from 5 to 20 rounds is the combined effect of the next 15 trees, and the move from 20 to 60 rounds is the combined effect of the next 40 trees. The score change is the movement since the previous checkpoint, not the value of one individual tree. The predicted PD changes because the logistic transformation is applied to the running score at each checkpoint.
+
+To make the first two boosting rounds transparent, we separate values that come from code from values that come from algebra. The code tells us which leaf the applicant reaches and what value XGBoost stored in that leaf. The algebra then adds that leaf value to the previous score and converts the updated score into a PD. The leaf value is learned by XGBoost and extracted from the fitted model; the score update and the PD transformation are ordinary calculations.
+
+The selected default case is `xgb_default_index` = `r xgb_default_index`. This is a row index, not an XGBoost parameter. The object `xgb_test` is built from `xgb_test_matrix`, and `xgb_test_matrix` is built from `test` with `model.matrix()`. That construction preserves row order. Therefore, row `r xgb_default_index` in `test`, row `r xgb_default_index` in `xgb_test_matrix`, and row `r xgb_default_index` in `xgb_test` all describe the same selected applicant. In the calculation below, each row uses the numerical result obtained just above it. The row index selects the applicant, the prediction call returns the leaf reached by that applicant in tree 1, and the next row uses that leaf number to retrieve the score correction. The stored `leaf_value` is the correction that is added to the running score for that round; the learning-rate scaling is already reflected in the fitted XGBoost tree values extracted from the model.
+
+```{r XGBoost first five round arithmetic}
+xgb_tree_table <- as.data.frame(
+  xgboost::xgb.model.dt.tree(model = xgb_full_checkpoint_model)
+)
+xgb_leaf_matrix <- predict(
+  xgb_full_checkpoint_model,
+  newdata = xgb_test,
+  predleaf = TRUE
+)
+if (is.null(dim(xgb_leaf_matrix))) {
+  xgb_leaf_matrix <- matrix(xgb_leaf_matrix, ncol = xgb_nrounds)
+}
+
+xgb_first_five_models <- lapply(seq_len(5), function(rounds) {
+  set.seed(567)
+  xgboost::xgb.train(
+    params = xgb_params,
+    data = xgb_train,
+    nrounds = rounds,
+    verbose = 0
+  )
+})
+
+xgb_default_applicant <- xgb_test[xgb_default_index, ]
+xgb_default_leaf_matrix <- predict(
+  xgb_full_checkpoint_model,
+  newdata = xgb_default_applicant,
+  predleaf = TRUE
+)
+
+xgb_first_five_scores <- sapply(
+  xgb_first_five_models,
+  function(model_i) predict(
+    model_i,
+    newdata = xgb_default_applicant,
+    outputmargin = TRUE
+  )
+)
+
+xgb_first_five_scores <- as.numeric(xgb_first_five_scores)
+xgb_first_five_previous_scores <- c(xgb_base_score, xgb_first_five_scores[-5])
+xgb_first_five_observed_changes <- xgb_first_five_scores -
+  xgb_first_five_previous_scores
+xgb_first_five_selected_leaf <- as.integer(
+  xgb_default_leaf_matrix[seq_len(5)]
+)
+
+xgb_leaf_value_for_round <- function(round_number, leaf_id) {
+  tree_rows <- xgb_tree_table[xgb_tree_table$Tree == round_number - 1, ]
+  leaf_row <- tree_rows[
+    tree_rows$Feature == "Leaf" &
+      tree_rows$Node == leaf_id,
+  ]
+  if (nrow(leaf_row) == 0) {
+    leaf_row <- tree_rows[
+      tree_rows$Feature == "Leaf" &
+        tree_rows$ID == paste0(round_number - 1, "-", leaf_id),
+    ]
+  }
+  if (nrow(leaf_row) == 0) {
+    return(NA_real_)
+  }
+  value_column <- intersect(c("Quality", "Gain", "Weight"), names(leaf_row))[1]
+  if (is.na(value_column)) {
+    return(NA_real_)
+  }
+  as.numeric(leaf_row[[value_column]][1])
+}
+
+xgb_first_five_leaf_values <- vapply(
+  seq_len(5),
+  function(round_i) {
+    xgb_leaf_value_for_round(
+      round_number = round_i,
+      leaf_id = xgb_first_five_selected_leaf[round_i]
+    )
+  },
+  numeric(1)
+)
+
+xgb_round_1_leaf <- xgb_first_five_selected_leaf[1]
+xgb_round_1_leaf_value <- xgb_first_five_leaf_values[1]
+xgb_round_1_score <- xgb_first_five_scores[1]
+xgb_round_1_pd <- plogis(xgb_round_1_score)
+xgb_round_1_logistic_exponent <- -xgb_round_1_score
+xgb_round_2_leaf <- xgb_first_five_selected_leaf[2]
+xgb_round_2_leaf_value <- xgb_first_five_leaf_values[2]
+xgb_round_2_score <- xgb_first_five_scores[2]
+xgb_round_2_pd <- plogis(xgb_round_2_score)
+xgb_round_2_logistic_exponent <- -xgb_round_2_score
+
+html_code <- function(x) {
+  x <- gsub("&", "&amp;", x, fixed = TRUE)
+  x <- gsub("<", "&lt;", x, fixed = TRUE)
+  x <- gsub(">", "&gt;", x, fixed = TRUE)
+  paste0("<code>", x, "</code>")
+}
+
+math_inline <- function(x) {
+  paste0("<span class=\"math-table\">", x, "</span>")
+}
+
+xgb_round_1_calculation <- data.frame(
+  step = 1:12,
+  expression = c(
+    html_code(paste0("xgb_default_index <- ", xgb_default_index)),
+    html_code("mean(xgb_train_label)"),
+    math_inline(paste0(
+      "F<sub>0</sub> = log(",
+      fmt_num(xgb_base_pd, 4),
+      " / (1 - ",
+      fmt_num(xgb_base_pd, 4),
+      "))"
+    )),
+    html_code(paste0(
+      "xgb_default_applicant <- xgb_test[",
+      xgb_default_index,
+      ", ]"
+    )),
+    html_code(
+      "leaf_id_1 <- predict(xgb_full_checkpoint_model, newdata = xgb_default_applicant, predleaf = TRUE)[1, 1]"
+    ),
+    html_code(paste0(
+      "leaf_value_1 <- xgb_leaf_value_for_round(1, ",
+      xgb_round_1_leaf,
+      ")"
+    )),
+    math_inline(paste0(
+      "F<sub>1</sub> = ",
+      fmt_num(xgb_base_score, 4),
+      " + ",
+      fmt_num(xgb_round_1_leaf_value, 4)
+    )),
+    math_inline(paste0(
+      "PD<sub>1</sub> = 1 / (1 + exp(",
+      fmt_num(xgb_round_1_logistic_exponent, 4),
+      "))"
+    )),
+    html_code(
+      "leaf_id_2 <- predict(xgb_full_checkpoint_model, newdata = xgb_default_applicant, predleaf = TRUE)[1, 2]"
+    ),
+    html_code(paste0(
+      "leaf_value_2 <- xgb_leaf_value_for_round(2, ",
+      xgb_round_2_leaf,
+      ")"
+    )),
+    math_inline(paste0(
+      "F<sub>2</sub> = ",
+      fmt_num(xgb_round_1_score, 4),
+      " + ",
+      fmt_num(xgb_round_2_leaf_value, 4)
+    )),
+    math_inline(paste0(
+      "PD<sub>2</sub> = 1 / (1 + exp(",
+      fmt_num(xgb_round_2_logistic_exponent, 4),
+      "))"
+    ))
+  ),
+  value = c(
+    xgb_default_index,
+    fmt_pct(xgb_base_pd, 2),
+    fmt_num(xgb_base_score, 4),
+    paste0("one feature row: applicant ", xgb_default_index),
+    paste0("leaf_id_1 = ", xgb_round_1_leaf),
+    paste0("leaf_value_1 = ", fmt_num(xgb_round_1_leaf_value, 4)),
+    fmt_num(xgb_round_1_score, 4),
+    fmt_pct(xgb_round_1_pd, 2),
+    paste0("leaf_id_2 = ", xgb_round_2_leaf),
+    paste0("leaf_value_2 = ", fmt_num(xgb_round_2_leaf_value, 4)),
+    fmt_num(xgb_round_2_score, 4),
+    fmt_pct(xgb_round_2_pd, 2)
+  ),
+  meaning = c(
+    "Selected test-set applicant followed in this example.",
+    "Training-sample default rate; the starting PD for all applicants.",
+    "Starting score on the log-odds scale.",
+    paste0(
+      "Extracts the feature row for applicant ",
+      xgb_default_index,
+      ". The result is a one-row feature vector, not one scalar."
+    ),
+    paste0(
+      "Runs applicant ",
+      xgb_default_index,
+      "'s feature row through tree 1 and returns the reached leaf number."
+    ),
+    "Looks up the score correction stored in that tree-1 leaf.",
+    "Updated score after the first boosting round.",
+    "Updated predicted probability of default after one boosting round.",
+    paste0(
+      "Runs applicant ",
+      xgb_default_index,
+      "'s feature row through tree 2 and returns the reached leaf number."
+    ),
+    "Looks up the score correction stored in that tree-2 leaf.",
+    "Adds the second-round correction to the previous score.",
+    "Updated predicted probability of default after two boosting rounds."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_round_1_calculation,
+  caption = paste0(
+    "First two XGBoost rounds for test-set applicant ",
+    xgb_default_index,
+    ": code values and algebraic updates."
+  ),
+  col.names = c(
+    "Step",
+    "Expression",
+    "Value",
+    "Meaning"
+  ),
+  row.names = FALSE,
+  escape = FALSE
+)
+
+xgb_first_five_arithmetic <- data.frame(
+  round = 0:5,
+  code_value = c(
+    html_code("mean(xgb_train_label)"),
+    paste0("leaf ", xgb_first_five_selected_leaf,
+           " value = ", fmt_num(xgb_first_five_leaf_values, 4))
+  ),
+  algebraic_update = c(
+    math_inline(paste0("F<sub>0</sub> = ", fmt_num(xgb_base_score, 4))),
+    mapply(
+      function(round_i, previous_score, leaf_value, score) {
+        math_inline(paste0(
+          "F<sub>",
+          round_i,
+          "</sub> = ",
+          fmt_num(previous_score, 4),
+          " + ",
+          fmt_num(leaf_value, 4),
+          " = ",
+          fmt_num(score, 4)
+        ))
+      },
+      seq_len(5),
+      xgb_first_five_previous_scores,
+      xgb_first_five_leaf_values,
+      xgb_first_five_scores
+    )
+  ),
+  predicted_PD = fmt_pct(plogis(c(xgb_base_score, xgb_first_five_scores)), 2),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_first_five_arithmetic,
+  caption = paste0(
+    "First five boosting rounds for test-set applicant ",
+    xgb_default_index,
+    ": code value, score update, and PD."
+  ),
+  col.names = c(
+    "Round",
+    "Code value used",
+    "Algebraic score update",
+    "Predicted PD"
+  ),
+  row.names = FALSE,
+  escape = FALSE
+)
+```
+
+The number `r fmt_num(xgb_base_score, 4)` is not a parameter inside `predict(..., predleaf = TRUE)`. That prediction call returns the leaf reached by the applicant in each tree. The base score enters in the next algebraic step, where the first leaf value is added to the previous score. The last row of the second table is the round-5 point in @fig-xgboost-boosting-workflow.
+
+```{r}
+#| label: fig-xgboost-boosting-workflow
+#| fig-cap: "Predicted PD for two applicants as XGBoost boosting rounds accumulate."
+#| fig-width: 9.5
+#| fig-height: 5.8
+xgb_pd_path <- do.call(
+  rbind,
+  lapply(names(xgb_case_indices), function(case_name) {
+    row_index <- xgb_case_indices[[case_name]]
+    data.frame(
+      case = case_name,
+      round = as.integer(colnames(xgb_path_pd_matrix)),
+      predicted_pd = as.numeric(xgb_path_pd_matrix[row_index, ]),
+      score = as.numeric(xgb_path_score_matrix[row_index, ])
+    )
+  })
+)
+
+xgb_pd_path$label <- paste0(
+  "PD = ",
+  fmt_pct(xgb_pd_path$predicted_pd, 1)
+)
+xgb_pd_path$label_x <- xgb_pd_path$round
+xgb_pd_path$label_x[xgb_pd_path$round == xgb_nrounds] <- xgb_nrounds - 9
+xgb_pd_path$label_y <- xgb_pd_path$predicted_pd
+xgb_pd_path$label_y[
+  xgb_pd_path$case == "Default case"
+] <- xgb_pd_path$label_y[xgb_pd_path$case == "Default case"] + 0.035
+xgb_pd_path$label_y[
+  xgb_pd_path$case == "Non-default case" & xgb_pd_path$round == 5
+] <- xgb_pd_path$label_y[
+  xgb_pd_path$case == "Non-default case" & xgb_pd_path$round == 5
+] - 0.030
+xgb_pd_path$label_y[
+  xgb_pd_path$case == "Non-default case" & xgb_pd_path$round != 5
+] <- xgb_pd_path$label_y[
+  xgb_pd_path$case == "Non-default case" & xgb_pd_path$round != 5
+] + 0.030
+
+xgb_labeled_rounds <- c(5, 60)
+xgb_pd_label_path <- xgb_pd_path[xgb_pd_path$round %in% xgb_labeled_rounds, ]
+xgb_base_label <- data.frame(
+  x = 16,
+  y = xgb_base_pd + 0.040,
+  label = paste0("Base PD = ", fmt_pct(xgb_base_pd, 1))
+)
+xgb_full_reference <- data.frame(
+  case = names(xgb_case_indices),
+  full_pd = as.numeric(
+    xgb_path_pd_matrix[xgb_case_indices, as.character(xgb_nrounds)]
+  )
+)
+xgb_full_reference$label <- paste0(
+  "Full = ",
+  fmt_pct(xgb_full_reference$full_pd, 1)
+)
+xgb_full_reference$label_x <- 118
+xgb_full_reference$label_y <- xgb_full_reference$full_pd + 0.035
+
+xgb_y_limits <- range(c(xgb_pd_path$predicted_pd, xgb_full_reference$full_pd))
+xgb_y_limits <- c(max(0, xgb_y_limits[1] - 0.060), xgb_y_limits[2] + 0.075)
+
+ggplot(xgb_pd_path, aes(x = round, y = predicted_pd, color = case)) +
+  geom_hline(
+    yintercept = xgb_base_pd,
+    linetype = "dashed",
+    linewidth = 0.55,
+    color = "gray45"
+  ) +
+  geom_segment(
+    data = xgb_full_reference,
+    aes(x = 0, xend = xgb_nrounds, y = full_pd, yend = full_pd, color = case),
+    inherit.aes = FALSE,
+    linetype = "dotted",
+    linewidth = 0.75,
+    alpha = 0.7
+  ) +
+  geom_line(linewidth = 1.05) +
+  geom_point(size = 3.2) +
+  geom_label(
+    data = xgb_pd_label_path,
+    aes(x = label_x, y = label_y, label = label, color = case),
+    size = 3.05,
+    label.size = 0,
+    fill = "white",
+    label.padding = grid::unit(0.18, "lines"),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    data = xgb_base_label,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    size = 3.05,
+    label.size = 0,
+    fill = "white",
+    color = "gray25",
+    label.padding = grid::unit(0.18, "lines")
+  ) +
+  geom_label(
+    data = xgb_full_reference,
+    aes(x = label_x, y = label_y, label = label, color = case),
+    inherit.aes = FALSE,
+    size = 3.0,
+    label.size = 0,
+    fill = "white",
+    label.padding = grid::unit(0.16, "lines"),
+    show.legend = FALSE
+  ) +
+  scale_x_continuous(
+    breaks = c(0, xgb_checkpoint_rounds),
+    limits = c(0, xgb_nrounds)
+  ) +
+  scale_y_continuous(
+    labels = fmt_pct,
+    limits = xgb_y_limits
+  ) +
+  scale_color_manual(
+    values = c("Default case" = "#C0392B", "Non-default case" = "#1F618D")
+  ) +
+  labs(
+    x = "Boosting round",
+    y = "Predicted probability of default",
+    color = NULL,
+    caption = "Gray dashed line: base PD. Colored dotted lines: full 160-round XGBoost PDs."
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    plot.caption = element_text(color = "gray35"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The two cases show corrections in opposite directions under the same XGBoost specification. For the default case, the predicted PD moves from `r fmt_pct(xgb_base_pd, 2)` at round 0 to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)` at round `r xgb_nrounds`. For the non-default case, it moves from the same base PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The colored dotted lines are now convergence references in a precise sense: they are the full `r xgb_nrounds`-round XGBoost predictions for the same applicants. These two individual examples are useful because the corrections go in the direction suggested by the observed outcomes, and the individual log-loss falls in both rows of the check table. Overall performance still has to be evaluated on the full test set, as we do later with AUC, Brier score, calibration, and payoff.
+
+The selected checkpoints are for teaching. In applied modeling, the number of trees should be chosen with a validation rule, cross-validation, or early stopping. The analyst stops adding trees when additional rounds no longer improve out-of-sample performance, or when the improvement is too small to justify the added complexity.
 
 In notation, the boosted model builds a score $F_M(x)$ by adding trees one at a time:
 
@@ -30,23 +681,7 @@ The learning rate is the step size of the boosting process. In this chapter, `et
 
 In a logistic regression, interpretation begins with a small number of coefficients. In XGBoost, interpretation begins with the ensemble: many small trees combine to produce a score. That makes the model less transparent by construction. We can still inspect how the model learns, which variables it uses, how variables affect predicted default probabilities, and how the final predictions behave under the same credit-risk metrics used in Chapter 1.
 
-The main modeling choices are:
-
-```{r Boosting parameters}
-xgb_parameter_table <- data.frame(
-  Parameter = c("objective", "max_depth", "eta", "subsample",
-                "colsample_bytree", "min_child_weight", "nrounds"),
-  Value = c("binary:logistic", xgb_params$max_depth, xgb_params$eta,
-            xgb_params$subsample, xgb_params$colsample_bytree,
-            xgb_params$min_child_weight, xgb_nrounds)
-)
-
-knitr::kable(
-  xgb_parameter_table,
-  caption = "Main XGBoost settings used in the chapter.",
-  row.names = FALSE
-)
-```
+The settings table above is the specification used by the full model estimated below. The checkpoint exercise changes only the number of boosting rounds used for prediction.
 
 The objective `binary:logistic` tells XGBoost that the outcome is binary and that predictions should be probabilities between 0 and 1. More specifically, the model is trained to reduce a binary log-loss objective. For one applicant, the loss can be written as:
 
