@@ -1,6 +1,6 @@
 ## Interpreting XGBoost
 
-The main risk with XGBoost is practical: the model is easier to use than to understand. We therefore need several complementary views of the model. No single plot makes the model fully transparent, but together they help us understand what the model is using and how it behaves.
+The main risk with XGBoost is practical: the model is easier to use than to understand. We therefore need several complementary views of the model. Each plot answers one specific question, and the collection helps us understand what the model uses, how it moves predictions, and whether those movements are acceptable for credit decisions.
 
 The first view is feature importance. XGBoost can report which encoded variables are used most often and most effectively in the ensemble.
 
@@ -16,9 +16,18 @@ xgb_importance |>
   theme_minimal()
 ```
 
-Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. In this run, the highest-Gain variable is `r xgb_importance$Feature[which.max(xgb_importance$Gain)]`. Direction and local interpretation require another tool.
+```{r include=FALSE}
+xgb_top_gain_features <- xgb_importance |>
+  slice_max(Gain, n = 3) |>
+  pull(Feature)
+xgb_top_shap_features <- xgb_shap_importance |>
+  slice_max(mean_abs_shap, n = 3) |>
+  pull(feature)
+```
 
-This distinction is central in credit scoring. A high-Gain variable is important for prediction. By itself, the plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain therefore maps where the model is looking. Applicant-level interpretation requires additional tools.
+Gain measures how much a feature contributes to improving the model's splits. It tells us that the model uses that feature to reduce prediction error. In this run, the three largest Gain variables are `r paste(xgb_top_gain_features, collapse = ", ")`. That result should be read as a model-use ranking. The model is finding useful segmentation in those encoded inputs, especially for separating applicants into different predicted-risk groups. Direction and local interpretation require another tool.
+
+This distinction is central in credit scoring. A high-Gain variable is important for prediction. The plot leaves two questions open: whether larger values of that variable increase or decrease default risk, and whether the effect is the same for every borrower. Gain therefore maps where the model is looking. Applicant-level interpretation requires additional tools.
 
 SHAP-style contributions provide a second view. For each observation, XGBoost can decompose the model score into contributions from the encoded variables plus a baseline term:
 
@@ -42,7 +51,7 @@ xgb_shap_importance |>
   theme_minimal()
 ```
 
-This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. In this run, the largest average absolute contribution comes from `r xgb_shap_importance$feature[1]`. That does not mean the variable always raises default risk. It means the variable often moves the XGBoost score materially, up or down, depending on the applicant. Direction requires applicant-level contributions or partial dependence.
+This plot is closer to an explanation of prediction behavior. A high average absolute contribution means that the feature often moves predictions away from the baseline. In this run, the largest average absolute contributions come from `r paste(xgb_top_shap_features, collapse = ", ")`. The careful reading is directional: these variables often move the XGBoost score materially, sometimes upward and sometimes downward, depending on the applicant. Direction requires applicant-level contributions or partial dependence.
 
 For credit work, the useful reading is layered. Feature importance tells us where the model finds predictive structure. SHAP-style magnitudes tell us which encoded borrower or loan signals materially move predictions. The analyst still has to check whether those signals are defensible for credit decisions, stable out of sample, and acceptable under governance, fairness, and adverse-action requirements.
 
@@ -64,7 +73,7 @@ knitr::kable(
 
 The table compares the full logistic model, the single tree, and XGBoost for the same applicant. All three values are probabilities of default, so they can be compared directly. What differs is the way each model arrives at that probability: the logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
 
-For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. In that narrow sense, the logistic model is the closest to the realized outcome because it assigns an almost zero probability of default. XGBoost also assigns a low probability of default, and the single tree assigns a somewhat higher but still modest probability. All three models point in the correct direction for this applicant. The general comparison still has to come from the full test set.
+For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. The table is a probability comparison rather than a one-case accuracy test. A single realized outcome is binary, while a PD is a forecast of risk before repayment is observed. The useful reading is that all three models place this applicant in a relatively low-risk part of the score distribution. Under a conventional accept/reject cutoff above these PDs, the models would tend to accept this applicant, which is consistent with the observed non-default outcome. The general comparison still has to come from the full test set.
 
 For XGBoost, the local explanation follows the score equation introduced above:
 
@@ -130,9 +139,24 @@ partial_dependence_data |>
   theme_minimal()
 ```
 
-Partial dependence should be read as model behavior, separate from causal evidence. Changing a borrower's age, income, or interest rate in this plot shows how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is still useful because it makes part of the model's internal behavior visible.
+```{r include=FALSE}
+pd_interest <- partial_dependence_data[partial_dependence_data$variable == "int", ]
+pd_income <- partial_dependence_data[partial_dependence_data$variable == "income", ]
+pd_age <- partial_dependence_data[partial_dependence_data$variable == "age", ]
+
+pd_interest_low <- pd_interest[which.min(pd_interest$value), ]
+pd_interest_high <- pd_interest[which.max(pd_interest$value), ]
+pd_income_low <- pd_income[which.min(pd_income$value), ]
+pd_income_high <- pd_income[which.max(pd_income$value), ]
+pd_age_min_pd <- min(pd_age$average_predicted_pd)
+pd_age_max_pd <- max(pd_age$average_predicted_pd)
+```
+
+Partial dependence should be read as model behavior rather than causal evidence. Changing a borrower's age, income, or interest rate in this plot shows how the fitted model's predictions move when we vary one input while averaging over the observed test set. This is useful because it makes part of the model's internal behavior visible.
 
 A useful way to read the plot is to imagine a controlled model exercise. For the interest-rate panel, for example, we repeatedly give the model the same test-set borrowers but replace the interest rate by one value on the horizontal axis. We then average the predicted PDs. The curve therefore answers a model question: how does the fitted XGBoost score respond when this input changes across the observed range?
+
+The panels give three different readings. In the interest-rate panel, the average predicted PD rises from `r fmt_pct(pd_interest_low$average_predicted_pd, 2)` at the lowest inspected rate to `r fmt_pct(pd_interest_high$average_predicted_pd, 2)` at the highest inspected rate. In the income panel, the average predicted PD moves from `r fmt_pct(pd_income_low$average_predicted_pd, 2)` at the low-income end to `r fmt_pct(pd_income_high$average_predicted_pd, 2)` at the high-income end. The age panel is much flatter, ranging from `r fmt_pct(pd_age_min_pd, 2)` to `r fmt_pct(pd_age_max_pd, 2)` across the inspected ages. This is exactly the type of reading an analyst needs: the model is sensitive to some credit signals and much less sensitive to others.
 
 The interpretation strategy is therefore layered:
 
@@ -141,4 +165,4 @@ The interpretation strategy is therefore layered:
 3. Partial dependence shows how predicted risk changes across selected variables.
 4. Calibration and performance metrics tell us whether the predictions behave well out of sample.
 
-This is how XGBoost can be made more transparent by inspection, even though logistic regression remains more transparent by construction.
+This is how XGBoost can be made more transparent by inspection, while logistic regression remains more transparent by construction.

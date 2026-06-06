@@ -6,7 +6,9 @@ The mechanism is easiest to see by slowing down the same model that we later use
 
 One boosting round means that XGBoost adds one new tree to the current score. At round 0, every applicant starts from the same base score, which comes from the training-sample default rate. At round 1, XGBoost fits a small tree to improve the current errors, scales that tree's contribution by the learning rate, and adds the result to each applicant's score. At round 2, it repeats the same logic using the updated scores. The checkpoint tables below do not print all 160 trees. Instead, they show selected rounds so the movement is visible without overwhelming the reader.
 
-The code objects used in this section come from the same training and test data introduced at the start of the chapter. The object `xgb_test` is the encoded test set in XGBoost's matrix format. One row is one applicant, and the columns are the numerical signals used by the model. The object `xgb_train_label` contains the training outcomes used to compute the base default rate. The next section prints the matrix construction explicitly; here we use those objects to make the boosting mechanism visible first.
+The code objects used in this section come from the encoded training and test matrices prepared in the previous section. The object `xgb_test` is the encoded test set in XGBoost's matrix format. One row is one applicant, and the columns are the numerical signals used by the model. The object `xgb_train_label` contains the training outcomes used to compute the base default rate. We now use those objects to make the boosting mechanism visible before estimating the final model.
+
+Before following one applicant through the trees, we fix the XGBoost settings. The names in the next table are the argument names used by the `xgboost` package. Two of them are especially important for the mechanics below: `eta` is the learning rate, and `lambda` is a regularization penalty that discourages overly large leaf corrections.
 
 ```{r XGBoost path settings}
 xgb_params <- list(
@@ -49,7 +51,20 @@ xgb_path_settings_table <- data.frame(
     fmt_pct(xgb_base_pd, 2),
     xgb_nrounds,
     paste(c(0, xgb_checkpoint_rounds), collapse = ", ")
-  )
+  ),
+  Role = c(
+    "Fits a binary default model and returns probabilities after the logistic transformation.",
+    "Limits each individual tree to shallow interactions.",
+    "Learning rate; controls how much each new tree can change the running score.",
+    "Uses a fraction of training rows in each boosting round.",
+    "Uses a fraction of encoded predictors in each boosting round.",
+    "Requires enough weighted observations before making a child node.",
+    "Regularization penalty on leaf corrections; higher values shrink leaf values.",
+    "Initial PD before any tree is added.",
+    "Number of boosted trees in the full model.",
+    "Selected rounds used only to inspect the prediction path."
+  ),
+  check.names = FALSE
 )
 
 knitr::kable(
@@ -144,17 +159,43 @@ format_money_value <- function(x) {
   paste0("$", fmt_num(x, 0))
 }
 
+format_emp_len_value <- function(x) {
+  paste0(fmt_num(as.numeric(x), 0), " years")
+}
+
+format_sex_value <- function(x) {
+  sex_code <- as.character(x)
+  sex_label <- ifelse(
+    sex_code == "1",
+    "female",
+    ifelse(sex_code == "0", "male", "unknown")
+  )
+  paste0(sex_code, " (", sex_label, ")")
+}
+
+format_region_value <- function(x) {
+  region_code <- as.character(x)
+  region_label <- c(
+    "N" = "North",
+    "E" = "East",
+    "W" = "West",
+    "S" = "South"
+  )[region_code]
+  region_label <- ifelse(is.na(region_label), "unknown", region_label)
+  paste0(region_code, " (", region_label, ")")
+}
+
 build_xgb_case_path <- function(case_name, row_index) {
   path_rounds <- as.integer(colnames(xgb_path_pd_matrix))
   path_scores <- as.numeric(xgb_path_score_matrix[row_index, ])
   path_pds <- as.numeric(xgb_path_pd_matrix[row_index, ])
+  checkpoint_label <- c(
+    "0: base",
+    paste0(path_rounds[-1], ": +", diff(path_rounds), " trees")
+  )
   data.frame(
     case = case_name,
-    checkpoint_round = path_rounds,
-    trees_added = c(
-      "Base",
-      paste0(diff(path_rounds), " trees")
-    ),
+    checkpoint = checkpoint_label,
     score_change = c(
       "",
       fmt_num(diff(path_scores), 4)
@@ -178,6 +219,10 @@ xgb_profile_quantities <- c(
   "Grade",
   "Loan amount",
   "Income",
+  "Employment length",
+  "Home ownership",
+  "Sex",
+  "Region",
   "Base PD",
   "PD after 5 rounds",
   "PD after 20 rounds",
@@ -194,6 +239,10 @@ xgb_case_profile_values <- lapply(xgb_case_indices, function(row_index) {
     as.character(applicant_i$grade),
     format_money_value(applicant_i$l_amnt),
     format_money_value(applicant_i$income),
+    format_emp_len_value(applicant_i$emp_len),
+    as.character(applicant_i$home),
+    format_sex_value(applicant_i$sex),
+    format_region_value(applicant_i$region),
     fmt_pct(xgb_base_pd, 2),
     fmt_pct(xgb_path_pd_matrix[row_index, "5"], 2),
     fmt_pct(xgb_path_pd_matrix[row_index, "20"], 2),
@@ -234,13 +283,23 @@ knitr::kable(
   caption = "Applicants selected to inspect two XGBoost checkpoint paths.",
   row.names = FALSE
 )
+```
 
+The profile table confirms that the two checkpoint paths are built from real test-set applicants and from the same predictors used by the full logistic benchmark: age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The base PD is the same for both applicants because round 0 has not used applicant-specific tree corrections yet. After boosting begins, the paths move in different directions. For the selected default case, XGBoost raises the predicted PD from `r fmt_pct(xgb_base_pd, 2)` to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)`. For the selected non-default case, it lowers the predicted PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The point is not that two applicants prove model quality; the point is that the same fitted model can push individual PDs up or down depending on the applicant's encoded characteristics.
+
+```{r XGBoost checkpoint path summaries}
 knitr::kable(
   xgb_round_path,
   caption = "Selected XGBoost checkpoint corrections for two applicants.",
   row.names = FALSE
 )
+```
 
+The checkpoint table should be read row by row within each case. The column `checkpoint` combines two pieces of information: the total number of boosted trees included in the prediction and the number of new trees added since the previous row. For example, `20: +15 trees` means that the prediction now uses 20 trees in total, and that 15 new trees have been added since the 5-tree checkpoint. The first row, `0: base`, is the base prediction before any tree is added.
+
+The columns `score_change` and `running_score` are on the log-odds score scale, not on the probability scale. The `score_change` is the movement since the previous checkpoint. A positive value pushes the applicant toward a higher predicted PD; a negative value pushes the applicant toward a lower predicted PD. The `running_score` is the cumulative score after all trees up to that checkpoint have been added. The final column, `predicted_PD`, applies the logistic transformation to that running score. This is why the score can move by additive corrections while the predicted PD remains between 0 and 1.
+
+```{r XGBoost checkpoint loss check}
 knitr::kable(
   xgb_loss_check,
   caption = "Individual log-loss check for the two selected applicants.",
@@ -248,7 +307,7 @@ knitr::kable(
 )
 ```
 
-The path table should be read row by row within each case. Round 0 is the base prediction before any tree is added. The next row shows the score after the first 5 trees. The move from 5 to 20 rounds is the combined effect of the next 15 trees, and the move from 20 to 60 rounds is the combined effect of the next 40 trees. The score change is the movement since the previous checkpoint, not the value of one individual tree. The predicted PD changes because the logistic transformation is applied to the running score at each checkpoint.
+The log-loss table checks whether those individual movements make the prediction closer to the observed outcome for the two selected applicants. A lower log-loss means the assigned PD is more consistent with what actually happened for that applicant. This is still an individual check, not a full model evaluation.
 
 To make the first two boosting rounds transparent, we separate values that come from code from values that come from algebra. The code tells us which leaf the applicant reaches and what value XGBoost stored in that leaf. The algebra then adds that leaf value to the previous score and converts the updated score into a PD. The leaf value is learned by XGBoost and extracted from the fitted model; the score update and the PD transformation are ordinary calculations.
 
@@ -471,7 +530,11 @@ knitr::kable(
   row.names = FALSE,
   escape = FALSE
 )
+```
 
+The table turns the first two boosting rounds into a reproducible chain. Applicant `r xgb_default_index` starts from the same base PD as everyone else, `r fmt_pct(xgb_base_pd, 2)`, which corresponds to the score $F_0 = `r fmt_num(xgb_base_score, 4)`$. The first tree sends this applicant to leaf `r xgb_round_1_leaf`, where the stored correction is `r fmt_num(xgb_round_1_leaf_value, 4)`. Adding that correction raises the score to `r fmt_num(xgb_round_1_score, 4)` and the predicted PD to `r fmt_pct(xgb_round_1_pd, 2)`. The second tree repeats the same logic: the applicant reaches leaf `r xgb_round_2_leaf`, the correction is `r fmt_num(xgb_round_2_leaf_value, 4)`, and the predicted PD rises to `r fmt_pct(xgb_round_2_pd, 2)`. This is the basic XGBoost mechanism: each tree contributes one additional correction to the running score.
+
+```{r XGBoost first five round continuation}
 xgb_first_five_arithmetic <- data.frame(
   round = 0:5,
   code_value = c(

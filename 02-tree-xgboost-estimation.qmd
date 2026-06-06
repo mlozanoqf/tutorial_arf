@@ -1,76 +1,6 @@
-## Preparing and estimating the XGBoost model
+## Estimating the final XGBoost model
 
-The previous section inspected how boosting rounds change the prediction for selected applicants. We now show the full estimation workflow behind those objects. The chapter setup already created `xgb_train`, `xgb_test`, and the related labels so the checkpoint exercise could use them. This section prints that construction explicitly and then estimates the XGBoost model used for comparison.
-
-XGBoost requires a numerical matrix. This is why we use `model.matrix()`: it converts categorical variables such as `grade`, `home`, `sex`, and `region` into indicator variables, while keeping numerical variables such as `age`, `int`, `l_amnt`, and `income` in numerical form. This encoding step is important because it makes explicit what the algorithm receives as input. The mathematical object $x_i$ is represented in code by one row of `xgb_train_matrix` or `xgb_test_matrix`; the observed outcome $y_i$ is represented by `xgb_train_label` or `xgb_test_label`.
-
-One row of the matrix is one applicant. Each column is one numerical signal that the algorithm can use when it searches for splits. After this transformation, XGBoost no longer sees a variable called `grade` as a word or category. It sees numerical columns indicating the applicant's grade level. This is the bridge between the credit application data and the algorithm.
-
-The translation from the financial object to the R object is:
-
-```{r XGBoost object bridge}
-knitr::kable(
-  data.frame(
-    step = c(
-      "Borrower and loan information",
-      "Observed default outcome",
-      "Encoded numerical matrix",
-      "XGBoost score",
-      "Predicted probability of default",
-      "Credit decision"
-    ),
-    R_object = c(
-      "`train` and `test`",
-      "`loan_st`",
-      "`xgb_train_matrix` and `xgb_test_matrix`",
-      "`predict(..., outputmargin = TRUE)` conceptually",
-      "`pred_xgb`",
-      "cutoff or acceptance-rate rule"
-    ),
-    interpretation = c(
-      "Applicant characteristics available before the lending decision",
-      "Historical repayment result used for training and evaluation",
-      "One row per applicant and one numerical column per model signal",
-      "Log-odds scale value produced by the boosted trees",
-      "Default-risk estimate after the logistic transformation",
-      "Rule that converts the PD into accept or reject"
-    )
-  ),
-  caption = "Bridge between credit-scoring objects and XGBoost objects.",
-  escape = FALSE
-)
-```
-
-```{r XGBoost design matrices}
-xgb_formula <- ~ age + int + grade + log(l_amnt) + log(income) +
-  emp_len + home + sex + region
-
-xgb_train_matrix <- model.matrix(xgb_formula, data = train)[, -1, drop = FALSE]
-xgb_test_matrix <- model.matrix(xgb_formula, data = test)[, -1, drop = FALSE]
-xgb_train_label <- as.numeric(as.character(train$loan_st))
-xgb_test_label <- actual_default_tree
-
-xgb_train <- xgboost::xgb.DMatrix(
-  data = xgb_train_matrix,
-  label = xgb_train_label
-)
-xgb_test <- xgboost::xgb.DMatrix(
-  data = xgb_test_matrix,
-  label = xgb_test_label
-)
-
-xgb_matrix_dimensions <- data.frame(
-  Object = c("Training matrix", "Test matrix"),
-  Rows = fmt_int(c(nrow(xgb_train_matrix), nrow(xgb_test_matrix))),
-  Columns = fmt_int(c(ncol(xgb_train_matrix), ncol(xgb_test_matrix)))
-)
-
-knitr::kable(
-  xgb_matrix_dimensions,
-  caption = "Dimensions of the encoded XGBoost design matrices.",
-  row.names = FALSE
-)
-```
+The previous sections prepared the XGBoost matrices and inspected how boosting rounds change predictions for selected applicants. We now estimate the final XGBoost model used in the benchmark. The objects `xgb_train`, `xgb_test`, `xgb_train_label`, and `xgb_test_label` already contain the encoded training and test data. The settings `xgb_params` and `xgb_nrounds` are the same settings used in the checkpoint exercise.
 
 The estimation happens in the call to `xgboost::xgb.train()`. The inputs to that call identify what is being learned, from which data, and for how many boosting rounds. The printed training log is suppressed with `verbose = 0` so the book output stays compact, but the model still stores the final fitted trees and the evaluation history.
 
@@ -173,6 +103,140 @@ knitr::kable(
 )
 ```
 
+The fitted object is valuable because it produces applicant-level PDs. The next two figures make those final predictions visible. The first figure compares the final PD distributions from the full logistic model and XGBoost. The second figure compares each XGBoost PD with the full logistic-model PD from Chapter 1 for the same test-set applicant, with separate panels for observed defaults and non-defaults.
+
+```{r}
+#| label: fig-xgb-final-pd-distribution
+#| fig-cap: "Final predicted PD distributions for the full logistic model and XGBoost."
+xgb_final_pd_plot_data <- data.frame(
+  predicted_pd = c(pred_logi_full, pred_xgb),
+  model = factor(
+    rep(c("Full logistic model", "XGBoost"), each = length(pred_xgb)),
+    levels = c("Full logistic model", "XGBoost")
+  )
+)
+xgb_logistic_pd_quantiles <- quantile(
+  pred_logi_full,
+  probs = c(0.50, 0.90, 0.95, 0.99)
+)
+xgb_final_pd_quantiles <- quantile(
+  pred_xgb,
+  probs = c(0.50, 0.90, 0.95, 0.99)
+)
+
+ggplot(
+  xgb_final_pd_plot_data,
+  aes(x = predicted_pd, color = model, fill = model)
+) +
+  geom_density(
+    alpha = 0.20,
+    linewidth = 1.05
+  ) +
+  scale_x_continuous(labels = fmt_pct) +
+  scale_color_manual(
+    values = c("Full logistic model" = "#1F618D", "XGBoost" = "#C0392B")
+  ) +
+  scale_fill_manual(
+    values = c("Full logistic model" = "#1F618D", "XGBoost" = "#C0392B")
+  ) +
+  labs(
+    x = "Predicted PD",
+    y = "Density",
+    color = "Model",
+    fill = "Model"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  )
+```
+
+Both models assign low PDs to many applicants, and the right tail is where the comparison becomes informative. The median PD is `r fmt_pct(xgb_logistic_pd_quantiles[["50%"]], 2)` for `logi_full` and `r fmt_pct(xgb_final_pd_quantiles[["50%"]], 2)` for XGBoost. At the 90th percentile, the corresponding values are `r fmt_pct(xgb_logistic_pd_quantiles[["90%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["90%"]], 2)`. At the 99th percentile, they are `r fmt_pct(xgb_logistic_pd_quantiles[["99%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["99%"]], 2)`. The plot therefore asks a credit-scoring question: does the challenger model merely reproduce the logistic score, or does it redistribute applicants across the risk scale in a way that may change approvals, rejections, and expected losses?
+
+```{r}
+#| label: fig-xgb-logistic-pd-comparison
+#| fig-cap: "Full logistic-model PDs compared with final XGBoost PDs by observed outcome."
+xgb_logistic_pd_comparison <- data.frame(
+  logistic_pd = pred_logi_full,
+  xgboost_pd = pred_xgb,
+  observed_outcome = factor(
+    actual_default_tree,
+    levels = c(0, 1),
+    labels = c("No default", "Default")
+  )
+)
+xgb_pd_comparison_limit <- max(
+  xgb_logistic_pd_comparison$logistic_pd,
+  xgb_logistic_pd_comparison$xgboost_pd
+) * 1.04
+xgb_above_logistic_share <- mean(
+  xgb_logistic_pd_comparison$xgboost_pd >
+    xgb_logistic_pd_comparison$logistic_pd
+)
+xgb_below_logistic_share <- mean(
+  xgb_logistic_pd_comparison$xgboost_pd <
+    xgb_logistic_pd_comparison$logistic_pd
+)
+xgb_default_rows <- xgb_logistic_pd_comparison$observed_outcome == "Default"
+xgb_nondefault_rows <- xgb_logistic_pd_comparison$observed_outcome == "No default"
+xgb_above_logistic_default_share <- mean(
+  xgb_logistic_pd_comparison$xgboost_pd[xgb_default_rows] >
+    xgb_logistic_pd_comparison$logistic_pd[xgb_default_rows]
+)
+xgb_below_logistic_nondefault_share <- mean(
+  xgb_logistic_pd_comparison$xgboost_pd[xgb_nondefault_rows] <
+    xgb_logistic_pd_comparison$logistic_pd[xgb_nondefault_rows]
+)
+xgb_default_median_logistic_pd <- median(
+  xgb_logistic_pd_comparison$logistic_pd[xgb_default_rows]
+)
+xgb_default_median_xgboost_pd <- median(
+  xgb_logistic_pd_comparison$xgboost_pd[xgb_default_rows]
+)
+xgb_nondefault_median_logistic_pd <- median(
+  xgb_logistic_pd_comparison$logistic_pd[xgb_nondefault_rows]
+)
+xgb_nondefault_median_xgboost_pd <- median(
+  xgb_logistic_pd_comparison$xgboost_pd[xgb_nondefault_rows]
+)
+
+ggplot(
+  xgb_logistic_pd_comparison,
+  aes(x = logistic_pd, y = xgboost_pd, color = observed_outcome)
+) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    linewidth = 0.65,
+    color = "gray35"
+  ) +
+  geom_point(alpha = 0.22, size = 1.45) +
+  facet_wrap(~ observed_outcome, nrow = 1) +
+  coord_equal(
+    xlim = c(0, xgb_pd_comparison_limit),
+    ylim = c(0, xgb_pd_comparison_limit)
+  ) +
+  scale_x_continuous(labels = fmt_pct) +
+  scale_y_continuous(labels = fmt_pct) +
+  scale_color_manual(
+    values = c("No default" = "gray55", "Default" = "#C0392B"),
+    guide = "none"
+  ) +
+  labs(
+    x = "Full logistic-model predicted PD",
+    y = "Final XGBoost predicted PD"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+```
+
+The dashed line is the equal-PD line. Points above the line are applicants for whom XGBoost assigns a higher PD than the logistic benchmark; points below the line receive a lower XGBoost PD. Separating the panels by observed outcome makes the comparison easier to read. Among applicants who defaulted, XGBoost assigns a higher PD than `logi_full` to `r fmt_pct(xgb_above_logistic_default_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_default_median_logistic_pd, 2)` under `logi_full` to `r fmt_pct(xgb_default_median_xgboost_pd, 2)` under XGBoost. Among applicants who repaid, XGBoost assigns a lower PD than `logi_full` to `r fmt_pct(xgb_below_logistic_nondefault_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_nondefault_median_logistic_pd, 2)` to `r fmt_pct(xgb_nondefault_median_xgboost_pd, 2)`. The visual conclusion is mixed. XGBoost changes the risk ranking locally, while the panels do not show a uniform shift in the desired direction for all realized defaults and non-defaults. This prepares the reader for the broader evidence below: AUC, calibration, bad rates, and payoff must decide whether those local changes improve the credit policy.
+
 The model was estimated with shallow trees and a moderate number of boosting rounds. The checkpoint exercise followed individual applicants; the learning curve below evaluates aggregate performance across the training and test sets. We re-estimate the model at selected boosting rounds and calculate AUC on both samples. The next code builds the data used in the learning-curve figure.
 
 ```{r XGBoost learning curve data}
@@ -214,6 +278,13 @@ xgb_final_test_auc <- xgb_learning_curve$auc[
     xgb_learning_curve$series == "Test AUC"
 ]
 xgb_final_auc_gap <- xgb_final_train_auc - xgb_final_test_auc
+xgb_test_curve <- xgb_learning_curve[xgb_learning_curve$series == "Test AUC", ]
+xgb_train_curve <- xgb_learning_curve[xgb_learning_curve$series == "Train AUC", ]
+xgb_best_test_row <- xgb_test_curve[which.max(xgb_test_curve$auc), ]
+xgb_previous_test_auc <- xgb_test_curve$auc[nrow(xgb_test_curve) - 1]
+xgb_test_auc_last_change <- xgb_final_test_auc - xgb_previous_test_auc
+xgb_test_auc_declines_after_best <- xgb_best_test_row$rounds < xgb_final_round &&
+  xgb_final_test_auc < xgb_best_test_row$auc
 ```
 
 ```{r}
@@ -229,9 +300,50 @@ ggplot(xgb_learning_curve, aes(x = rounds, y = auc, color = series)) +
   theme(legend.position = "bottom")
 ```
 
-The red test-AUC line is the main out-of-sample quantity in @fig-xgboost-learning. The blue train-AUC line is included as a diagnostic reference. A gap between train and test AUC does not prove overfitting by itself. It tells us to inspect out-of-sample performance, calibration, Brier score, bad rates, and economic payoff before trusting the model. In this specification, we keep the model intentionally restrained: shallow trees, a low learning rate, and subsampling.
+The red test-AUC line is the main out-of-sample quantity in @fig-xgboost-learning. The blue train-AUC line is included as a diagnostic reference. A direct overfitting check has two parts. First, inspect whether test AUC deteriorates as more boosting rounds are added. Second, compare how far train AUC sits above test AUC at the final model.
 
-At `r xgb_final_round` boosting rounds, the training AUC is `r round(xgb_final_train_auc, 4)` and the test AUC is `r round(xgb_final_test_auc, 4)`. The train-test gap is `r round(xgb_final_auc_gap, 4)`. This is a warning signal to monitor, not a final diagnosis. The test AUC remains the relevant line for out-of-sample ranking performance.
+```{r}
+xgb_overfitting_check <- data.frame(
+  Check = c(
+    "Best test AUC in the grid",
+    "Final test AUC",
+    "Change in test AUC from previous checkpoint",
+    "Final train AUC",
+    "Final train-test AUC gap",
+    "Test AUC declines after its best checkpoint?"
+  ),
+  Value = c(
+    paste0(
+      fmt_num(xgb_best_test_row$auc, 4),
+      " at ",
+      fmt_int(xgb_best_test_row$rounds),
+      " rounds"
+    ),
+    fmt_num(xgb_final_test_auc, 4),
+    fmt_num(xgb_test_auc_last_change, 4),
+    fmt_num(xgb_final_train_auc, 4),
+    fmt_num(xgb_final_auc_gap, 4),
+    ifelse(xgb_test_auc_declines_after_best, "Yes", "No")
+  ),
+  Reading = c(
+    "Highest out-of-sample ranking result among the inspected checkpoints.",
+    "Ranking result for the model used in the chapter.",
+    "Positive values mean the last added rounds still improved test ranking.",
+    "In-sample ranking result.",
+    "Larger gaps call for validation, calibration, and monitoring.",
+    "A decline would be direct evidence that additional rounds are hurting test ranking."
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(
+  xgb_overfitting_check,
+  caption = "Direct overfitting diagnostic from the XGBoost learning curve.",
+  row.names = FALSE
+)
+```
+
+In this run, the best inspected test AUC occurs at `r fmt_int(xgb_best_test_row$rounds)` boosting rounds, and the final test AUC is `r fmt_num(xgb_final_test_auc, 4)`. The last inspected movement in test AUC is `r fmt_num(xgb_test_auc_last_change, 4)`. The training AUC is `r fmt_num(xgb_final_train_auc, 4)`, so the final train-test gap is `r fmt_num(xgb_final_auc_gap, 4)`. The evidence therefore supports a cautious reading: the selected grid does not show test-AUC deterioration after the best checkpoint, while the train-test gap still deserves validation and monitoring.
 
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 
@@ -267,7 +379,7 @@ knitr::kable(
 )
 ```
 
-The learning curve should therefore be read as a diagnostic, not as a full tuning exercise. If test AUC rose and then deteriorated, the analyst would not keep adding trees. If validation calibration worsened while AUC improved, the analyst might keep the ranking model but recalibrate the probabilities before using them for pricing or provisioning.
+The learning curve should therefore be read as a diagnostic rather than a full tuning exercise. If test AUC rose and then deteriorated, the analyst would stop adding trees. If validation calibration worsened while AUC improved, the analyst might keep the ranking model and recalibrate the probabilities before using them for pricing or provisioning.
 
 ```{r XGBoost prediction range}
 xgb_prediction_range_table <- data.frame(

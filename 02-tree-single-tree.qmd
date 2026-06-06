@@ -34,6 +34,10 @@ simple_tree
 
 The printed object describes the tree in text form. Each split sends observations to different branches. The variables that appear near the top are the first questions asked by the model, which means they are especially important for this particular tree.
 
+The numbers at the beginning of the printed lines are internal node identifiers used by `rpart`. They are not the teaching leaf labels used later in the figure. The root is node 1. The left child of a node receives twice the parent number, and the right child receives twice the parent number plus one. This is why node 15 can split into nodes 30 and 31. Those numbers help `rpart` store the tree structure, but we will relabel the terminal leaves as Leaf 1 to Leaf 5 to make the diagram easier to read.
+
+The rest of each printed line summarizes the training observations in that node. For a line such as `31) log(l_amnt)>=9.041904 81 26 1 (0.32098765 0.67901235) *`, the node contains 81 training applicants. The predicted class is 1, which means default. The number 26 is the classification loss in that node: if the node predicts default, 26 non-default observations would be classified incorrectly. The two values in parentheses are the class proportions, first no default and then default. Therefore, the default rate in this terminal node is 0.67901235, or 67.90%. The asterisk means that the node is terminal. No further split is made below that line.
+
 The figure below reads the same fitted tree as a credit-risk map. Each rectangle is one node. To make the diagram easy to read, the terminal boxes are labeled Leaf 1 to Leaf 5 from left to right. Those labels are teaching labels used in the figure and in the table below. The rule printed in a box is the local rule for reaching that box from its parent. The PD is the empirical default rate among applicants in that node. For internal nodes, that rate summarizes the borrowers who have reached that point. For terminal leaves, it becomes the predicted PD assigned to new applicants. The last line shows the same calculation behind the formula above: defaults divided by applicants. Darker colors indicate higher default risk.
 
 ```{r}

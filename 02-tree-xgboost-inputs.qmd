@@ -1,0 +1,77 @@
+## Preparing the XGBoost input matrices
+
+Before we slow down the boosting mechanism, we need to build the objects that XGBoost uses. The original credit application data contain both numerical variables and categorical variables. XGBoost requires a numerical matrix, so the first task is to translate the borrower and loan information into one encoded row per applicant.
+
+The translation is handled with `model.matrix()`. It converts categorical variables such as `grade`, `home`, `sex`, and `region` into indicator variables, while keeping numerical variables such as `age`, `int`, `l_amnt`, and `income` in numerical form. This encoding step is important because it makes explicit what the algorithm receives as input. The mathematical object $x_i$ is represented in code by one row of `xgb_train_matrix` or `xgb_test_matrix`; the observed outcome $y_i$ is represented by `xgb_train_label` or `xgb_test_label`.
+
+One row of the matrix is one applicant. Each column is one numerical signal that the algorithm can use when it searches for splits. After this transformation, XGBoost no longer sees a variable called `grade` as a word or category. It sees numerical columns indicating the applicant's grade level. This is the bridge between the credit application data and the algorithm.
+
+The translation from the financial object to the R object is:
+
+```{r XGBoost object bridge}
+knitr::kable(
+  data.frame(
+    step = c(
+      "Borrower and loan information",
+      "Observed default outcome",
+      "Encoded numerical matrix",
+      "XGBoost score",
+      "Predicted probability of default",
+      "Credit decision"
+    ),
+    R_object = c(
+      "`train` and `test`",
+      "`loan_st`",
+      "`xgb_train_matrix` and `xgb_test_matrix`",
+      "`predict(..., outputmargin = TRUE)` conceptually",
+      "`pred_xgb`",
+      "cutoff or acceptance-rate rule"
+    ),
+    interpretation = c(
+      "Applicant characteristics available before the lending decision",
+      "Historical repayment result used for training and evaluation",
+      "One row per applicant and one numerical column per model signal",
+      "Log-odds scale value produced by the boosted trees",
+      "Default-risk estimate after the logistic transformation",
+      "Rule that converts the PD into accept or reject"
+    )
+  ),
+  caption = "Bridge between credit-scoring objects and XGBoost objects.",
+  escape = FALSE
+)
+```
+
+The table should be read from top to bottom. The economic object is the loan application: borrower characteristics and the observed default outcome. The computational object is the encoded matrix: one row per applicant and one numerical column per signal. XGBoost uses that matrix to build a score on the log-odds scale. The score is converted into a predicted PD, and the PD can then be used by the same cutoff or acceptance-rate rules developed in Chapter 1. This is why the model can be more complex while the credit decision remains familiar.
+
+```{r XGBoost design matrices}
+xgb_formula <- ~ age + int + grade + log(l_amnt) + log(income) +
+  emp_len + home + sex + region
+
+xgb_train_matrix <- model.matrix(xgb_formula, data = train)[, -1, drop = FALSE]
+xgb_test_matrix <- model.matrix(xgb_formula, data = test)[, -1, drop = FALSE]
+xgb_train_label <- as.numeric(as.character(train$loan_st))
+xgb_test_label <- actual_default_tree
+
+xgb_train <- xgboost::xgb.DMatrix(
+  data = xgb_train_matrix,
+  label = xgb_train_label
+)
+xgb_test <- xgboost::xgb.DMatrix(
+  data = xgb_test_matrix,
+  label = xgb_test_label
+)
+
+xgb_matrix_dimensions <- data.frame(
+  Object = c("Training matrix", "Test matrix"),
+  Rows = fmt_int(c(nrow(xgb_train_matrix), nrow(xgb_test_matrix))),
+  Columns = fmt_int(c(ncol(xgb_train_matrix), ncol(xgb_test_matrix)))
+)
+
+knitr::kable(
+  xgb_matrix_dimensions,
+  caption = "Dimensions of the encoded XGBoost design matrices.",
+  row.names = FALSE
+)
+```
+
+The dimensions table confirms the object that XGBoost will receive. The training matrix is used to learn the boosted trees. The test matrix is held out for the same out-of-sample evaluation used throughout the book. With these objects prepared, we can now inspect how boosting rounds change a prediction before estimating the final model used in the benchmark.

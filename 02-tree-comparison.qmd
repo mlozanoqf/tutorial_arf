@@ -24,6 +24,21 @@ best_strategy_by_model <- strategy_comparison |>
 best_strategy_overall <- best_strategy_by_model |>
   slice_max(net_payoff, n = 1, with_ties = FALSE)
 
+xgb_metric_row <- model_metrics_core |>
+  filter(model == "xgboost")
+
+logi_metric_row <- model_metrics_core |>
+  filter(model == "logi_full")
+
+xgb_best_strategy_row <- best_strategy_by_model |>
+  filter(model == "xgboost")
+
+logi_best_strategy_row <- best_strategy_by_model |>
+  filter(model == "logi_full")
+
+xgb_payoff_minus_logi <- xgb_best_strategy_row$net_payoff -
+  logi_best_strategy_row$net_payoff
+
 fmt_dollar <- function(x) {
   paste0(ifelse(x < 0, "-$", "$"), fmt_int(abs(x)))
 }
@@ -48,7 +63,7 @@ AUC measures ranking ability: do defaulting borrowers tend to receive higher pre
 
 In this run, the highest AUC belongs to `r best_auc_row$model` with AUC `r round(best_auc_row$auc, 4)`. The lowest Brier score belongs to `r best_brier_row$model` with Brier score `r round(best_brier_row$brier_score, 4)`. These two criteria may point to the same model or to different models because they answer different questions. AUC asks whether the ranking is good. Brier score asks whether the probabilities are numerically close to the realized default outcomes.
 
-The results are useful precisely because they are mixed. XGBoost is a more flexible model class. In this specification, it is close to the logistic benchmark, with no dramatic improvement on every metric. This is a good reminder that a modern algorithm still has to earn its place out of sample.
+The results are useful precisely because they are mixed. XGBoost is a more flexible model class. In this specification, it is close to the logistic benchmark, with no dramatic improvement on every metric. The challenger-model reading is therefore conservative. XGBoost has AUC `r fmt_num(xgb_metric_row$auc, 4)` versus `r fmt_num(logi_metric_row$auc, 4)` for `logi_full`, and Brier score `r fmt_num(xgb_metric_row$brier_score, 4)` versus `r fmt_num(logi_metric_row$brier_score, 4)`. Under the payoff rule used below, the best XGBoost strategy differs from the best logistic strategy by `r fmt_dollar(xgb_payoff_minus_logi)`. A modern algorithm earns its place only when the ranking, probability quality, and decision consequences improve together.
 
 ```{r}
 #| label: fig-tree-roc-comparison
@@ -291,4 +306,4 @@ knitr::kable(
 )
 ```
 
-This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. The same decision framework allows us to see where a more flexible model changes the lending strategy and where it gives a similar answer.
+This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. A reasonable analyst conclusion is to keep XGBoost as a challenger model: it is valuable because it tests whether nonlinear segmentation improves credit decisions, while the final policy should still be chosen from the combined evidence on AUC, calibration, bad rates, and payoff. The same decision framework shows where the flexible model changes the lending strategy and where it gives a similar answer.
