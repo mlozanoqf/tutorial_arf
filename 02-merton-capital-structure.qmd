@@ -4,17 +4,17 @@
 source("R/merton-pd-function.R")
 ```
 
-The financial question is how a firm can reduce its model-implied probability of default before negotiating credit conditions. To make the comparison concrete, Daenerys Targaryen owns a large manufacturing firm that produces fire extinguishers. The firm's inputs are exactly the same as in Hull's example 24.3 [@Hull]. She is planning to ask the Iron Bank of Braavos for a loan. Basic finance gives her two possible levers: reduce the promised debt payment $D$, or increase the market value of equity $E_0$ through a capital injection. Doing both at the same time would be more expensive, so she wants to compare the alternatives one at a time.
+The financial question is how a firm can reduce its model-implied probability of default before negotiating credit conditions. To make the comparison concrete, Daenerys Targaryen owns a large manufacturing firm that produces fire extinguishers. The firm's inputs are exactly the same as in Hull's example 24.3 [@Hull]. She is planning to ask the Iron Bank of Braavos for a loan. Basic finance gives her two possible levers. She can reduce the promised debt payment $D$, or increase the market value of equity $E_0$ through a capital injection. Doing both at the same time would be more expensive, so she wants to compare the alternatives one at a time.
 
 In this section, probability of default means the Merton risk-neutral/implied probability of default. The scenarios are useful for understanding how the model reacts to changes in capital structure. They are model-implied comparisons, not historical forecasts of how often firms like this default.
 
 These are model-implied sensitivity scenarios. In each scenario, we change one observed input while keeping the remaining observed inputs and model assumptions fixed. The unobserved asset value $V_0$ and asset volatility $\sigma_V$ are then re-estimated by the Merton equations, so they are not held fixed. The resulting probability of default is the new risk-neutral PD implied by the full Merton solution.
 
 ::: {.merton-subhead}
-Scenario 1: reduce debt or inject equity
+Scenario 1. Reduce debt or inject equity
 :::
 
-Which action produces the lower model-implied probability of default: reduce the promised debt payment $D$ by 2, or increase the equity value $E_0$ by 2 through a capital injection?
+Which action produces the lower model-implied probability of default? Should she reduce the promised debt payment $D$ by 2, or increase the equity value $E_0$ by 2 through a capital injection?
 
 ```{r}
 D.seq <- seq(from = 0.1, to = 13, by = 0.1)
@@ -130,39 +130,39 @@ capital_structure_summary <- data.frame(
     "3. Liquidity and maturity choice"
   ),
   `Initial position` = c(
-    paste0("E0 = ", fmt_num(E0, 0), ", D = ", fmt_num(D, 0), ", T = ", fmt_num(TT, 0)),
-    paste0("E0 = ", fmt_num(scenario2_E0, 0), ", D = ", fmt_num(scenario2_D, 0), ", T = ", fmt_num(TT, 0)),
-    paste0("E0 = ", fmt_num(E0, 0), ", D = ", fmt_num(scenario3_D, 0), ", T = ", fmt_num(scenario3_T, 1))
+    paste0("$E_0 = ", fmt_num(E0, 0), "$, $D = ", fmt_num(D, 0), "$, $T = ", fmt_num(TT, 0), "$"),
+    paste0("$E_0 = ", fmt_num(scenario2_E0, 0), "$, $D = ", fmt_num(scenario2_D, 0), "$, $T = ", fmt_num(TT, 0), "$"),
+    paste0("$E_0 = ", fmt_num(E0, 0), "$, $D = ", fmt_num(scenario3_D, 0), "$, $T = ", fmt_num(scenario3_T, 1), "$")
   ),
-  `Initial PD` = c(
+  `Initial risk-neutral PD` = c(
     fmt_pct(pd_initial, 2),
     fmt_pct(pd_scenario_2_initial, 2),
     fmt_pct(pd_scenario_3_initial, 2)
   ),
   `Action A` = c(
-    paste0("Reduce D to ", fmt_num(D - 2, 0)),
-    paste0("Reduce D to ", fmt_num(scenario2_D - 1, 0)),
-    paste0("Raise D to ", fmt_num(scenario3_D + 2, 0))
+    paste0("Reduce $D$ to ", fmt_num(D - 2, 0)),
+    paste0("Reduce $D$ to ", fmt_num(scenario2_D - 1, 0)),
+    paste0("Raise $D$ to ", fmt_num(scenario3_D + 2, 0))
   ),
-  `PD after A` = c(
+  `Risk-neutral PD after A` = c(
     fmt_pct(scenario1_reduce_D, 2),
     fmt_pct(scenario2_reduce_D, 2),
     fmt_pct(scenario3_more_debt, 2)
   ),
   `Action B` = c(
-    paste0("Raise E0 to ", fmt_num(E0 + 2, 0)),
-    paste0("Raise E0 to ", fmt_num(scenario2_E0 + 1, 0)),
-    paste0("Extend T to ", fmt_num(scenario3_T + 0.5, 1))
+    paste0("Raise $E_0$ to ", fmt_num(E0 + 2, 0)),
+    paste0("Raise $E_0$ to ", fmt_num(scenario2_E0 + 1, 0)),
+    paste0("Extend $T$ to ", fmt_num(scenario3_T + 0.5, 1))
   ),
-  `PD after B` = c(
+  `Risk-neutral PD after B` = c(
     fmt_pct(scenario1_raise_E, 2),
     fmt_pct(scenario2_raise_E, 2),
     fmt_pct(scenario3_more_time, 2)
   ),
   `Lower-PD alternative` = c(
-    "Action B: equity injection",
-    "Action A: debt reduction",
-    "Action A: higher promised payment"
+    "Action B, equity injection",
+    "Action A, debt reduction",
+    "Action A, higher promised payment"
   ),
   check.names = FALSE
 )
@@ -170,6 +170,7 @@ capital_structure_summary <- data.frame(
 knitr::kable(
   capital_structure_summary,
   caption = "Capital-structure scenario summary under the Merton model.",
+  escape = FALSE,
   row.names = FALSE
 )
 ```
@@ -220,13 +221,13 @@ plot_capital_structure(
 )
 ```
 
-In the first scenario, reducing the promised debt payment from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_raise_E, 2)`. The equity injection produces the lower PD in this starting position because it moves the firm to a lower curve. The debt reduction also helps, but here the vertical move from the black curve to the red curve is larger than the leftward move along the black curve. This statement is conditional on the Merton setup: the remaining observed inputs stay fixed, while $V_0$ and $\sigma_V$ are re-estimated in each alternative.
+In the first scenario, reducing the promised debt payment from $D=`r fmt_num(D, 0)`$ to $D=`r fmt_num(D - 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(E0, 0)`$ to $E_0=`r fmt_num(E0 + 2, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario1_raise_E, 2)`. The equity injection produces the lower PD in this starting position because it moves the firm to a lower curve. The debt reduction also helps, but here the vertical move from the black curve to the red curve is larger than the leftward move along the black curve. This statement is conditional on the Merton setup. The remaining observed inputs stay fixed, while $V_0$ and $\sigma_V$ are re-estimated in each alternative.
 
 ::: {.merton-subhead}
-Scenario 2: a different starting balance sheet
+Scenario 2. A different starting balance sheet
 :::
 
-Consider a different initial situation. Now, $E_0=2$ and $D=2$ while the remaining observed inputs are unchanged. In this case, the risk-neutral probability of default is `r fmt_pct(pd_scenario_2_initial, 2)`. Which action produces the lower model-implied probability of default: reduce the promised debt payment $D$ by 1, or increase the equity value $E_0$ by 1?
+Consider a different initial situation. Now, $E_0=2$ and $D=2$ while the remaining observed inputs are unchanged. In this case, the risk-neutral probability of default is `r fmt_pct(pd_scenario_2_initial, 2)`. Which action produces the lower model-implied probability of default? Should she reduce the promised debt payment $D$ by 1, or increase the equity value $E_0$ by 1?
 
 @fig-gp2podacs repeats the same visual logic with a different starting point. The initial firm is now on the purple curve because the starting equity value is $E_0=`r fmt_num(scenario2_E0, 0)`$, not $E_0=`r fmt_num(E0, 0)`$. The vertical dashed line marks $D=`r fmt_num(scenario2_D, 0)`$, and the horizontal dashed line marks the corresponding initial PD.
 
@@ -300,13 +301,13 @@ plot_capital_structure(
 )
 ```
 
-In the second scenario, reducing the promised debt payment from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_raise_E, 2)`. The lower PD now comes from reducing the promised debt payment. This reverses the result from the first scenario. The reason is visible in the plot: near this starting point, moving left along the purple curve lowers PD more than moving down to the black curve at the same debt level. The model's nonlinear response depends on the starting capital-structure position.
+In the second scenario, reducing the promised debt payment from $D=`r fmt_num(scenario2_D, 0)`$ to $D=`r fmt_num(scenario2_D - 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_reduce_D, 2)`. Increasing the equity value from $E_0=`r fmt_num(scenario2_E0, 0)`$ to $E_0=`r fmt_num(scenario2_E0 + 1, 0)`$ gives a risk-neutral PD of `r fmt_pct(scenario2_raise_E, 2)`. The lower PD now comes from reducing the promised debt payment. This reverses the result from the first scenario. The reason is visible in the plot. Near this starting point, moving left along the purple curve lowers PD more than moving down to the black curve at the same debt level. The model's nonlinear response depends on the starting capital-structure position.
 
 ::: {.merton-subhead}
-Scenario 3: more debt or more time
+Scenario 3. More debt or more time
 :::
 
-Consider a third scenario. Daenerys Targaryen's firm has some short-term liquidity troubles. She needs either more cash now or more time to pay the promised debt payment. In the model, more borrowing is represented as a higher promised payment $D$ at maturity. She would like to know which alternative leads to the lowest increase in the risk-neutral probability of default: increase $D$ by 2, or ask for a half year more time to pay the promised debt payment?
+Consider a third scenario. Daenerys Targaryen's firm has some short-term liquidity troubles. She needs either more cash now or more time to pay the promised debt payment. In the model, more borrowing is represented as a higher promised payment $D$ at maturity. She would like to know which alternative leads to the lowest increase in the risk-neutral probability of default. Should she increase $D$ by 2, or ask for a half year more time to pay the promised debt payment?
 
 ```{r}
 T1 <- mapply(pd, E0, se, rf, 0.5, D.seq)

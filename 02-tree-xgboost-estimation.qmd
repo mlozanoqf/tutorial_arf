@@ -152,7 +152,7 @@ ggplot(
   )
 ```
 
-Both models assign low PDs to many applicants, and the right tail is where the comparison becomes informative. The median PD is `r fmt_pct(xgb_logistic_pd_quantiles[["50%"]], 2)` for `logi_full` and `r fmt_pct(xgb_final_pd_quantiles[["50%"]], 2)` for XGBoost. At the 90th percentile, the corresponding values are `r fmt_pct(xgb_logistic_pd_quantiles[["90%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["90%"]], 2)`. At the 99th percentile, they are `r fmt_pct(xgb_logistic_pd_quantiles[["99%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["99%"]], 2)`. The plot therefore asks a credit-scoring question: does the challenger model merely reproduce the logistic score, or does it redistribute applicants across the risk scale in a way that may change approvals, rejections, and expected losses?
+Both models assign low PDs to many applicants, and the right tail is where the comparison becomes informative. The median PD is `r fmt_pct(xgb_logistic_pd_quantiles[["50%"]], 2)` for `logi_full` and `r fmt_pct(xgb_final_pd_quantiles[["50%"]], 2)` for XGBoost. At the 90th percentile, the corresponding values are `r fmt_pct(xgb_logistic_pd_quantiles[["90%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["90%"]], 2)`. At the 99th percentile, they are `r fmt_pct(xgb_logistic_pd_quantiles[["99%"]], 2)` and `r fmt_pct(xgb_final_pd_quantiles[["99%"]], 2)`. The plot therefore asks a credit-scoring question. Does the challenger model merely reproduce the logistic score, or does it redistribute applicants across the risk scale in a way that may change approvals, rejections, and expected losses?
 
 ```{r}
 #| label: fig-xgb-logistic-pd-comparison
@@ -235,7 +235,7 @@ ggplot(
   )
 ```
 
-The dashed line is the equal-PD line. Points above the line are applicants for whom XGBoost assigns a higher PD than the logistic benchmark; points below the line receive a lower XGBoost PD. Separating the panels by observed outcome makes the comparison easier to read. Among applicants who defaulted, XGBoost assigns a higher PD than `logi_full` to `r fmt_pct(xgb_above_logistic_default_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_default_median_logistic_pd, 2)` under `logi_full` to `r fmt_pct(xgb_default_median_xgboost_pd, 2)` under XGBoost. Among applicants who repaid, XGBoost assigns a lower PD than `logi_full` to `r fmt_pct(xgb_below_logistic_nondefault_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_nondefault_median_logistic_pd, 2)` to `r fmt_pct(xgb_nondefault_median_xgboost_pd, 2)`. The visual conclusion is mixed. XGBoost changes the risk ranking locally, while the panels do not show a uniform shift in the desired direction for all realized defaults and non-defaults. This prepares the reader for the broader evidence below: AUC, calibration, bad rates, and payoff must decide whether those local changes improve the credit policy.
+The dashed line is the equal-PD line. Points above the line are applicants for whom XGBoost assigns a higher PD than the logistic benchmark; points below the line receive a lower XGBoost PD. Separating the panels by observed outcome makes the comparison easier to read. Among applicants who defaulted, XGBoost assigns a higher PD than `logi_full` to `r fmt_pct(xgb_above_logistic_default_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_default_median_logistic_pd, 2)` under `logi_full` to `r fmt_pct(xgb_default_median_xgboost_pd, 2)` under XGBoost. Among applicants who repaid, XGBoost assigns a lower PD than `logi_full` to `r fmt_pct(xgb_below_logistic_nondefault_share, 2)` of cases. Their median PD moves from `r fmt_pct(xgb_nondefault_median_logistic_pd, 2)` to `r fmt_pct(xgb_nondefault_median_xgboost_pd, 2)`. The visual conclusion is mixed. XGBoost changes the risk ranking locally, while the panels do not show a uniform shift in the desired direction for all realized defaults and non-defaults. This prepares the reader for the broader evidence below. AUC, calibration, bad rates, and payoff must decide whether those local changes improve the credit policy.
 
 The model was estimated with shallow trees and a moderate number of boosting rounds. The checkpoint exercise followed individual applicants; the learning curve below evaluates aggregate performance across the training and test sets. We re-estimate the model at selected boosting rounds and calculate AUC on both samples. The next code builds the data used in the learning-curve figure.
 
@@ -343,11 +343,11 @@ knitr::kable(
 )
 ```
 
-In this run, the best inspected test AUC occurs at `r fmt_int(xgb_best_test_row$rounds)` boosting rounds, and the final test AUC is `r fmt_num(xgb_final_test_auc, 4)`. The last inspected movement in test AUC is `r fmt_num(xgb_test_auc_last_change, 4)`. The training AUC is `r fmt_num(xgb_final_train_auc, 4)`, so the final train-test gap is `r fmt_num(xgb_final_auc_gap, 4)`. The evidence therefore supports a cautious reading: the selected grid does not show test-AUC deterioration after the best checkpoint, while the train-test gap still deserves validation and monitoring.
+In this run, the best inspected test AUC occurs at `r fmt_int(xgb_best_test_row$rounds)` boosting rounds, and the final test AUC is `r fmt_num(xgb_final_test_auc, 4)`. The last inspected movement in test AUC is `r fmt_num(xgb_test_auc_last_change, 4)`. The training AUC is `r fmt_num(xgb_final_train_auc, 4)`, so the final train-test gap is `r fmt_num(xgb_final_auc_gap, 4)`. The evidence therefore supports a cautious reading. The selected grid does not show test-AUC deterioration after the best checkpoint, while the train-test gap still deserves validation and monitoring.
 
 The curve is a diagnostic. A careful optimization workflow would use cross-validation or a separate validation set to select the number of rounds and other hyperparameters, and only then evaluate the final model on the test set.
 
-The distinction between the teaching workflow and a production workflow is important. This chapter uses the same test set repeatedly because the objective is to make the comparison visible. In production, the analyst should separate three tasks: fit the model, choose tuning parameters, and report final performance.
+The distinction between the teaching workflow and a production workflow is important. This chapter uses the same test set repeatedly because the objective is to make the comparison visible. In production, the analyst should separate three tasks. Fit the model, choose tuning parameters, and report final performance.
 
 ```{r XGBoost validation workflow}
 xgb_validation_workflow <- data.frame(
@@ -406,6 +406,6 @@ knitr::kable(
 )
 ```
 
-The XGBoost model returns predicted probabilities of default, just like the logistic model. In code, those probabilities are stored in `pred_xgb`; mathematically, they are the $\hat p_i$ values used by the same evaluation equations from Chapter 1. Therefore, all the credit-risk tools developed in Chapter 1 still apply: cutoffs, acceptance rates, bad rates, calibration, Brier score, and net payoff.
+The XGBoost model returns predicted probabilities of default, just like the logistic model. In code, those probabilities are stored in `pred_xgb`; mathematically, they are the $\hat p_i$ values used by the same evaluation equations from Chapter 1. Therefore, all the credit-risk tools developed in Chapter 1 still apply. These include cutoffs, acceptance rates, bad rates, calibration, Brier score, and net payoff.
 
 The prediction range table should be read as a risk-segmentation summary. The minimum, median, and maximum predicted PD tell us how widely the model spreads applicants across the risk scale. A model that assigns nearly the same PD to everyone would have little value for screening, even if that average PD were reasonable. A useful scoring model must separate applicants enough to support different decisions.

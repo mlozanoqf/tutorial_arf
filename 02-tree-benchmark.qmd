@@ -6,7 +6,7 @@ source("R/tree-models.R")
 
 This chapter uses the same loan-level data set used in Chapter 1. The outcome is still `loan_st`, where 1 represents default and 0 represents no default. We also keep the same training and test split. That common test set makes the model comparison meaningful because the models are evaluated on the same out-of-sample observations.
 
-The logistic benchmark is the `logi_full` model from Chapter 1. It uses age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The tree-based models will use the same information. The same warning from Chapter 1 applies: `sex` was added for teaching purposes, and protected characteristics or possible proxies require legal, ethical, and fairness review in applied credit decisions. The only thing that changes here is the way the model learns from those variables.
+The logistic benchmark is the `logi_full` model from Chapter 1. It uses age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The tree-based models will use the same information. The same warning from Chapter 1 applies. `sex` was added for teaching purposes, and protected characteristics or possible proxies require legal, ethical, and fairness review in applied credit decisions. The only thing that changes here is the way the model learns from those variables.
 
 In logistic regression, the model has a clear parametric form. A predictor changes the log-odds of default by a fixed amount, holding the other variables constant. Tree-based models are different. They split the data into regions. For example, a tree might first ask whether the interest rate is above a certain value, then ask whether grade is high or low, and then ask whether income is above a threshold. The prediction is built from a sequence of such rules.
 
@@ -25,6 +25,6 @@ model_metrics |>
   )
 ```
 
-The table is only a preview. We will return to these metrics after explaining how the tree-based models are built. For now, the important point is that the benchmark is fixed: same data, same outcome, same test set, and same business interpretation.
+The table is only a preview. We will return to these metrics after explaining how the tree-based models are built. For now, the important point is that the benchmark is fixed. The same data, same outcome, same test set, and same business interpretation will be used throughout the comparison.
 
 There is also a methodological caveat. For teaching purposes, we keep the comparison compact and use the same test set to illustrate model behavior and business metrics. In a production workflow, tuning choices such as tree depth, learning rate, and number of boosting rounds should be selected with cross-validation or a validation set, leaving a final holdout test set for the last evaluation.

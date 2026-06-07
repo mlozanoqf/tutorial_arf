@@ -19,7 +19,7 @@ $$
 f(a,b)=\sum_i(a+bx_i-y_i)^2.
 $$
 
-The numerical question is direct: which values of $a$ and $b$ make this objective function as small as possible? The data are:
+The numerical question is direct. Which values of $a$ and $b$ make this objective function as small as possible? The data are listed below.
 
 ```{r}
 # Data.

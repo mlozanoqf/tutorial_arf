@@ -297,7 +297,7 @@ The approximation applies to a large homogeneous portfolio. Each loan has the sa
 
 In the ten-firm simulations, the outcome was a default count from 0 to 10. In the large-portfolio approximation, the outcome is a default rate. Multiplying that rate by EAD and LGD turns the rate into a dollar loss.
 
-The large-portfolio formula compresses the same one-factor logic into a percentile calculation. We use $\alpha$ for the confidence level, leaving $X_i$ for the credit-state score of firm $i$. The question is practical: when the common credit factor reaches the bad tail state associated with confidence level $\alpha$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
+The large-portfolio formula compresses the same one-factor logic into a percentile calculation. We use $\alpha$ for the confidence level, leaving $X_i$ for the credit-state score of firm $i$. The question is practical. When the common credit factor reaches the bad tail state associated with confidence level $\alpha$, what default rate would a highly diversified portfolio experience? That default rate is then multiplied by exposure and loss given default.
 
 Under those assumptions, the tail default rate at confidence level $\alpha$ is
 
@@ -471,4 +471,4 @@ ggplot(
 
 The chapter's main gain is a portfolio view of credit risk. PDs describe average default risk name by name. The copula supplies the co-default mechanism. Exposures and recoveries translate default scenarios into dollar losses. Credit VaR, expected shortfall, and economic capital summarize the tail of the resulting loss distribution.
 
-The final comparison turns the copula choice into a capital question. A Gaussian copula and a t-copula can use the same PD, exposure, recovery, and correlation inputs while producing different tail losses. The model choice is therefore a capital assumption as well as a dependence assumption. That is the practical bridge from Hull's copula example to credit portfolio management: the useful question is how large the portfolio loss can become when defaults arrive together.
+The final comparison turns the copula choice into a capital question. A Gaussian copula and a t-copula can use the same PD, exposure, recovery, and correlation inputs while producing different tail losses. The model choice is therefore a capital assumption as well as a dependence assumption. That is the practical bridge from Hull's copula example to credit portfolio management. The useful question is how large the portfolio loss can become when defaults arrive together.

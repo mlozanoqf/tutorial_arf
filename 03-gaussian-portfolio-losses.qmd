@@ -99,7 +99,7 @@ kable(
 
 The table separates three ideas. Expected loss is the average credit cost implied by PD, EAD, and LGD. VaR is a high percentile of the simulated loss distribution. Economic capital is the difference between a tail loss measure and expected loss.
 
-For the Hull correlation case $\rho=`r fmt_num(loss_rhos[loss_focus_rho_index], 1)`$, the expected loss is `r fmt_musd(loss_focus_summary["expected_loss"])`, while the 99.9% VaR is `r fmt_musd(loss_focus_summary["var_999"])`. The economic-capital number, `r fmt_musd(loss_focus_summary["economic_capital_999"])`, is the extra loss buffer above expected loss at that confidence level. This is the practical reason the tail can dominate capital needs: two portfolios can have similar expected loss and very different capital buffers.
+For the Hull correlation case $\rho=`r fmt_num(loss_rhos[loss_focus_rho_index], 1)`$, the expected loss is `r fmt_musd(loss_focus_summary["expected_loss"])`, while the 99.9% VaR is `r fmt_musd(loss_focus_summary["var_999"])`. The economic-capital number, `r fmt_musd(loss_focus_summary["economic_capital_999"])`, is the extra loss buffer above expected loss at that confidence level. This is the practical reason the tail can dominate capital needs. Two portfolios can have similar expected loss and very different capital buffers.
 
 The next figure shows the simulated loss distribution. Because the portfolio has equal exposures and equal recoveries, losses occur in steps of $6 million per default.
 

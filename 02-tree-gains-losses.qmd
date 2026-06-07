@@ -4,7 +4,7 @@ The comparison with logistic regression should be read as a model governance exe
 
 Logistic regression is transparent by construction. Its coefficients have a clear mathematical interpretation in terms of log-odds and odds ratios. This makes it easier to audit, explain, and communicate. It is also easier to diagnose when the model form is too restrictive.
 
-XGBoost is more flexible. It can capture nonlinear patterns and interactions without requiring the analyst to write those interactions into the formula. This can improve ranking, bad rates, or net payoff. That flexibility comes with responsibilities: tuning, validation, calibration, and interpretation are required parts of model governance.
+XGBoost is more flexible. It can capture nonlinear patterns and interactions without requiring the analyst to write those interactions into the formula. This can improve ranking, bad rates, or net payoff. That flexibility comes with responsibilities. Tuning, validation, calibration, and interpretation are required parts of model governance.
 
 The main lesson is that a modern model becomes useful only after it improves the credit policy. A better model must still survive several questions:
 
@@ -14,7 +14,7 @@ The main lesson is that a modern model becomes useful only after it improves the
 4. Does it improve net payoff under explicit business assumptions?
 5. Can we explain the model well enough for governance and decision-making?
 
-The same questions can be turned into an analyst checklist. In this chapter, the checklist has a specific interpretation. XGBoost is useful as a challenger because it tests whether nonlinear segmentation improves the credit policy. The model becomes a candidate for production only if the evidence is strong across several dimensions at the same time: ranking, probability quality, cutoff behavior, economic payoff, and explainability.
+The same questions can be turned into an analyst checklist. In this chapter, the checklist has a specific interpretation. XGBoost is useful as a challenger because it tests whether nonlinear segmentation improves the credit policy. The model becomes a candidate for production only if the evidence is strong across several dimensions at the same time. Those dimensions are ranking, probability quality, cutoff behavior, economic payoff, and explainability.
 
 ```{r tree-governance-checklist}
 tree_governance_checklist <- data.frame(

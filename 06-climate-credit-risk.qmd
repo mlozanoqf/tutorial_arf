@@ -12,7 +12,7 @@ This chapter answers two practical questions.
 
 > Which sectors contribute most to climate credit risk?
 
-The chapter uses public NGFS short-term climate scenario data. The Network for Greening the Financial System provides short-term climate scenarios for central banks and supervisors, and the scenario explorer is hosted by IIASA [@NGFSShortTerm2025; @NGFSScenarioExplorer2025]. We use the CLIMACRED model inside that database because it reports financial credit-risk variables directly: baseline corporate probabilities of default, PD adjustments, corporate bond spread adjustments, corporate bond price adjustments, and WACC adjustments. Those variables let us keep the chapter applied. The climate-to-credit mapping is already supplied by the scenario database, so the chapter can focus on valuation, expected loss, sector contribution, and portfolio risk.
+The chapter uses public NGFS short-term climate scenario data. The Network for Greening the Financial System provides short-term climate scenarios for central banks and supervisors, and the scenario explorer is hosted by IIASA [@NGFSShortTerm2025; @NGFSScenarioExplorer2025]. We use the CLIMACRED model inside that database because it reports financial credit-risk variables directly. These variables include baseline corporate probabilities of default, PD adjustments, corporate bond spread adjustments, corporate bond price adjustments, and WACC adjustments. Those variables let us keep the chapter applied. The climate-to-credit mapping is already supplied by the scenario database, so the chapter can focus on valuation, expected loss, sector contribution, and portfolio risk.
 
 The regulatory motivation is also direct. The Basel Committee describes climate-related financial risks as drivers that can transmit into traditional risk types, including credit risk [@BCBSClimateRiskDrivers2021]. Its principles for climate-related financial risk management ask banks and supervisors to identify, measure, monitor, and control those risks [@BCBSClimatePrinciples2022]. EBA guidelines require institutions to integrate environmental, social, and governance risks into risk-management frameworks [@EBAESGRiskGuidelines2025]. The EBA guidelines on environmental scenario analysis are especially relevant here because they specify supervisory expectations for forward-looking environmental scenario analysis, stress testing, and resilience analysis [@EBAEnvironmentalScenarioAnalysis2025]. IFRS S2 focuses disclosure on climate-related risks and opportunities that can affect cash flows, access to finance, and cost of capital [@IFRSS2Climate2023]. For our purposes, that means the modeling object should look like something a bank, investor, or risk analyst can actually use.
 
@@ -62,7 +62,7 @@ The important separation is this.
 
 The external data come from NGFS/IIASA. The bank portfolio is a teaching portfolio that we define inside the chapter. In real work, the bank would replace our exposure and recovery inputs with its own loan book. The NGFS data would still enter as the scenario layer.
 
-The scenario layer should be read as a credit overlay. Suppose a bank lends to a coal producer, a power utility, an airline, and a technology hardware firm. The bank already has a baseline view of credit quality. Climate analysis asks how that baseline changes if the economy follows a particular transition or physical-risk path. The model focuses on sector-level credit adjustments that can be connected to the same instruments the bank already manages: loans, bonds, CDS, and portfolio limits.
+The scenario layer should be read as a credit overlay. Suppose a bank lends to a coal producer, a power utility, an airline, and a technology hardware firm. The bank already has a baseline view of credit quality. Climate analysis asks how that baseline changes if the economy follows a particular transition or physical-risk path. The model focuses on sector-level credit adjustments that can be connected to the same instruments the bank already manages, including loans, bonds, CDS, and portfolio limits.
 
 The NGFS short-term database gives several scenario runs. The names below are official NGFS short-term scenario narratives in the IIASA Scenario Explorer, not labels created for this chapter. We use three global CLIMACRED runs for the main portfolio analysis. The scenario code is the short name used in our cleaned data, and the run ID is the numerical identifier used by the API request.
 
@@ -179,7 +179,7 @@ The subscript $i$ denotes the sector, $t$ the year, and $s$ the scenario. The op
 
 The book uses a raw local copy of the NGFS/IIASA download. This is a reproducibility choice. A fixed input file makes the render stable, while the download script keeps the source transparent. The raw files used here are in `data/raw`, and they were created by `R/download-ngfs-climate-credit-data.R`.
 
-The download itself is still part of the learning material. The script first obtains a guest token from the IIASA manager endpoint. Then it sends a JSON query to the CLIMACRED time-series endpoint. The important lesson is that the API request is explicit: we tell the database which runs, regions, variables, years, and time slice we want.
+The download itself is still part of the learning material. The script first obtains a guest token from the IIASA manager endpoint. Then it sends a JSON query to the CLIMACRED time-series endpoint. The important lesson is that the API request is explicit. We tell the database which runs, regions, variables, years, and time slice we want.
 
 ```{r climate-api-functions, eval=FALSE}
 ngfs_database <- "IXSE_NGFS_PHASE_5_SHORT_TERM"
@@ -260,7 +260,7 @@ The complete script also writes the raw responses to CSV files. A student who wa
 source("R/download-ngfs-climate-credit-data.R")
 ```
 
-The query uses the same field names students see in the scenario explorer: model, scenario, region, variable, year, and value. This keeps the data-cleaning step visible. In the chapter itself, we start from the raw CSV files created by the script. The objects below document the global request used by the downloader.
+The query uses the same field names students see in the scenario explorer, namely model, scenario, region, variable, year, and value. This keeps the data-cleaning step visible. In the chapter itself, we start from the raw CSV files created by the script. The objects below document the global request used by the downloader.
 
 ```{r climate-query-settings}
 global_runs <- c(
@@ -338,7 +338,7 @@ kable(
 )
 ```
 
-The local files are a frozen copy of the API responses. They are raw in the practical sense needed for this chapter: the observations still have the original scenario code, region, variable string, unit, year, and value. The financial work begins in the next step, where we separate metrics from sectors, join the portfolio, convert percentage points into decimal PDs, and compute expected loss.
+The local files are a frozen copy of the API responses. They are raw in the practical sense needed for this chapter. The observations still have the original scenario code, region, variable string, unit, year, and value. The financial work begins in the next step, where we separate metrics from sectors, join the portfolio, convert percentage points into decimal PDs, and compute expected loss.
 
 ```{r climate-download}
 ngfs_manifest <- utils::read.csv(
@@ -464,7 +464,7 @@ kable(
 
 The table shows the core transformation. CLIMACRED gives the baseline PD and the climate-related adjustment in percentage points. We add them, convert the result into a decimal PD, and then use that PD in the same expected-loss machinery used earlier in the book.
 
-The financial interpretation is immediate. In the Highway to Paris scenario, high-emission sectors such as coal, gas, and oil receive large positive PD adjustments. Some sectors receive small or negative adjustments. Those sectors can still carry ordinary credit risk. Relative to the baseline path in this scenario, their sector-level credit outlook improves or deteriorates less. A risk manager would read this table as a first screening device: which sectors need repricing, which need exposure review, and which may benefit from the transition path.
+The financial interpretation is immediate. In the Highway to Paris scenario, high-emission sectors such as coal, gas, and oil receive large positive PD adjustments. Some sectors receive small or negative adjustments. Those sectors can still carry ordinary credit risk. Relative to the baseline path in this scenario, their sector-level credit outlook improves or deteriorates less. A risk manager would read this table as a first screening device. Which sectors need repricing, which need exposure review, and which may benefit from the transition path?
 
 ```{r climate-inline-values, include=FALSE}
 coal_hwtp_2030 <- climate_credit |>
@@ -832,7 +832,7 @@ portfolio_horizon_loss |>
   )
 ```
 
-Figure @fig-climate-pv-expected-loss keeps exposures and recoveries fixed. The difference between the baseline bars and climate-adjusted bars comes only from the climate PD adjustment. That is why the chart is useful for a risk committee: it isolates the credit effect of the scenario. The climate overlay is material in this teaching portfolio. It changes the scale of expected loss enough to affect pricing, limits, provisions, or hedging discussions.
+Figure @fig-climate-pv-expected-loss keeps exposures and recoveries fixed. The difference between the baseline bars and climate-adjusted bars comes only from the climate PD adjustment. That is why the chart is useful for a risk committee. It isolates the credit effect of the scenario. The climate overlay is material in this teaching portfolio. It changes the scale of expected loss enough to affect pricing, limits, provisions, or hedging discussions.
 
 ## Which sectors drive the increase
 
@@ -1296,7 +1296,7 @@ ggplot(
   )
 ```
 
-Figure @fig-climate-loss-simulation turns the expected-loss result into a risk-distribution result. Climate-adjusted PDs move probability mass toward larger losses. The VaR line also moves because more scenarios contain multiple sector defaults. This is the portfolio version of the same story: climate risk changes credit analysis when it changes the probability, timing, clustering, or severity of credit losses.
+Figure @fig-climate-loss-simulation turns the expected-loss result into a risk-distribution result. Climate-adjusted PDs move probability mass toward larger losses. The VaR line also moves because more scenarios contain multiple sector defaults. This is the portfolio version of the same story. Climate risk changes credit analysis when it changes the probability, timing, clustering, or severity of credit losses.
 
 The plot also shows why a climate overlay should be connected to portfolio models as well as individual borrower PDs. A small loan-level PD change may look manageable in isolation. In a concentrated portfolio with correlated defaults, many small changes can move the tail. That is the link between this chapter and the copula chapter.
 

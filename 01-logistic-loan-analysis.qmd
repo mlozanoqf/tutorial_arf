@@ -2,7 +2,7 @@
 
 The practical credit-scoring problem begins before the bank knows the outcome of a loan. At origination, the bank observes borrower and loan characteristics, such as age, income, loan amount, interest rate, grade, and employment history. The repayment outcome is still unknown. The model's job is to turn the information available at origination into a probability of default that can support a lending decision.
 
-This is a binary prediction problem because each historical loan has one of two observed outcomes: default or no default. In this chapter, logistic regression gives us a transparent first benchmark. We estimate the model on a training sample, use it to generate predicted probabilities for new applicants in a test sample, and then ask whether those probabilities lead to useful credit decisions. The key object is a decision rule built from statistical predictions: which applications should be accepted, which should be rejected, and what bad rate follows from that rule?
+This is a binary prediction problem because each historical loan has one of two observed outcomes, default or no default. In this chapter, logistic regression gives us a transparent first benchmark. We estimate the model on a training sample, use it to generate predicted probabilities for new applicants in a test sample, and then ask whether those probabilities lead to useful credit decisions. The key object is a decision rule built from statistical predictions. It tells us which applications should be accepted, which should be rejected, and what bad rate follows from that rule.
 
 ```{r echo=FALSE}
 # This removes all items in environment. 

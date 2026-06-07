@@ -121,7 +121,7 @@ home_default_summary |>
   )
 ```
 
-The table reports defaults by home ownership. The row percentages in `CrossTable()` answer a credit-risk question: conditional on belonging to a given home-ownership category, what fraction of loans defaulted? The compact table repeats the same idea as a default rate. For example, the mortgage row says that loans associated with borrowers in the mortgage category have a default rate of `r fmt_pct(home_default_summary$default_rate[home_default_summary$home == "MORTGAGE"], 2)` in this sample. This is not yet a causal statement. It is a descriptive relationship that helps us see whether home ownership may contain useful information for credit scoring.
+The table reports defaults by home ownership. The row percentages in `CrossTable()` answer a credit-risk question. Conditional on belonging to a given home-ownership category, what fraction of loans defaulted? The compact table repeats the same idea as a default rate. For example, the mortgage row says that loans associated with borrowers in the mortgage category have a default rate of `r fmt_pct(home_default_summary$default_rate[home_default_summary$home == "MORTGAGE"], 2)` in this sample. This is not yet a causal statement. It is a descriptive relationship that helps us see whether home ownership may contain useful information for credit scoring.
 
 For numerical variables, plots are often easier to read than raw tables. The next figure shows the interest-rate distribution.
 
@@ -200,7 +200,7 @@ summary_table <- dat |>
 summary_table
 ```
 
-The table shows that, in this dataset, observations labeled as female have slightly higher average and median incomes compared to observations labeled as male. The income distribution for females also appears more variable, with a wider range of incomes. This summary must be interpreted carefully: the `sex` variable was added for teaching purposes and should not be treated as evidence about gender and income in a real population. In applied credit risk work, variables related to protected characteristics, and variables that may proxy for them, require explicit legal, ethical, and fairness review before they are used in modeling or decision rules.
+The table shows that, in this dataset, observations labeled as female have slightly higher average and median incomes compared to observations labeled as male. The income distribution for females also appears more variable, with a wider range of incomes. This summary must be interpreted carefully because the `sex` variable was added for teaching purposes and should not be treated as evidence about gender and income in a real population. In applied credit risk work, variables related to protected characteristics, and variables that may proxy for them, require explicit legal, ethical, and fairness review before they are used in modeling or decision rules.
 
 The exploration above gives us enough context to proceed. Data cleaning can continue indefinitely, so an applied project has to balance inspection with the modeling objective. We have checked the outcome definition, simplified variable names, removed implausible extreme income observations, and reviewed a few basic summaries. The next section uses the cleaned data to estimate logistic credit-scoring models.
 

@@ -41,7 +41,7 @@ knitr::kable(
 )
 ```
 
-The table should be read from top to bottom. The economic object is the loan application: borrower characteristics and the observed default outcome. The computational object is the encoded matrix: one row per applicant and one numerical column per signal. XGBoost uses that matrix to build a score on the log-odds scale. The score is converted into a predicted PD, and the PD can then be used by the same cutoff or acceptance-rate rules developed in Chapter 1. This is why the model can be more complex while the credit decision remains familiar.
+The table should be read from top to bottom. The economic object is the loan application, with borrower characteristics and the observed default outcome. The computational object is the encoded matrix, with one row per applicant and one numerical column per signal. XGBoost uses that matrix to build a score on the log-odds scale. The score is converted into a predicted PD, and the PD can then be used by the same cutoff or acceptance-rate rules developed in Chapter 1. This is why the model can be more complex while the credit decision remains familiar.
 
 ```{r XGBoost design matrices}
 xgb_formula <- ~ age + int + grade + log(l_amnt) + log(income) +

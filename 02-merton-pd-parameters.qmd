@@ -4,7 +4,7 @@
 source("R/merton-pd-function.R")
 ```
 
-The previous section gives us a convenient function: $pd = f(E_0, \sigma_E, rf, T, D)$. These five observable inputs are used to estimate $V_0$ and $\sigma_V$ before calculating $pd$.
+The previous section gives us a convenient function, $pd = f(E_0, \sigma_E, rf, T, D)$. These five observable inputs are used to estimate $V_0$ and $\sigma_V$ before calculating $pd$.
 
 Throughout this section, $pd$ means the Merton risk-neutral/implied probability of default. The exercises below are model-implied sensitivity analyses. We change one or two observable inputs, keep the remaining observable inputs and model assumptions fixed, solve again for the unobservable $V_0$ and $\sigma_V$, and then recompute $N(-d_2)$ under the risk-neutral distribution. The asset quantities $V_0$ and $\sigma_V$ are therefore part of the new Merton solution at each point.
 
@@ -74,7 +74,7 @@ knitr::kable(
       fmt_pct(rf, 0),
       fmt_num(TT, 0),
       fmt_num(D, 0),
-      fmt_pct(pd1, 2)
+      fmt_pct(pd1, 4)
     )
   ),
   caption = "Original Hull/Merton input position for the sensitivity analysis.",
@@ -123,7 +123,7 @@ plot_pd_sensitivity <- function(x, y, current_x, x_label,
       linewidth = 0.35,
       color = "gray82"
     ) +
-    ggplot2::geom_line(linewidth = 1.1, color = "#0b5cad") +
+    ggplot2::geom_line(linewidth = 1.45, color = "#0b5cad") +
     ggplot2::geom_vline(
       xintercept = current_x,
       linetype = "dashed",
@@ -289,11 +289,11 @@ knitr::kable(
 Two-input views
 :::
 
-The previous plots changed one observable input at a time: $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ are re-estimated each time because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated.
+The previous plots changed one observable input at a time. The inputs were $E_0$, $\sigma_E$, $rf$, $T$ or $D$. We were able to do that because we constructed a vector of 50 different values for these inputs. Again, $V_0$ and $\sigma_V$ are re-estimated each time because they are inferred from $E_0$, $\sigma_E$, $rf$, $T$ and $D$ each time the function is evaluated.
 
-The two-input view lets two market inputs move at the same time: $E_0$ and $\sigma_E$. This is financially useful because equity value measures how much market cushion the firm has above the promised debt payment, while equity volatility measures how unstable that cushion is. A firm with low equity value and high equity volatility should imply a higher probability of default than a firm with high equity value and low equity volatility.
+The two-input view lets two market inputs move at the same time, $E_0$ and $\sigma_E$. This is financially useful because equity value measures how much market cushion the firm has above the promised debt payment, while equity volatility measures how unstable that cushion is. A firm with low equity value and high equity volatility should imply a higher probability of default than a firm with high equity value and low equity volatility.
 
-To make the comparison complete, we evaluate all combinations of 50 values of $E_0$ and 50 values of $\sigma_E$. For this two-input view, we cap $E_0$ at 10 and $\sigma_E$ at 150% so the relevant region around the original example remains readable. The result is a $50 \times 50$ grid. Each cell answers a concrete question: if the observed equity value were this level and the observed equity volatility were that level, what Merton risk-neutral PD would the model imply?
+To make the comparison complete, we evaluate all combinations of 50 values of $E_0$ and 50 values of $\sigma_E$. For this two-input view, we cap $E_0$ at 10 and $\sigma_E$ at 150% so the relevant region around the original example remains readable. The result is a $50 \times 50$ grid. Each cell answers a concrete question. If the observed equity value were this level and the observed equity volatility were that level, what Merton risk-neutral PD would the model imply?
 
 ```{r}
 x.E_two_input <- seq(from = 1, to = 10, length.out = l)
@@ -403,8 +403,8 @@ ggplot2::ggplot(
   ) +
   ggplot2::scale_y_continuous(
     labels = function(x) fmt_pct(x, 0),
-    limits = c(0, 1.5),
-    breaks = seq(0, 1.5, by = 0.5),
+    limits = c(0.4, 1.2),
+    breaks = seq(0.4, 1.2, by = 0.2),
     expand = ggplot2::expansion(mult = c(0, 0))
   ) +
   ggplot2::scale_x_continuous(
@@ -424,7 +424,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```      
 
-The red point is the original case, where $E_0=`r fmt_num(E0, 0)`$, $\sigma_E=`r fmt_pct(se, 0)`$ and the model-implied PD is `r fmt_pct(pd1, 2)`. The point lies between the 10% and 15% contour lines, which is consistent with the numerical value. The plot also shows the main financial pattern: lower equity value and higher equity volatility move the firm toward higher default probabilities.
+The red point is the original case, where $E_0=`r fmt_num(E0, 0)`$, $\sigma_E=`r fmt_pct(se, 0)`$ and the model-implied PD is `r fmt_pct(pd1, 4)`. The point lies between the 10% and 15% contour lines, which is consistent with the numerical value. The plot also shows the main financial pattern. Lower equity value and higher equity volatility move the firm toward higher default probabilities.
 
 ```{r}
 l = 40 # Vectors of length 40.

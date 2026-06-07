@@ -2,13 +2,13 @@
 
 XGBoost is easier to understand if we think in terms of a score rather than a final yes/no decision. A single tree gives one set of rules. XGBoost starts from a base score and then adds many small trees as corrections to that score. The corrected score is transformed into a predicted probability of default.
 
-The mechanism is easiest to see by slowing down the same model that we later use for prediction. The full XGBoost specification uses `r xgb_nrounds` boosting rounds, and the checkpoint exercise uses that same specification at selected rounds: 0, 5, 20, 60, 100, and `r xgb_nrounds`. The checkpoint at `r xgb_nrounds` rounds is the full XGBoost prediction. The teaching path and the full model therefore differ only in how many boosted trees are allowed to contribute to the prediction at that moment.
+The mechanism is easiest to see by slowing down the same model that we later use for prediction. The full XGBoost specification uses `r xgb_nrounds` boosting rounds, and the checkpoint exercise uses that same specification at selected rounds, 0, 5, 20, 60, 100, and `r xgb_nrounds`. The checkpoint at `r xgb_nrounds` rounds is the full XGBoost prediction. The teaching path and the full model therefore differ only in how many boosted trees are allowed to contribute to the prediction at that moment.
 
 One boosting round means that XGBoost adds one new tree to the current score. At round 0, every applicant starts from the same base score, which comes from the training-sample default rate. At round 1, XGBoost fits a small tree to improve the current errors, scales that tree's contribution by the learning rate, and adds the result to each applicant's score. At round 2, it repeats the same logic using the updated scores. The checkpoint tables below do not print all 160 trees. Instead, they show selected rounds so the movement is visible without overwhelming the reader.
 
 The code objects used in this section come from the encoded training and test matrices prepared in the previous section. The object `xgb_test` is the encoded test set in XGBoost's matrix format. One row is one applicant, and the columns are the numerical signals used by the model. The object `xgb_train_label` contains the training outcomes used to compute the base default rate. We now use those objects to make the boosting mechanism visible before estimating the final model.
 
-Before following one applicant through the trees, we fix the XGBoost settings. The names in the next table are the argument names used by the `xgboost` package. Two of them are especially important for the mechanics below: `eta` is the learning rate, and `lambda` is a regularization penalty that discourages overly large leaf corrections.
+Before following one applicant through the trees, we fix the XGBoost settings. The names in the next table are the argument names used by the `xgboost` package. Two of them are especially important for the mechanics below. `eta` is the learning rate, and `lambda` is a regularization penalty that discourages overly large leaf corrections.
 
 ```{r XGBoost path settings}
 xgb_params <- list(
@@ -190,8 +190,8 @@ build_xgb_case_path <- function(case_name, row_index) {
   path_scores <- as.numeric(xgb_path_score_matrix[row_index, ])
   path_pds <- as.numeric(xgb_path_pd_matrix[row_index, ])
   checkpoint_label <- c(
-    "0: base",
-    paste0(path_rounds[-1], ": +", diff(path_rounds), " trees")
+    "0 (base)",
+    paste0(path_rounds[-1], " (+", diff(path_rounds), " trees)")
   )
   data.frame(
     case = case_name,
@@ -285,7 +285,7 @@ knitr::kable(
 )
 ```
 
-The profile table confirms that the two checkpoint paths are built from real test-set applicants and from the same predictors used by the full logistic benchmark: age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The base PD is the same for both applicants because round 0 has not used applicant-specific tree corrections yet. After boosting begins, the paths move in different directions. For the selected default case, XGBoost raises the predicted PD from `r fmt_pct(xgb_base_pd, 2)` to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)`. For the selected non-default case, it lowers the predicted PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The point is not that two applicants prove model quality; the point is that the same fitted model can push individual PDs up or down depending on the applicant's encoded characteristics.
+The profile table confirms that the two checkpoint paths are built from real test-set applicants and from the same predictors used by the full logistic benchmark. These predictors are age, interest rate, grade, loan amount, income, employment length, home ownership, sex, and region. The base PD is the same for both applicants because round 0 has not used applicant-specific tree corrections yet. After boosting begins, the paths move in different directions. For the selected default case, XGBoost raises the predicted PD from `r fmt_pct(xgb_base_pd, 2)` to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)`. For the selected non-default case, it lowers the predicted PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The point is not that two applicants prove model quality; the point is that the same fitted model can push individual PDs up or down depending on the applicant's encoded characteristics.
 
 ```{r XGBoost checkpoint path summaries}
 knitr::kable(
@@ -295,7 +295,7 @@ knitr::kable(
 )
 ```
 
-The checkpoint table should be read row by row within each case. The column `checkpoint` combines two pieces of information: the total number of boosted trees included in the prediction and the number of new trees added since the previous row. For example, `20: +15 trees` means that the prediction now uses 20 trees in total, and that 15 new trees have been added since the 5-tree checkpoint. The first row, `0: base`, is the base prediction before any tree is added.
+The checkpoint table should be read row by row within each case. The column `checkpoint` combines two pieces of information. It reports the total number of boosted trees included in the prediction and the number of new trees added since the previous row. For example, `20 (+15 trees)` means that the prediction now uses 20 trees in total, and that 15 new trees have been added since the 5-tree checkpoint. The first row, `0 (base)`, is the base prediction before any tree is added.
 
 The columns `score_change` and `running_score` are on the log-odds score scale, not on the probability scale. The `score_change` is the movement since the previous checkpoint. A positive value pushes the applicant toward a higher predicted PD; a negative value pushes the applicant toward a lower predicted PD. The `running_score` is the cumulative score after all trees up to that checkpoint have been added. The final column, `predicted_PD`, applies the logistic transformation to that running score. This is why the score can move by additive corrections while the predicted PD remains between 0 and 1.
 
@@ -532,7 +532,7 @@ knitr::kable(
 )
 ```
 
-The table turns the first two boosting rounds into a reproducible chain. Applicant `r xgb_default_index` starts from the same base PD as everyone else, `r fmt_pct(xgb_base_pd, 2)`, which corresponds to the score $F_0 = `r fmt_num(xgb_base_score, 4)`$. The first tree sends this applicant to leaf `r xgb_round_1_leaf`, where the stored correction is `r fmt_num(xgb_round_1_leaf_value, 4)`. Adding that correction raises the score to `r fmt_num(xgb_round_1_score, 4)` and the predicted PD to `r fmt_pct(xgb_round_1_pd, 2)`. The second tree repeats the same logic: the applicant reaches leaf `r xgb_round_2_leaf`, the correction is `r fmt_num(xgb_round_2_leaf_value, 4)`, and the predicted PD rises to `r fmt_pct(xgb_round_2_pd, 2)`. This is the basic XGBoost mechanism: each tree contributes one additional correction to the running score.
+The table turns the first two boosting rounds into a reproducible chain. Applicant `r xgb_default_index` starts from the same base PD as everyone else, `r fmt_pct(xgb_base_pd, 2)`, which corresponds to the score $F_0 = `r fmt_num(xgb_base_score, 4)`$. The first tree sends this applicant to leaf `r xgb_round_1_leaf`, where the stored correction is `r fmt_num(xgb_round_1_leaf_value, 4)`. Adding that correction raises the score to `r fmt_num(xgb_round_1_score, 4)` and the predicted PD to `r fmt_pct(xgb_round_1_pd, 2)`. The second tree repeats the same logic. The applicant reaches leaf `r xgb_round_2_leaf`, the correction is `r fmt_num(xgb_round_2_leaf_value, 4)`, and the predicted PD rises to `r fmt_pct(xgb_round_2_pd, 2)`. This is the basic XGBoost mechanism. Each tree contributes one additional correction to the running score.
 
 ```{r XGBoost first five round continuation}
 xgb_first_five_arithmetic <- data.frame(
@@ -720,7 +720,7 @@ ggplot(xgb_pd_path, aes(x = round, y = predicted_pd, color = case)) +
   )
 ```
 
-The two cases show corrections in opposite directions under the same XGBoost specification. For the default case, the predicted PD moves from `r fmt_pct(xgb_base_pd, 2)` at round 0 to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)` at round `r xgb_nrounds`. For the non-default case, it moves from the same base PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The colored dotted lines are now convergence references in a precise sense: they are the full `r xgb_nrounds`-round XGBoost predictions for the same applicants. These two individual examples are useful because the corrections go in the direction suggested by the observed outcomes, and the individual log-loss falls in both rows of the check table. Overall performance still has to be evaluated on the full test set, as we do later with AUC, Brier score, calibration, and payoff.
+The two cases show corrections in opposite directions under the same XGBoost specification. For the default case, the predicted PD moves from `r fmt_pct(xgb_base_pd, 2)` at round 0 to `r fmt_pct(xgb_path_pd_matrix[xgb_default_index, as.character(xgb_nrounds)], 2)` at round `r xgb_nrounds`. For the non-default case, it moves from the same base PD to `r fmt_pct(xgb_path_pd_matrix[xgb_nondefault_index, as.character(xgb_nrounds)], 2)`. The colored dotted lines are now convergence references in a precise sense. They are the full `r xgb_nrounds`-round XGBoost predictions for the same applicants. These two individual examples are useful because the corrections go in the direction suggested by the observed outcomes, and the individual log-loss falls in both rows of the check table. Overall performance still has to be evaluated on the full test set, as we do later with AUC, Brier score, calibration, and payoff.
 
 The selected checkpoints are for teaching. In applied modeling, the number of trees should be chosen with a validation rule, cross-validation, or early stopping. The analyst stops adding trees when additional rounds no longer improve out-of-sample performance, or when the improvement is too small to justify the added complexity.
 
@@ -742,7 +742,7 @@ The score $F_M(x)$ is on the log-odds scale. A higher score means higher predict
 
 The learning rate is the step size of the boosting process. In this chapter, `eta` is `r xgb_params$eta`. If a new tree proposes a score correction, XGBoost uses only a fraction of that correction before adding the next tree. Smaller steps make learning slower, but they often produce a more stable model because no single tree can change the score too aggressively. The model also uses shallow trees, subsampling, column sampling, and regularization to reduce overfitting.
 
-In a logistic regression, interpretation begins with a small number of coefficients. In XGBoost, interpretation begins with the ensemble: many small trees combine to produce a score. That makes the model less transparent by construction. We can still inspect how the model learns, which variables it uses, how variables affect predicted default probabilities, and how the final predictions behave under the same credit-risk metrics used in Chapter 1.
+In a logistic regression, interpretation begins with a small number of coefficients. In XGBoost, interpretation begins with the ensemble. Many small trees combine to produce a score. That makes the model less transparent by construction. We can still inspect how the model learns, which variables it uses, how variables affect predicted default probabilities, and how the final predictions behave under the same credit-risk metrics used in Chapter 1.
 
 The settings table above is the specification used by the full model estimated below. The checkpoint exercise changes only the number of boosting rounds used for prediction.
 

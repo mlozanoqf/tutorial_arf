@@ -59,7 +59,7 @@ knitr::kable(
 )
 ```
 
-AUC measures ranking ability: do defaulting borrowers tend to receive higher predicted probabilities than non-defaulting borrowers? The Brier score measures probability error: are the predicted probabilities numerically close to the observed outcomes? Brier skill expresses improvement relative to the constant default-rate benchmark. A positive value means the model improves on assigning every applicant the same default probability. In code, `model_metrics` collects these three criteria for the logistic benchmark, the single tree, and XGBoost.
+AUC measures ranking ability. Do defaulting borrowers tend to receive higher predicted probabilities than non-defaulting borrowers? The Brier score measures probability error. Are the predicted probabilities numerically close to the observed outcomes? Brier skill expresses improvement relative to the constant default-rate benchmark. A positive value means the model improves on assigning every applicant the same default probability. In code, `model_metrics` collects these three criteria for the logistic benchmark, the single tree, and XGBoost.
 
 In this run, the highest AUC belongs to `r best_auc_row$model` with AUC `r round(best_auc_row$auc, 4)`. The lowest Brier score belongs to `r best_brier_row$model` with Brier score `r round(best_brier_row$brier_score, 4)`. These two criteria may point to the same model or to different models because they answer different questions. AUC asks whether the ranking is good. Brier score asks whether the probabilities are numerically close to the realized default outcomes.
 
@@ -183,7 +183,7 @@ strategy_comparison |>
 
 This plot translates model predictions into lending strategy. In code, `strategy_comparison` stores the acceptance rate, cutoff, accepted defaults, bad rate, and net payoff for each model. At a fixed acceptance rate, the preferred model is the one with the lower bad rate. This is often more intuitive for credit risk than raw accuracy because it focuses on the loans actually accepted by the bank.
 
-At an 80% acceptance rate, the lowest bad rate in this run is produced by `r strategy_80$model[1]`, with bad rate `r fmt_pct(strategy_80$bad_rate[1], 2)`. This means that among the applicants accepted by that model at that acceptance rate, `r fmt_pct(strategy_80$bad_rate[1], 2)` defaulted in the historical test set. The comparison is operational: it asks which score gives the cleaner accepted portfolio when the bank wants to approve the same share of applicants.
+At an 80% acceptance rate, the lowest bad rate in this run is produced by `r strategy_80$model[1]`, with bad rate `r fmt_pct(strategy_80$bad_rate[1], 2)`. This means that among the applicants accepted by that model at that acceptance rate, `r fmt_pct(strategy_80$bad_rate[1], 2)` defaulted in the historical test set. The comparison is operational. It asks which score gives the cleaner accepted portfolio when the bank wants to approve the same share of applicants.
 
 ```{r}
 #| label: fig-tree-net-payoff-comparison
@@ -242,7 +242,7 @@ strategy_comparison |>
   theme(legend.position = "bottom")
 ```
 
-The net payoff curve uses the same pedagogical assumption introduced in Chapter 1: accepting a good loan has payoff \$1, accepting a default has cost \$5, and rejecting an application has payoff \$0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model may differ from the model with the highest AUC. The selected model is the one that produces better decisions under the payoff rule.
+The net payoff curve uses the same pedagogical assumption introduced in Chapter 1. Accepting a good loan has payoff \$1, accepting a default has cost \$5, and rejecting an application has payoff \$0. The dashed guides mark the maximum net payoff reached by each model. Under this assumption, the best model may differ from the model with the highest AUC. The selected model is the one that produces better decisions under the payoff rule.
 
 The payoff curve is the most direct bridge from statistical scoring to a business decision. For every acceptance rate, the cutoff determines which applicants are accepted. The realized defaults among those accepted loans create costs, and the realized non-defaults create gains. Under the assumed payoff rule, the best observed strategy in this comparison is `r best_strategy_overall$model`, with net payoff `r fmt_dollar(best_strategy_overall$net_payoff)` at an acceptance rate of `r fmt_pct(best_strategy_overall$accept_rate, 0)`.
 
@@ -306,4 +306,4 @@ knitr::kable(
 )
 ```
 
-This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. A reasonable analyst conclusion is to keep XGBoost as a challenger model: it is valuable because it tests whether nonlinear segmentation improves credit decisions, while the final policy should still be chosen from the combined evidence on AUC, calibration, bad rates, and payoff. The same decision framework shows where the flexible model changes the lending strategy and where it gives a similar answer.
+This final table makes the comparison concrete. It shows the acceptance rate at which each model reaches its highest net payoff under the assumed cost structure. In this run, XGBoost and logistic regression are very close. A reasonable analyst conclusion is to keep XGBoost as a challenger model. It is valuable because it tests whether nonlinear segmentation improves credit decisions, while the final policy should still be chosen from the combined evidence on AUC, calibration, bad rates, and payoff. The same decision framework shows where the flexible model changes the lending strategy and where it gives a similar answer.

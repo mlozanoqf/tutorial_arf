@@ -63,7 +63,7 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Figure @fig-so10pota should be read as follows. Each black curve is one risk-neutral path for the firm's asset value, $V_t$. The horizontal red line is the promised debt payment, $D$. The blue point marks the starting value, $V_0$. The open circles at maturity classify the terminal values: green means $V_T>D$ and red means $V_T<D$.
+Figure @fig-so10pota should be read as follows. Each black curve is one risk-neutral path for the firm's asset value, $V_t$. The horizontal red line is the promised debt payment, $D$. The blue point marks the starting value, $V_0$. The open circles at maturity classify the terminal values. Green means $V_T>D$ and red means $V_T<D$.
 
 These simulations can be interpreted as 10 risk-neutral valuation scenarios for the firm's assets. They are paths generated under the risk-neutral measure, so the drift is the risk-free rate and not the firm's real-world expected asset return. The formal name is 10 simulated geometric Brownian motion paths under the risk-neutral measure.
 
@@ -157,7 +157,7 @@ knitr::kable(
 
 The simulated risk-neutral probability of default of `r fmt_pct(sim_pd_10, 0)` looks high relative to the model value of `r fmt_pct(pd_merton, 4)`. This happens because the number of simulations is small. The following examples show how these values tend to converge as we move from 10 to 100 simulated paths, and then from 100 to 1,000, 10,000, and 100,000 simulated terminal values.
 
-The next simulation uses 100 paths from $V_0$ to $V_T$. The visual coding is the same as before: gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
+The next simulation uses 100 paths from $V_0$ to $V_T$. The visual coding is the same as before. Gray curves are risk-neutral asset paths, the red horizontal line is $D$, and the blue point is the common starting value $V_0$.
 
 ```{r}
 #| label: fig-so100pota
@@ -388,9 +388,9 @@ ggplot2::ggplot(
   )
 ```
 
-Figure @fig-vt-convergence-hists makes the sampling error visible. Each panel answers the same question: what fraction of simulated terminal asset values falls below the promised debt payment $D$? With 100 simulated terminal values, the simulated probability can be noticeably away from the analytical Merton value. With 1,000 and then 10,000 simulated terminal values, the red area becomes a more stable approximation of the analytical risk-neutral probability $N(-d_2)$.
+Figure @fig-vt-convergence-hists makes the sampling error visible. Each panel answers the same question. What fraction of simulated terminal asset values falls below the promised debt payment $D$? With 100 simulated terminal values, the simulated probability can be noticeably away from the analytical Merton value. With 1,000 and then 10,000 simulated terminal values, the red area becomes a more stable approximation of the analytical risk-neutral probability $N(-d_2)$.
 
-The next figure repeats the same terminal-value simulation with 100,000 draws. It uses the same visual coding as @fig-vt-convergence-hists: red bars for default states, blue bars for non-default states, and the dashed vertical line for $D$. The larger sample makes the simulated red area a close numerical counterpart to the analytical Merton probability.
+The next figure repeats the same terminal-value simulation with 100,000 draws. It uses the same visual coding as @fig-vt-convergence-hists. Red bars mark default states, blue bars mark non-default states, and the dashed vertical line marks $D$. The larger sample makes the simulated red area a close numerical counterpart to the analytical Merton probability.
 
 ```{r}
 #| label: fig-ho1votaam
@@ -502,9 +502,9 @@ Figure @fig-ho1votaam is the large-sample continuation of @fig-vt-convergence-hi
 
 ## Equity as a call option payoff
 
-The previous simulation counted default states by comparing the terminal asset value $V_T$ with the promised debt payment $D$. The same terminal comparison also explains why Merton values equity with a call-option formula.
+We already used the equity payoff $E_T=\max(V_T-D,0)$ to motivate Hull's valuation equation. This section reuses the same payoff for a different purpose. It interprets equity as a residual claim on the firm's market asset value and shows why the Merton model can use option-pricing logic.
 
-The phrase residual claimant has a concrete meaning here. In the one-period Merton setup, the firm has one promised debt payment due at maturity. At $T$, the firm's assets are valued at their market value $V_T$, and payments follow priority. Debt holders are senior claimants: they are paid first, up to the promised amount $D$. Equity holders are junior claimants: they receive only what remains after debt has been paid. Therefore:
+The phrase residual claimant has a concrete meaning here. In the basic Merton setup, the firm has one promised debt payment due at maturity. At $T$, the firm's assets are valued at their market value $V_T$, and payments follow priority. Debt holders are senior claimants. They are paid first, up to the promised amount $D$. Equity holders are junior claimants. They receive only what remains after debt has been paid. Therefore:
 
 $$
 \text{Debt payoff at }T=\min(V_T,D),
@@ -542,11 +542,11 @@ The mapping is direct. The asset value $V_T$ plays the role of the underlying pr
 | Call expires worthless if $S_T<K$ | Equity is zero and the firm defaults if $V_T<D$ |
 | Call payoff, $\max(S_T-K,0)$ | Equity payoff, $\max(V_T-D,0)$ |
 
-This mapping is useful because it turns the credit problem into a contingent-claim problem. Default is the out-of-the-money region of equity. Survival is the in-the-money region. The debt payment $D$ becomes the default boundary. The option formula in section 3.2 therefore belongs in the credit-risk argument. It is the pricing formula for the equity claim once equity is understood as a call on the firm's assets. Observed equity value and equity volatility can then be used to infer the unobserved asset value and asset volatility, and those asset quantities determine the model-implied probability of default.
+This mapping is useful because it turns the credit problem into a contingent-claim problem. Default is the out-of-the-money region of equity. Survival is the in-the-money region. The debt payment $D$ becomes the default boundary. The option formula in section 3.2 therefore belongs in the credit-risk argument. It prices the equity claim once equity is understood as a call on the firm's assets.
 
-It also clarifies what is being valued. The call formula values the equity claim. The whole-firm market asset value is the broader object. In the Hull/Merton example, section 3.2 inferred a market asset value of $V_0=`r fmt_num(V0, 4)`$. The observed equity value is $E_0=`r fmt_num(E0, 0)`$, so the model-implied market value of debt is $B_0=V_0-E_0=`r fmt_num(market_value_debt, 4)`$. A buyer of the whole firm as a package of market-value assets would look at $V_0$. A buyer of only the shares would be buying the junior residual claim worth $E_0$. The difference between those two values is the debt claim.
+It also clarifies what is being valued. The call formula values the equity claim. The whole-firm market asset value is the broader object. In the Hull/Merton example, section 3.2 inferred a market asset value of $V_0=`r fmt_num(V0, 4)`$. The observed equity value is $E_0=`r fmt_num(E0, 0)`$, so the model-implied market value of debt is $B_0=V_0-E_0=`r fmt_num(market_value_debt, 4)`$. A buyer of the whole firm as a package of market-value assets would look at $V_0$. A buyer of only the shares would be buying the equity claim, whose observed market value is $E_0$. The difference between those two values is the debt claim.
 
-This section reads the maturity payoff. The current equity value $E_0$ was already used in section 3.2 to calibrate $V_0$ and $\sigma_V$ through Hull's option-pricing equation. The figure below makes the payoff shape visible.
+The figure below makes the maturity payoff shape visible.
 
 ```{r}
 #| label: fig-avotfbssitf
@@ -588,9 +588,9 @@ ggplot2::ggplot(
   ggplot2::theme_classic(base_size = 12)
 ```
 
-Figure @fig-avotfbssitf shows the payoff split at maturity. The flat part to the left of $D$ is the limited-liability region: asset value is too low to repay the promised debt payment, so equity is worth zero. To the right of $D$, equity increases one-for-one with assets because every additional unit above the promised debt payment belongs to shareholders.
+Figure @fig-avotfbssitf shows the payoff split at maturity. The flat part to the left of $D$ is the limited-liability region. Asset value is too low to repay the promised debt payment, so equity is worth zero. To the right of $D$, equity increases one-for-one with assets because every additional unit above the promised debt payment belongs to shareholders.
 
-This payoff relation, $E_T=\max(V_T-D, 0)$, is the key point of the inside view. Equation 24.3 in [@Hull] uses the same call-option logic at time 0. It chooses $V_0$ and $\sigma_V$ so that the model is consistent with the observed equity value $E_0$ and the observed equity volatility $\sigma_E$.
+This payoff relation, $E_T=\max(V_T-D, 0)$, is the key point of the inside view. It is the maturity counterpart of the valuation equation used earlier to infer $V_0$ and $\sigma_V$ from observed equity data.
 
-The important distinction is therefore: $E_T$ is the future state-dependent equity payoff, $E_0$ is the observed equity value today, $V_0$ is the model's market value of assets today, and $D$ is the promised debt payment at maturity. The estimate $V_0$ can be compared with the book value of total assets to understand the difference between book values and market values. The market value of debt is another model-implied quantity, and it is different from the promised debt payment $D$.
+The important distinction is therefore this. $E_T$ is the future state-dependent equity payoff, $E_0$ is the observed equity value today, $V_0$ is the model's market value of assets today, and $D$ is the promised debt payment at maturity. The estimate $V_0$ can be compared with the book value of total assets to understand the difference between book values and market values. The market value of debt is another model-implied quantity, and it is different from the promised debt payment $D$.
 
