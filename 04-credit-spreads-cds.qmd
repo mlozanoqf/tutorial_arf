@@ -2,7 +2,7 @@
 
 
 
-The previous chapter used Merton to turn equity, debt, volatility, and the risk-free rate into a model-implied probability of default. That was a structural route to credit risk. This chapter uses a market route. It asks how default risk appears in the prices of corporate bonds and in credit default swap spreads.
+The previous chapter used Merton to turn equity, debt, volatility, and the risk-free rate into a model-implied probability of default. That was a structural route to credit risk. In practical terms, it was a capital-structure perspective. Default occurred when the firm's asset value fell below the promised debt payment. This chapter changes the object being priced. It asks how default risk appears in the prices of corporate bonds and in credit default swap spreads.
 
 The financial question is practical:
 

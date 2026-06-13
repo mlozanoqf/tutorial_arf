@@ -1,4 +1,4 @@
-## Risk-neutral simulations and equity payoff
+## Risk-neutral asset paths and default at maturity
 
 ```{r merton-inside-view-setup, include=FALSE}
 source("R/merton-common.R")

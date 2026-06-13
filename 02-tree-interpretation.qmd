@@ -55,25 +55,55 @@ This plot is closer to an explanation of prediction behavior. A high average abs
 
 For credit work, the useful reading is layered. Feature importance tells us where the model finds predictive structure. SHAP-style magnitudes tell us which encoded borrower or loan signals materially move predictions. The analyst still has to check whether those signals are defensible for credit decisions, stable out of sample, and acceptable under governance, fairness, and adverse-action requirements.
 
-We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. This single applicant is a worked example. It shows how the different model classes translate the same borrower information into predicted default probabilities.
+We can make this more concrete by returning to the same first test-set applicant used in Chapter 1, whom we called John Doe. We also include the two applicants used in the XGBoost checkpoint exercise above. This makes the table a bridge between the chapter's worked examples and the final model comparison.
 
 ```{r XGBoost John Doe predictions}
-john_doe_prediction_table <- john_doe_prediction_summary |>
+selected_prediction_indices <- c(
+  john_doe_index,
+  xgb_default_index,
+  xgb_nondefault_index
+)
+selected_prediction_cases <- c(
+  "John Doe",
+  "Selected default case",
+  "Selected non-default case"
+)
+
+selected_prediction_table <- data.frame(
+  applicant = rep(selected_prediction_cases, each = 3),
+  test_row = rep(selected_prediction_indices, each = 3),
+  model = rep(c("logi_full", "single_tree", "xgboost"), times = 3),
+  predicted_pd = c(
+    pred_logi_full[selected_prediction_indices[1]],
+    pred_tree_simple[selected_prediction_indices[1]],
+    pred_xgb[selected_prediction_indices[1]],
+    pred_logi_full[selected_prediction_indices[2]],
+    pred_tree_simple[selected_prediction_indices[2]],
+    pred_xgb[selected_prediction_indices[2]],
+    pred_logi_full[selected_prediction_indices[3]],
+    pred_tree_simple[selected_prediction_indices[3]],
+    pred_xgb[selected_prediction_indices[3]]
+  ),
+  observed_default = rep(
+    actual_default_tree[selected_prediction_indices],
+    each = 3
+  )
+) |>
   mutate(
     predicted_pd = fmt_pct(predicted_pd, 2),
     observed_default = ifelse(observed_default == 1, "Default", "No default")
   )
 
 knitr::kable(
-  john_doe_prediction_table,
-  caption = "Predicted PDs for the first test-set applicant.",
+  selected_prediction_table,
+  caption = "Predicted PDs for selected test-set applicants.",
   row.names = FALSE
 )
 ```
 
-The table compares the full logistic model, the single tree, and XGBoost for the same applicant. All three values are probabilities of default, so they can be compared directly. What differs is the way each model arrives at that probability. The logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
+The table compares the full logistic model, the single tree, and XGBoost for three concrete applicants. All values are probabilities of default, so they can be compared directly within each applicant. What differs is the way each model arrives at that probability. The logistic model uses a coefficient equation, the single tree uses a terminal-leaf default rate, and XGBoost uses the sum of many tree contributions.
 
-For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. The table is a probability comparison rather than a one-case accuracy test. A single realized outcome is binary, while a PD is a forecast of risk before repayment is observed. The useful reading is that all three models place this applicant in a relatively low-risk part of the score distribution. Under a conventional accept/reject cutoff above these PDs, the models would tend to accept this applicant, which is consistent with the observed non-default outcome. The general comparison still has to come from the full test set.
+For John Doe specifically, the observed outcome is `loan_st = 0`, meaning no default. The two selected checkpoint cases show a wider range of behavior because one is a realized default and the other is a realized non-default. The table is a probability comparison rather than a three-case accuracy test. A single realized outcome is binary, while a PD is a forecast of risk before repayment is observed. The general comparison still has to come from the full test set.
 
 For XGBoost, the local explanation follows the score equation introduced above:
 

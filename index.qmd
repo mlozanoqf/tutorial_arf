@@ -23,11 +23,13 @@ write_book_dates()
 ## Preface {.unnumbered}
 
 ::: {.home-panel}
-This book is written for readers who want to close the gap between credit risk models, the logic behind those models, and the code required to implement them. The aim is to keep intuition, mathematical structure, data analysis, graphical interpretation, and reproducible R code in the same conversation.
+This book is written for readers who want to close the gap between credit-risk models, the logic behind those models, and the code required to implement them. It is designed for business, finance, economics, and risk-management readers who want to understand quantitative credit risk through explicit calculations, reproducible R code, and careful financial interpretation.
 
-The style is deliberately explicit. Credit risk work depends on many small choices. These include how a default variable is coded, how a model threshold is selected, how a probability is interpreted, how a portfolio loss is simulated, and how a result becomes a lending or risk management decision. For that reason, the book treats code as part of the explanation. Each step is meant to explain what is being computed, why the computation is needed, and where its limitations are.
+A central feature of the book is its deliberately explicit style. It keeps intuition, mathematical structure, data work, graphics, tables, and R code in the same conversation. The computational details remain visible so the reader can see what the computer is being asked to do, why that operation is useful for the credit-risk problem, and how the numerical output should be interpreted.
 
-The organizing principle follows the literate programming spirit of @knuth1984literate. The code is not included only to show commands. It is included because a reader should understand what the computer is being asked to do, why that operation is useful for the credit-risk problem, and how the numerical output should be read. The book remains under active revision, with the emphasis on clarity, reproducibility, and practical interpretation.
+The organizing principle follows the literate programming spirit of @knuth1984literate. Code appears as part of the explanation and stays close to the financial question it answers. A table is introduced because it answers a credit question. A figure is included because it makes a model mechanism easier to see. A formula is connected to the R object that implements it. This is the reason the book often walks slowly through steps that more advanced texts may compress.
+
+This is an online book under active revision. The publication metadata above records the first online publication, the current publication number, and a content-based book edition. Those markers are included so readers can tell which version they are using and so revisions remain traceable over time. The current emphasis is clarity, reproducibility, practical interpretation, and a steady connection between credit-risk theory and applied financial decisions.
 :::
 
 ## What's new in this edition {.unnumbered}
