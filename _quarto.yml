@@ -26,6 +26,7 @@ book:
     - 04-credit-spreads-cds.qmd
     - 03-gaussian-copula.qmd
     - 06-climate-credit-risk.qmd
+    - 07-conclusion.qmd
     - references.qmd
 
 bibliography: references.bib

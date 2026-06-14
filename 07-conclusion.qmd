@@ -1,0 +1,11 @@
+# Conclusion {.unnumbered}
+
+A useful credit-risk model does more than produce a number. It helps decide whether to lend, price, hedge, limit, provision, or hold capital. The main lesson of this book is that every output has to be tied to the contract or exposure being analyzed. A probability of default is incomplete without horizon, exposure, recovery, and decision rule. A spread is incomplete without the loss it compensates. A portfolio risk measure is incomplete without dependence across borrowers.
+
+The second lesson is that transparency is not optional. A model that cannot be checked is difficult to trust, even if it looks sophisticated. The reader should be able to trace the calculation from inputs to equations, from equations to code, from code to tables and figures, and from those outputs to interpretation. That trace is what makes the result teachable, auditable, and useful.
+
+The third lesson is that model outputs are conditional. They depend on data, assumptions, estimation choices, market prices, recovery rates, correlations, scenarios, and horizons. Changing any of those inputs can change the conclusion. A responsible analyst therefore reports the result, explains why it moves, and states what the model is leaving outside.
+
+A good credit-risk answer is a complete statement. Given these data, assumptions, horizon, and model, this is the estimated risk, this is the economic interpretation, this is how the result was computed, and this is the decision it supports. A PD of 4% or a spread of 180 basis points becomes useful only when that surrounding explanation is present.
+
+That is the standard to carry forward. Estimate the risk before the loss is observed, make the calculation reproducible, interpret the number in financial terms, and use the result to make a better credit decision.

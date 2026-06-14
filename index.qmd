@@ -34,10 +34,10 @@ This is an online book under active revision. The publication metadata above rec
 
 ## What's new in this edition {.unnumbered}
 
-- **Credit-scoring workflow:** Chapter 1 now connects logistic PDs with cutoff rules, bad rates, calibration, ROC/AUC, Brier score, and a simple lending payoff exercise.
-- **Tree-based benchmark:** Chapter 2 compares logistic regression, a single tree, and XGBoost using the same test set and the same credit-policy metrics.
-- **Merton model rebuild:** Chapter 3 now gives a fuller risk-neutral valuation bridge, replicates Hull's equations, checks the numerical solution, and links equity to a call payoff on firm assets.
-- **Credit-spread bridge:** Chapter 4 now connects default probabilities with corporate bond spreads, recovery assumptions, and CDS valuation.
-- **Portfolio credit risk:** Chapter 5 now builds the Gaussian copula model around Hull Example 24.7, correlated defaults, portfolio losses, concentration risk, and capital.
-- **Tail-risk extension:** The final Chapter 5 sections compare Gaussian and t-copula assumptions and connect the simulation logic to Credit VaR, expected shortfall, and economic capital.
-- **Climate credit risk:** Chapter 6 now uses public NGFS/CLIMACRED scenario data to connect climate-adjusted PDs with expected loss, sector contributions, spread adjustments, CDS-style compensation, and simulated portfolio losses.
+- **Stronger book framing:** The book now has a clearer introduction and a separate conclusion focused on credit decisions, default consequences, reproducibility, and model interpretation.
+- **Credit-scoring workflow:** Chapter 1 connects logistic PDs with cutoff rules, bad rates, calibration, ROC/AUC, Brier score, and a lending payoff exercise.
+- **Tree-based credit scoring:** Chapter 2 compares logistic regression, a single decision tree, and XGBoost, with a more transparent explanation of boosting rounds and individual PD updates.
+- **Structural default modeling:** Chapter 3 gives a clearer Merton workflow, replicates Hull's equations, checks the numerical solution, and links firm value, debt, equity, recovery, and risk-neutral default probability.
+- **Credit spreads and CDS valuation:** Chapter 4 connects default probabilities with corporate bond spreads, recovery assumptions, Hull-style CDS valuation, CDS sensitivity, and a relative-value interpretation.
+- **Portfolio credit risk:** Chapter 5 develops Gaussian and t-copula credit simulations, correlated defaults, concentration risk, portfolio loss distributions, Credit VaR, expected shortfall, and economic capital.
+- **Climate credit risk:** Chapter 6 uses public NGFS/CLIMACRED scenario data to connect climate-adjusted PDs with expected loss, sector contributions, spread adjustments, CDS-style compensation, and simulated portfolio losses.
